@@ -66,7 +66,8 @@ window.addEventListener('DOMContentLoaded', () => {
     coop.hostStatus.classList.add('hidden');
     coop.codeWrap.classList.remove('hidden');
     coop.roomCode.textContent = msg.code;
-    coop.hostIps.innerHTML = (msg.ips || []).map((ip) => `<div>http://${ip}:${msg.port}</div>`).join('') || '<div>(keine LAN-IP gefunden)</div>';
+    coop.hostIps.innerHTML = (msg.ips || []).map((ip) => `<span class="coop-ip-chip">http://${ip}:${msg.port}</span>`).join('')
+      || '<span class="coop-ip-chip coop-ip-chip-empty">(keine LAN-IP gefunden)</span>';
     coop.hostReadyBtn.classList.remove('hidden');
   });
   Net.on('guest-joined', () => { coop.hostGuestStatus.textContent = 'Mitspieler verbunden! Beide auf Bereit klicken.'; });
@@ -151,17 +152,15 @@ window.addEventListener('DOMContentLoaded', () => {
     return 'main-menu';
   }
 
-  // On-screen inventory buttons
+  // On-screen inventory buttons — go through the normal input channel so this
+  // also works for the remote (guest) player, whose actions only take effect
+  // once relayed to and consumed by the host's simulation.
   document.getElementById('inv-medkit').addEventListener('click', (e) => {
-    if (game && game.player) {
-      game.player.useMedkit(game);
-    }
+    Input.pressed['q'] = true;
     e.stopPropagation();
   });
   document.getElementById('inv-shield').addEventListener('click', (e) => {
-    if (game && game.player) {
-      game.player.useShield(game);
-    }
+    Input.pressed['e'] = true;
     e.stopPropagation();
   });
 

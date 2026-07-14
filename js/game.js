@@ -186,7 +186,13 @@ class Game {
       return;
     }
 
-    if (this.state !== 'playing') { Input.clearFrame(); return; }
+    if (this.state !== 'playing') {
+      // still keep the guest in sync while we're in the shop/upgrade/gameover screens,
+      // otherwise they freeze on the last 'playing' snapshot forever.
+      if (this.mode === 'host') Net.sendSnapshot(this.buildSnapshot());
+      Input.clearFrame();
+      return;
+    }
     if (Input.wasPressed('escape')) { this.pause(); Input.clearFrame(); return; }
 
     this.playTime += dt;
@@ -284,7 +290,8 @@ class Game {
     this.medkits = s.medkits.map((d) => { const m = new Medkit(d.x, d.y); m.life = d.life; return m; });
     this.shakeAmt = s.shakeAmt;
 
-    if (s.state === 'shop') { this.ui.showShop(this); Menus.show('shop-menu'); }
+    if (s.state === 'upgrade') { this.ui.showHUD(false); this.ui.showUpgradeChoices(this); Menus.show('upgrade-menu'); }
+    else if (s.state === 'shop') { this.ui.showHUD(false); this.ui.showTacticalShop(this); Menus.show('shop-menu'); }
     else if (s.state === 'gameover') { this.ui.showHUD(false); this.ui.showGameOver({ wave: s.wave, kills: this.localPlayer.kills, score: this.localPlayer.score, coins: this.localPlayer.coins, time: '--:--' }); Menus.show('gameover-menu'); }
     else if (s.state === 'playing') { this.ui.showHUD(true); Menus.hideAll(); }
   }

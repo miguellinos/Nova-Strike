@@ -102,11 +102,17 @@
     <div id="coop-host-menu" class="overlay hidden">
       <div class="menu-panel wide">
         <h2 class="panel-title">RAUM ERSTELLT</h2>
-        <div id="coop-host-status">Verbinde zum lokalen Server...</div>
+        <div id="coop-host-status" class="coop-status">Verbinde zum lokalen Server...</div>
         <div id="coop-code-wrap" class="hidden">
-          <div class="stat-row"><span class="chip">Code: <b id="coop-room-code">----</b></span></div>
-          <div id="coop-host-ips"></div>
-          <div id="coop-host-guest-status">Warte auf Mitspieler...</div>
+          <div class="coop-code-badge">
+            <span class="coop-code-label">Raumcode</span>
+            <span id="coop-room-code" class="coop-code-value">----</span>
+          </div>
+          <div class="coop-ip-block">
+            <span class="coop-ip-label">Mitspieler öffnet im selben WLAN:</span>
+            <div id="coop-host-ips" class="coop-ip-list"></div>
+          </div>
+          <div id="coop-host-guest-status" class="coop-status coop-status-waiting">Warte auf Mitspieler...</div>
         </div>
         <button class="btn btn-primary hidden" id="coop-host-ready-btn" data-action="coop-ready">Bereit</button>
         <button class="btn" data-action="coop-cancel">Abbrechen</button>
@@ -118,12 +124,12 @@
       <div class="menu-panel wide">
         <h2 class="panel-title">RAUM BEITRETEN</h2>
         <label class="select-row">Raumcode
-          <input type="text" id="coop-code-input" maxlength="4" placeholder="ABCD" style="text-transform:uppercase">
+          <input type="text" id="coop-code-input" class="coop-code-input" maxlength="4" placeholder="ABCD">
         </label>
         <button class="btn btn-primary" data-action="coop-join-submit">Verbinden</button>
-        <div id="coop-join-status"></div>
+        <div id="coop-join-status" class="coop-status"></div>
         <div id="coop-join-ready-wrap" class="hidden">
-          <div id="coop-join-host-status">Warte auf Host...</div>
+          <div id="coop-join-host-status" class="coop-status coop-status-waiting">Warte auf Host...</div>
           <button class="btn btn-primary" data-action="coop-ready">Bereit</button>
         </div>
         <button class="btn" data-action="coop-cancel">Abbrechen</button>
@@ -186,6 +192,7 @@
         <h2 class="panel-title">KOSTENLOSES BATTLEFIELD-UPGRADE</h2>
         <p class="subtitle">Wähle eine kostenlose Modifikation für deinen Agenten (Runde abgeschlossen!)</p>
         <div id="upgrade-cards" class="shop-cards-container"></div>
+        <div id="upgrade-wait-msg" class="hidden">Warte auf Host...</div>
       </div>
     </div>
 

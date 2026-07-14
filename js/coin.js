@@ -9,7 +9,7 @@ class Coin {
     this.collecting = false;
   }
   update(dt, game) {
-    const p = game.player;
+    const p = game.nearestPlayer(this.x, this.y);
     const d = Utils.dist(this.x, this.y, p.x, p.y);
     // magnet
     if (d < p.mods.coinRange) {
@@ -20,12 +20,12 @@ class Coin {
     }
     this.x += this.vx * dt; this.y += this.vy * dt;
     this.vx *= 0.9; this.vy *= 0.9;
-    if (d < p.radius + this.radius + 4) this.collect(game);
+    if (d < p.radius + this.radius + 4) this.collect(game, p);
   }
-  collect(game) {
+  collect(game, p) {
     if (this.dead) return;
     this.dead = true;
-    game.player.coins += this.value;
+    (p || game.player).coins += this.value;
     Audio2.coin();
     game.particles.spawn(this.x, this.y, '#ffcc33', { count: 6, minSpeed: 40, maxSpeed: 130, life: 0.4, size: 3 });
   }

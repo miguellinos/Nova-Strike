@@ -131,8 +131,8 @@ class Player {
     }
 
     // active item activations
-    if (Input.wasPressed('q')) this.useMedkit(game);
-    if (Input.wasPressed('e')) this.useShield(game);
+    if (this.input.wasPressed('q')) this.useMedkit(game);
+    if (this.input.wasPressed('e')) this.useShield(game);
   }
 
   startReload() {

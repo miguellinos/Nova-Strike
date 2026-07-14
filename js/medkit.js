@@ -9,7 +9,7 @@ class Medkit {
     this.life = 18; // despawns if left uncollected
   }
   update(dt, game) {
-    const p = game.player;
+    const p = game.nearestPlayer(this.x, this.y);
     const d = Utils.dist(this.x, this.y, p.x, p.y);
     const range = p.mods.coinRange * 0.6;
     if (d < range) {
@@ -22,12 +22,12 @@ class Medkit {
     this.vx *= 0.9; this.vy *= 0.9;
     this.life -= dt;
     if (this.life <= 0) { this.dead = true; return; }
-    if (d < p.radius + this.radius + 4) this.collect(game);
+    if (d < p.radius + this.radius + 4) this.collect(game, p);
   }
-  collect(game) {
+  collect(game, p) {
     if (this.dead) return;
     this.dead = true;
-    game.player.medkitsCount++;
+    (p || game.player).medkitsCount++;
     Audio2.coin(); // play pickup sound
     game.particles.spawn(this.x, this.y, '#4af626', { count: 6, minSpeed: 30, maxSpeed: 90, life: 0.35, size: 3 });
   }
@@ -73,7 +73,7 @@ class ShieldPickup {
     this.life = 18; // despawns if left uncollected
   }
   update(dt, game) {
-    const p = game.player;
+    const p = game.nearestPlayer(this.x, this.y);
     const d = Utils.dist(this.x, this.y, p.x, p.y);
     const range = p.mods.coinRange * 0.6;
     if (d < range) {
@@ -86,12 +86,12 @@ class ShieldPickup {
     this.vx *= 0.9; this.vy *= 0.9;
     this.life -= dt;
     if (this.life <= 0) { this.dead = true; return; }
-    if (d < p.radius + this.radius + 4) this.collect(game);
+    if (d < p.radius + this.radius + 4) this.collect(game, p);
   }
-  collect(game) {
+  collect(game, p) {
     if (this.dead) return;
     this.dead = true;
-    game.player.shieldsCount++;
+    (p || game.player).shieldsCount++;
     Audio2.coin(); // pickup sound
     game.particles.spawn(this.x, this.y, '#1c6cff', { count: 6, minSpeed: 30, maxSpeed: 90, life: 0.35, size: 3 });
   }

@@ -30,6 +30,7 @@ class UI {
       invMedkitCount: document.getElementById('inv-medkit-val'),
       invShieldCount: document.getElementById('inv-shield-val'),
       upgradeCards: document.getElementById('upgrade-cards'),
+      upgradeWaitMsg: document.getElementById('upgrade-wait-msg'),
     };
     this.bannerTimer = 0;
   }
@@ -91,6 +92,8 @@ class UI {
 
   showUpgradeChoices(game) {
     this.el.upgradeCards.innerHTML = '';
+    if (this.el.upgradeWaitMsg) this.el.upgradeWaitMsg.classList.toggle('hidden', game.mode !== 'guest');
+    if (game.mode === 'guest') return; // only the host drives the squad's wave progression
     const me = game.localPlayer || game.player;
     const picks = game.shopUpgrades;
     picks.forEach((up) => {
