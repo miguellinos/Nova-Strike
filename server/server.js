@@ -25,9 +25,8 @@ function localIPs() {
 }
 
 function makeRoomCode() {
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   let code = '';
-  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 4; i++) code += Math.floor(Math.random() * 10);
   return code;
 }
 

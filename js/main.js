@@ -53,6 +53,9 @@ window.addEventListener('DOMContentLoaded', () => {
     joinReadyWrap: document.getElementById('coop-join-ready-wrap'),
     joinHostStatus: document.getElementById('coop-join-host-status'),
   };
+  coop.codeInput.addEventListener('input', () => {
+    coop.codeInput.value = coop.codeInput.value.replace(/\D/g, '').slice(0, 4);
+  });
 
   function maybeStartMatch() {
     if (Net.hostReady && Net.guestReady && Net.role === 'host') {

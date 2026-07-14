@@ -6,12 +6,18 @@ const Input = {
   init(canvas) {
     this.canvas = canvas;
     window.addEventListener('keydown', (e) => {
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return; // let text fields type normally
       const k = e.key.toLowerCase();
       if (!this.keys[k]) this.pressed[k] = true;
       this.keys[k] = true;
       if (['w', 'a', 's', 'd', ' ', 'shift'].includes(k)) e.preventDefault();
     });
-    window.addEventListener('keyup', (e) => { this.keys[e.key.toLowerCase()] = false; });
+    window.addEventListener('keyup', (e) => {
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      this.keys[e.key.toLowerCase()] = false;
+    });
     canvas.addEventListener('mousemove', (e) => {
       const r = canvas.getBoundingClientRect();
       this.mouse.x = e.clientX - r.left;
