@@ -30,7 +30,7 @@ class Enemy {
   }
 
   update(dt, game) {
-    const p = game.player;
+    const p = game.nearestPlayer(this.x, this.y);
     const angleToP = Utils.angle(this.x, this.y, p.x, p.y);
     const distToP = Utils.dist(this.x, this.y, p.x, p.y);
     let mx = Math.cos(angleToP), my = Math.sin(angleToP);

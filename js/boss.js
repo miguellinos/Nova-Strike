@@ -25,7 +25,7 @@ class Boss {
   }
 
   update(dt, game) {
-    const p = game.player;
+    const p = game.nearestPlayer(this.x, this.y);
     const ang = Utils.angle(this.x, this.y, p.x, p.y);
     const dist = Utils.dist(this.x, this.y, p.x, p.y);
     this.spin += dt;

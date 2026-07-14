@@ -1,163 +1,230 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NOVA STRIKE</title>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOVA STRIKE</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-<div id="game-container">
-  <canvas id="game-canvas"></canvas>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
 
-  <!-- In-game HUD -->
-  <div id="hud" class="hidden">
-    <div id="hud-top-left">
-      <div class="hp-wrap" style="flex-direction: column; align-items: flex-start; gap: 6px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div class="hp-bar-bg"><div id="hp-bar" class="hp-bar"></div></div>
-          <span id="hp-text">100 / 100</span>
+    <!-- In-game HUD -->
+    <div id="hud" class="hidden">
+      <div id="hud-top-left">
+        <div class="hp-wrap" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="hp-bar-bg">
+              <div id="hp-bar" class="hp-bar"></div>
+            </div>
+            <span id="hp-text">100 / 100</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="shield-bar-bg">
+              <div id="shield-bar" class="shield-bar"></div>
+            </div>
+            <span id="shield-text" style="color: #a2bca0; font-size: 13px; text-shadow: 0 0 6px #000;">Schild: 0%</span>
+          </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div class="shield-bar-bg"><div id="shield-bar" class="shield-bar"></div></div>
-          <span id="shield-text" style="color: #a2bca0; font-size: 13px; text-shadow: 0 0 6px #000;">Schild: 0%</span>
+        <div class="stat-row">
+          <span class="chip" id="coins-chip">🪙 <b id="coins-val">0</b></span>
+          <span class="chip" id="score-chip">Punkte: <b id="score-val">0</b></span>
+          <span class="chip" id="kills-chip">Kills: <b id="kills-val">0</b></span>
+        </div>
+        <div class="stat-row" style="margin-top: 8px; pointer-events: auto;">
+          <button class="inv-btn" id="inv-medkit" title="Medkit verwenden (Taste Q)">🎒 Medkits: <b
+              id="inv-medkit-val">0</b></button>
+          <button class="inv-btn" id="inv-shield" title="Schild aufladen (Taste E)">🛡️ Schilde: <b
+              id="inv-shield-val">0</b></button>
         </div>
       </div>
-      <div class="stat-row">
-        <span class="chip" id="coins-chip">🪙 <b id="coins-val">0</b></span>
-        <span class="chip" id="score-chip">Punkte: <b id="score-val">0</b></span>
-        <span class="chip" id="kills-chip">Kills: <b id="kills-val">0</b></span>
+
+      <div id="hud-top-center">
+        <div id="wave-label">WELLE 1</div>
+        <div id="enemies-left">Gegner: 0</div>
       </div>
-      <div class="stat-row" style="margin-top: 8px; pointer-events: auto;">
-        <button class="inv-btn" id="inv-medkit" title="Medkit verwenden (Taste Q)">🎒 Medkits: <b id="inv-medkit-val">0</b></button>
-        <button class="inv-btn" id="inv-shield" title="Schild aufladen (Taste E)">🛡️ Schilde: <b id="inv-shield-val">0</b></button>
+
+      <div id="hud-top-right">
+        <div id="weapon-name">Plasma-Pistole</div>
+        <div id="ammo-text">12 / 12</div>
+        <div class="reload-wrap">
+          <div id="reload-bar"></div>
+        </div>
+        <div class="dash-wrap">DASH <div class="dash-bar-bg">
+            <div id="dash-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="boss-bar-wrap" class="hidden">
+        <div id="boss-name">SUPERTANK "LEVIATHAN"</div>
+        <div class="boss-bar-bg">
+          <div id="boss-bar"></div>
+        </div>
+      </div>
+
+      <div id="wave-banner" class="hidden"></div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="overlay">
+      <div class="menu-panel">
+        <h1 class="title">NOVA<span>STRIKE</span></h1>
+        <p class="subtitle">Militärische Spezialoperation. Verteidige die Stellung und überlebe die Wellen.</p>
+        <button class="btn btn-primary" data-action="start">Spiel starten</button>
+        <button class="btn" data-action="coop-menu">Koop (LAN)</button>
+        <button class="btn" data-action="settings">Einstellungen</button>
+        <button class="btn" data-action="controls">Steuerung</button>
+        <button class="btn" data-action="quit">Spiel beenden</button>
       </div>
     </div>
 
-    <div id="hud-top-center">
-      <div id="wave-label">WELLE 1</div>
-      <div id="enemies-left">Gegner: 0</div>
-    </div>
-
-    <div id="hud-top-right">
-      <div id="weapon-name">Plasma-Pistole</div>
-      <div id="ammo-text">12 / 12</div>
-      <div class="reload-wrap"><div id="reload-bar"></div></div>
-      <div class="dash-wrap">DASH <div class="dash-bar-bg"><div id="dash-bar"></div></div></div>
-    </div>
-
-    <div id="boss-bar-wrap" class="hidden">
-      <div id="boss-name">SUPERTANK "LEVIATHAN"</div>
-      <div class="boss-bar-bg"><div id="boss-bar"></div></div>
-    </div>
-
-    <div id="wave-banner" class="hidden"></div>
-  </div>
-
-  <!-- Main Menu -->
-  <div id="main-menu" class="overlay">
-    <div class="menu-panel">
-      <h1 class="title">NOVA<span>STRIKE</span></h1>
-      <p class="subtitle">Militärische Spezialoperation. Verteidige die Stellung und überlebe die Wellen.</p>
-      <button class="btn btn-primary" data-action="start">Spiel starten</button>
-      <button class="btn" data-action="settings">Einstellungen</button>
-      <button class="btn" data-action="controls">Steuerung</button>
-      <button class="btn" data-action="quit">Spiel beenden</button>
-    </div>
-  </div>
-
-  <!-- Pause Menu -->
-  <div id="pause-menu" class="overlay hidden">
-    <div class="menu-panel">
-      <h2 class="panel-title">PAUSE</h2>
-      <button class="btn btn-primary" data-action="resume">Weiterspielen</button>
-      <button class="btn" data-action="settings">Einstellungen</button>
-      <button class="btn" data-action="restart">Neustart</button>
-      <button class="btn" data-action="menu">Hauptmenü</button>
-    </div>
-  </div>
-
-  <!-- Settings -->
-  <div id="settings-menu" class="overlay hidden">
-    <div class="menu-panel wide">
-      <h2 class="panel-title">EINSTELLUNGEN</h2>
-      <label class="slider-row">Gesamtlautstärke <input type="range" id="set-master" min="0" max="100"><span class="slider-val"></span></label>
-      <label class="slider-row">Musiklautstärke <input type="range" id="set-music" min="0" max="100"><span class="slider-val"></span></label>
-      <label class="slider-row">Effektlautstärke <input type="range" id="set-sfx" min="0" max="100"><span class="slider-val"></span></label>
-      <label class="select-row">Grafikqualität
-        <select id="set-quality"><option value="high">Hoch</option><option value="medium">Mittel</option><option value="low">Niedrig</option></select>
-      </label>
-      <label class="check-row"><input type="checkbox" id="set-fullscreen"> Vollbildmodus</label>
-      <button class="btn btn-primary" data-action="settings-back">Zurück</button>
-    </div>
-  </div>
-
-  <!-- Controls -->
-  <div id="controls-menu" class="overlay hidden">
-    <div class="menu-panel wide">
-      <h2 class="panel-title">STEUERUNG</h2>
-      <div class="controls-grid">
-        <span class="key">W A S D</span><span>Bewegen</span>
-        <span class="key">Maus</span><span>Zielen</span>
-        <span class="key">Linksklick</span><span>Schießen</span>
-        <span class="key">R</span><span>Nachladen</span>
-        <span class="key">Shift</span><span>Dash</span>
-        <span class="key">1-5</span><span>Waffe wechseln</span>
-        <span class="key">Escape</span><span>Pause</span>
+    <!-- Co-op: choose host or join -->
+    <div id="coop-menu" class="overlay hidden">
+      <div class="menu-panel">
+        <h2 class="panel-title">KOOP (LAN)</h2>
+        <p class="subtitle">Beide Spieler müssen im selben WLAN sein.</p>
+        <button class="btn btn-primary" data-action="coop-host">Raum erstellen</button>
+        <button class="btn" data-action="coop-join">Raum beitreten</button>
+        <button class="btn" data-action="coop-back">Zurück</button>
       </div>
-      <button class="btn btn-primary" data-action="controls-back">Zurück</button>
+    </div>
+
+    <!-- Co-op: host lobby -->
+    <div id="coop-host-menu" class="overlay hidden">
+      <div class="menu-panel wide">
+        <h2 class="panel-title">RAUM ERSTELLT</h2>
+        <div id="coop-host-status">Verbinde zum lokalen Server...</div>
+        <div id="coop-code-wrap" class="hidden">
+          <div class="stat-row"><span class="chip">Code: <b id="coop-room-code">----</b></span></div>
+          <div id="coop-host-ips"></div>
+          <div id="coop-host-guest-status">Warte auf Mitspieler...</div>
+        </div>
+        <button class="btn btn-primary hidden" id="coop-host-ready-btn" data-action="coop-ready">Bereit</button>
+        <button class="btn" data-action="coop-cancel">Abbrechen</button>
+      </div>
+    </div>
+
+    <!-- Co-op: join lobby -->
+    <div id="coop-join-menu" class="overlay hidden">
+      <div class="menu-panel wide">
+        <h2 class="panel-title">RAUM BEITRETEN</h2>
+        <label class="select-row">Raumcode
+          <input type="text" id="coop-code-input" maxlength="4" placeholder="ABCD" style="text-transform:uppercase">
+        </label>
+        <button class="btn btn-primary" data-action="coop-join-submit">Verbinden</button>
+        <div id="coop-join-status"></div>
+        <div id="coop-join-ready-wrap" class="hidden">
+          <div id="coop-join-host-status">Warte auf Host...</div>
+          <button class="btn btn-primary" data-action="coop-ready">Bereit</button>
+        </div>
+        <button class="btn" data-action="coop-cancel">Abbrechen</button>
+      </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="overlay hidden">
+      <div class="menu-panel">
+        <h2 class="panel-title">PAUSE</h2>
+        <button class="btn btn-primary" data-action="resume">Weiterspielen</button>
+        <button class="btn" data-action="settings">Einstellungen</button>
+        <button class="btn" data-action="restart">Neustart</button>
+        <button class="btn" data-action="menu">Hauptmenü</button>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings-menu" class="overlay hidden">
+      <div class="menu-panel wide">
+        <h2 class="panel-title">EINSTELLUNGEN</h2>
+        <label class="slider-row">Gesamtlautstärke <input type="range" id="set-master" min="0" max="100"><span
+            class="slider-val"></span></label>
+        <label class="slider-row">Musiklautstärke <input type="range" id="set-music" min="0" max="100"><span
+            class="slider-val"></span></label>
+        <label class="slider-row">Effektlautstärke <input type="range" id="set-sfx" min="0" max="100"><span
+            class="slider-val"></span></label>
+        <label class="select-row">Grafikqualität
+          <select id="set-quality">
+            <option value="high">Hoch</option>
+            <option value="medium">Mittel</option>
+            <option value="low">Niedrig</option>
+          </select>
+        </label>
+        <label class="check-row"><input type="checkbox" id="set-fullscreen"> Vollbildmodus</label>
+        <button class="btn btn-primary" data-action="settings-back">Zurück</button>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls-menu" class="overlay hidden">
+      <div class="menu-panel wide">
+        <h2 class="panel-title">STEUERUNG</h2>
+        <div class="controls-grid">
+          <span class="key">W A S D</span><span>Bewegen</span>
+          <span class="key">Maus</span><span>Zielen</span>
+          <span class="key">Linksklick</span><span>Schießen</span>
+          <span class="key">R</span><span>Nachladen</span>
+          <span class="key">Shift</span><span>Dash</span>
+          <span class="key">1-5</span><span>Waffe wechseln</span>
+          <span class="key">Escape</span><span>Pause</span>
+        </div>
+        <button class="btn btn-primary" data-action="controls-back">Zurück</button>
+      </div>
+    </div>
+
+    <!-- Free Upgrade Choice Screen -->
+    <div id="upgrade-menu" class="overlay hidden">
+      <div class="menu-panel wide">
+        <h2 class="panel-title">KOSTENLOSES BATTLEFIELD-UPGRADE</h2>
+        <p class="subtitle">Wähle eine kostenlose Modifikation für deinen Agenten (Runde abgeschlossen!)</p>
+        <div id="upgrade-cards" class="shop-cards-container"></div>
+      </div>
+    </div>
+
+    <!-- Taktischer Münzen-Shop -->
+    <div id="shop-menu" class="overlay hidden">
+      <div class="menu-panel wide">
+        <h2 class="panel-title">UPGRADE-SHOP</h2>
+        <div class="shop-coins">Deine Münzen: 🪙 <b id="shop-coins">0</b></div>
+        <div id="shop-cards"></div>
+        <button class="btn btn-primary" data-action="shop-close">Nächste Welle ▶</button>
+      </div>
+    </div>
+
+    <!-- Game Over -->
+    <div id="gameover-menu" class="overlay hidden">
+      <div class="menu-panel">
+        <h2 class="panel-title fail">MISSION FAILED</h2>
+        <div id="gameover-stats" class="stats-list"></div>
+        <button class="btn btn-primary" data-action="restart">Erneut spielen</button>
+        <button class="btn" data-action="menu">Hauptmenü</button>
+      </div>
     </div>
   </div>
 
-  <!-- Free Upgrade Choice Screen -->
-  <div id="upgrade-menu" class="overlay hidden">
-    <div class="menu-panel wide">
-      <h2 class="panel-title">KOSTENLOSES BATTLEFIELD-UPGRADE</h2>
-      <p class="subtitle">Wähle eine kostenlose Modifikation für deinen Agenten (Runde abgeschlossen!)</p>
-      <div id="upgrade-cards" class="shop-cards-container"></div>
-    </div>
-  </div>
-
-  <!-- Taktischer Münzen-Shop -->
-  <div id="shop-menu" class="overlay hidden">
-    <div class="menu-panel wide">
-      <h2 class="panel-title">TAKTIK-MÜNZEN-SHOP</h2>
-      <div class="shop-coins">Taktisches Budget: 🪙 <b id="shop-coins">0</b></div>
-      <p class="subtitle">Rüste neue Waffen aus und kaufe aktive Ausrüstung</p>
-      <div id="shop-cards" class="shop-cards-container"></div>
-      <button class="btn btn-primary" data-action="shop-close">Nächste Welle ▶</button>
-    </div>
-  </div>
-
-  <!-- Game Over -->
-  <div id="gameover-menu" class="overlay hidden">
-    <div class="menu-panel">
-      <h2 class="panel-title fail">MISSION FAILED</h2>
-      <div id="gameover-stats" class="stats-list"></div>
-      <button class="btn btn-primary" data-action="restart">Erneut spielen</button>
-      <button class="btn" data-action="menu">Hauptmenü</button>
-    </div>
-  </div>
-</div>
-
-<!-- Systems (classic scripts, load-order matters) -->
-<script src="js/utils.js"></script>
-<script src="js/settings.js"></script>
-<script src="js/input.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/particles.js"></script>
-<script src="js/world.js"></script>
-<script src="js/weapons.js"></script>
-<script src="js/projectile.js"></script>
-<script src="js/player.js"></script>
-<script src="js/enemies.js"></script>
-<script src="js/boss.js"></script>
-<script src="js/coin.js"></script>
-<script src="js/medkit.js"></script>
-<script src="js/upgrades.js"></script>
-<script src="js/waves.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/game.js"></script>
-<script src="js/main.js"></script>
+  <!-- Systems (classic scripts, load-order matters) -->
+  <script src="js/utils.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/weapons.js"></script>
+  <script src="js/projectile.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/enemies.js"></script>
+  <script src="js/boss.js"></script>
+  <script src="js/coin.js"></script>
+  <script src="js/medkit.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/upgrades.js"></script>
+  <script src="js/waves.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
 </body>
+
 </html>

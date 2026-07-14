@@ -1,6 +1,6 @@
 // ---------- projectile.js ----------
 class Projectile {
-  constructor(x, y, angle, def, dmg, pierce, fromPlayer, crit = false) {
+  constructor(x, y, angle, def, dmg, pierce, fromPlayer, crit = false, owner = null) {
     this.x = x; this.y = y; this.startX = x; this.startY = y;
     this.vx = Math.cos(angle) * def.speed;
     this.vy = Math.sin(angle) * def.speed;
@@ -12,6 +12,7 @@ class Projectile {
     this.pierce = pierce;          // extra enemies it can pass through
     this.aoe = def.aoe || 0;
     this.fromPlayer = fromPlayer;
+    this.owner = owner;            // which Player fired this (for kill/coin attribution in co-op)
     this.crit = crit;
     this.dead = false;
     this.hitSet = new Set();
