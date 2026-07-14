@@ -59,8 +59,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function maybeStartMatch() {
     if (Net.hostReady && Net.guestReady && Net.role === 'host') {
-      Net.sendStart();
-      game.newGame('host');
+      const modeSelect = document.getElementById('coop-game-mode');
+      const gameMode = modeSelect ? modeSelect.value : 'standard';
+      Net.sendStart(gameMode);
+      game.newGame('host', gameMode);
       Menus.hideAll();
     }
   }
@@ -86,8 +88,8 @@ window.addEventListener('DOMContentLoaded', () => {
     else coop.joinHostStatus.textContent = Net.hostReady ? 'Host ist bereit!' : 'Warte auf Host...';
     maybeStartMatch();
   });
-  Net.on('start', () => {
-    if (Net.role === 'guest') { game.newGame('guest'); Menus.hideAll(); }
+  Net.on('start', (msg) => {
+    if (Net.role === 'guest') { game.newGame('guest', msg.gameMode); Menus.hideAll(); }
   });
   Net.on('snapshot', (data) => { if (game.mode === 'guest') game.applySnapshot(data); });
   Net.on('input', (data) => { if (game.player2 && game.player2.isRemote) game.player2.input.applyPacket(data); });
@@ -106,14 +108,15 @@ window.addEventListener('DOMContentLoaded', () => {
     Audio2.init(); Audio2.resume();
     const action = btn.dataset.action;
     switch (action) {
-      case 'start': Net.reset(); game.newGame('solo'); Menus.hideAll(); break;
+      case 'start-standard': Net.reset(); game.newGame('solo', 'standard'); Menus.hideAll(); break;
+      case 'start-horror': Net.reset(); game.newGame('solo', 'horror'); Menus.hideAll(); break;
       case 'settings': Menus.prev = getVisibleOverlay(); Menus.show('settings-menu'); break;
       case 'settings-back': Menus.show(Menus.prev || 'main-menu'); if (game.state === 'paused') {/* stay paused overlay */} break;
       case 'controls': Menus.prev = getVisibleOverlay(); Menus.show('controls-menu'); break;
       case 'controls-back': Menus.show(Menus.prev || 'main-menu'); break;
       case 'quit': Menus.show('main-menu'); alert('Danke fürs Spielen! Du kannst den Tab schließen.'); break;
       case 'resume': game.resume(); break;
-      case 'restart': Net.reset(); game.newGame('solo'); Menus.hideAll(); break;
+      case 'restart': Net.reset(); game.newGame('solo', game.gameMode); Menus.hideAll(); break;
       case 'menu': game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu'); break;
       case 'shop-close': if (game.mode !== 'guest') game.closeShop(); break;
       case 'open-shop':

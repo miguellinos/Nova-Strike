@@ -24,10 +24,15 @@ const UPGRADES = [
     apply: (p) => { p.mods.coinRange += 90; } },
   { id: 'coins', name: 'Mehr Münzen', icon: '🪙', desc: '+25% Münz-Drops', price: 120, repeatable: true,
     apply: (p) => { p.mods.coinMult += 0.25; } },
+  { id: 'vision', name: 'Taschenlampe Upgrade', icon: '🔦', desc: '+25% Taschenlampen-Sichtweite', price: 50, repeatable: true,
+    apply: (p) => { p.mods.visionRange = (p.mods.visionRange || 1) + 0.25; } },
 ];
 
-function rollShopUpgrades() {
-  const pool = UPGRADES.slice();
+function rollShopUpgrades(gameMode) {
+  let pool = UPGRADES.slice();
+  if (gameMode !== 'horror') {
+    pool = pool.filter((u) => u.id !== 'vision');
+  }
   const picks = [];
   while (picks.length < 3 && pool.length) {
     const i = Utils.randInt(0, pool.length - 1);

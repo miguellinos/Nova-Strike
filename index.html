@@ -80,8 +80,11 @@
       <div class="menu-panel">
         <h1 class="title">NOVA<span>STRIKE</span></h1>
         <p class="subtitle">Militärische Spezialoperation. Verteidige die Stellung und überlebe die Wellen.</p>
-        <button class="btn btn-primary" data-action="start">Spiel starten</button>
-        <button class="btn" data-action="coop-menu">Koop (LAN)</button>
+        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+          <button class="btn btn-primary" data-action="start-standard">Standard-Modus</button>
+          <button class="btn btn-primary" data-action="start-horror" style="background: linear-gradient(135deg, #441a1a, #260a0a); border-color: #ff3b52; color: #ffcccc;" title="Spiele im Dunkeln mit einer Taschenlampe">Horror-Modus 🔦</button>
+        </div>
+        <button class="btn" style="margin-top: 8px;" data-action="coop-menu">Koop (LAN)</button>
         <button class="btn" data-action="settings">Einstellungen</button>
         <button class="btn" data-action="controls">Steuerung</button>
         <button class="btn" data-action="quit">Spiel beenden</button>
@@ -112,6 +115,15 @@
           <div class="coop-ip-block">
             <span class="coop-ip-label">Mitspieler öffnet im selben WLAN:</span>
             <div id="coop-host-ips" class="coop-ip-list"></div>
+          </div>
+          <div style="margin: 14px 0; text-align: center;">
+            <label style="color: #ffaa00; font-family: monospace; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              Spielmodus:
+              <select id="coop-game-mode" style="background: #111; color: #fff; border: 1px solid #ffaa00; padding: 6px 12px; font-family: monospace; font-size: 14px; border-radius: 4px; cursor: pointer;">
+                <option value="standard">Standard Modus</option>
+                <option value="horror">Horror Modus 🔦</option>
+              </select>
+            </label>
           </div>
           <div id="coop-host-guest-status" class="coop-status coop-status-waiting">Warte auf Mitspieler...</div>
         </div>

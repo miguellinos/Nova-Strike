@@ -6,6 +6,7 @@ class Game {
     this.ui = new UI();
     this.state = 'menu'; // menu | playing | paused | shop | gameover
     this.mode = 'solo';  // solo | host | guest (LAN co-op)
+    this.gameMode = 'standard'; // 'standard' | 'horror'
     this.cam = { x: 0, y: 0, w: canvas.width, h: canvas.height };
     this.time = 0; this.dt = 0;
     this.shakeAmt = 0;
@@ -37,10 +38,11 @@ class Game {
   }
 
   // mode: 'solo' (default) | 'host' | 'guest' — coop games always run 2 player slots
-  newGame(mode) {
+  newGame(mode, gameMode) {
     this.mode = mode || 'solo';
+    this.gameMode = gameMode || 'standard';
     this.world = new World();
-    const spawn = { x: this.world.w / 2, y: this.world.h / 2 };
+    const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
     this.player = new Player(spawn.x - 20, spawn.y);
     this.player2 = this.mode !== 'solo' ? new Player(spawn.x + 20, spawn.y, this.mode === 'host') : null;
     this.projectiles = [];
@@ -131,7 +133,7 @@ class Game {
     this.medkits = [];
     this.shields = [];
     this.boss = null;
-    this.shopUpgrades = rollShopUpgrades();
+    this.shopUpgrades = rollShopUpgrades(this.gameMode);
     this.state = 'upgrade'; // Choose free upgrade first
     this.ui.showHUD(false);
     this.ui.showUpgradeChoices(this);
@@ -247,10 +249,10 @@ class Game {
     if (this.mode === 'host') Net.sendSnapshot(this.buildSnapshot());
   }
 
-  // ----- LAN co-op: host -> guest state sync -----
   buildSnapshot() {
     return {
       state: this.state,
+      gameMode: this.gameMode,
       wave: this.waves ? this.waves.wave : 1,
       enemiesLeft: this.waves ? this.waves.totalRemaining() : 0,
       cam: { x: this.cam.x, y: this.cam.y },
@@ -260,6 +262,7 @@ class Game {
         currentWeapon: p.currentWeapon, ammo: p.weapons[p.currentWeapon].ammo, magSize: p.magSize(),
         reloading: p.reloading, reloadTimer: p.reloadTimer, reloadTotal: p.reloadTotal,
         dashCd: p.dashCd, dashCdTotal: p.dashCooldown(), hitFlash: p.hitFlash, invuln: p.invuln, walkPhase: p.walkPhase,
+        visionRange: p.mods.visionRange,
       })),
       enemies: this.enemies.map((e) => ({ x: e.x, y: e.y, radius: e.radius, color: e.color, hp: e.hp, maxHp: e.maxHp, type: e.type, hitFlash: e.hitFlash })),
       boss: this.boss && !this.boss.dead ? {
@@ -277,13 +280,22 @@ class Game {
   applySnapshot(s) {
     if (!this.world) return; // not ready yet
     this.state = s.state;
+    this.gameMode = s.gameMode || 'standard';
     if (this.waves) this.waves.wave = s.wave;
     this._enemiesLeft = s.enemiesLeft;
     this.cam.x = s.cam.x; this.cam.y = s.cam.y;
 
     const assign = (p, d) => Object.assign(p, d);
-    if (s.players[0]) assign(this.player, s.players[0]);
-    if (s.players[1] && this.player2) assign(this.player2, s.players[1]);
+    if (s.players[0]) {
+      assign(this.player, s.players[0]);
+      if (!this.player.mods) this.player.mods = {};
+      this.player.mods.visionRange = s.players[0].visionRange || 1;
+    }
+    if (s.players[1] && this.player2) {
+      assign(this.player2, s.players[1]);
+      if (!this.player2.mods) this.player2.mods = {};
+      this.player2.mods.visionRange = s.players[1].visionRange || 1;
+    }
 
     this.enemies = s.enemies.map((d) => Object.assign(Object.create(Enemy.prototype), d, { draw: Enemy.prototype.draw, dead: false }));
     this.boss = s.boss ? Object.assign(Object.create(Boss.prototype), s.boss, { dead: false }) : null;
@@ -406,19 +418,30 @@ class Game {
     ctx.save();
     ctx.translate(-this.cam.x + sx, -this.cam.y + sy);
 
+    // 1. Draw elements that are hidden in the dark
     this.world.draw(ctx, this.cam, this.time);
     for (const c of this.coins) c.draw(ctx, this.time);
     for (const m of this.medkits) m.draw(ctx, this.time);
     for (const s of this.shields) s.draw(ctx, this.time);
+    for (const e of this.enemies) e.draw(ctx, this.time);
+    if (this.boss && !this.boss.dead) this.boss.draw(ctx, this.time);
+    for (const p of this.players) if (p.hp > 0) p.draw(ctx, this.time);
+
+    // 2. Apply Flashlight Mask (overlay in screen coordinates) if in Horror mode
+    if (this.gameMode === 'horror') {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.drawFlashlightMask(ctx);
+      ctx.restore();
+    }
+
+    // 3. Draw glowing elements on top of the dark overlay (projectiles, sparks, explosions)
     for (const ep of this.enemyProjectiles) {
       ctx.shadowBlur = 10; ctx.shadowColor = ep.color; ctx.fillStyle = ep.color;
       ctx.beginPath(); ctx.arc(ep.x, ep.y, ep.radius, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
     }
-    for (const e of this.enemies) e.draw(ctx, this.time);
-    if (this.boss && !this.boss.dead) this.boss.draw(ctx, this.time);
     for (const pr of this.projectiles) pr.draw(ctx);
     this.particles.draw(ctx);
-    for (const p of this.players) if (p.hp > 0) p.draw(ctx, this.time);
 
     ctx.restore();
 
@@ -430,6 +453,97 @@ class Game {
       g.addColorStop(1, 'rgba(255,0,40,' + (0.5 * this.damageVignette) + ')');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+  }
+
+  drawFlashlightMask(ctx) {
+    if (!this.maskCanvas) {
+      this.maskCanvas = document.createElement('canvas');
+      this.maskCtx = this.maskCanvas.getContext('2d');
+    }
+    if (this.maskCanvas.width !== this.canvas.width || this.maskCanvas.height !== this.canvas.height) {
+      this.maskCanvas.width = this.canvas.width;
+      this.maskCanvas.height = this.canvas.height;
+    }
+
+    const mCtx = this.maskCtx;
+    mCtx.clearRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
+
+    // Tactical dark overlay color
+    mCtx.fillStyle = 'rgba(7, 8, 12, 0.93)';
+    mCtx.fillRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
+
+    // Carve out flashlight cones
+    mCtx.globalCompositeOperation = 'destination-out';
+
+    for (const p of this.players) {
+      if (p.hp <= 0) continue;
+
+      const screenX = p.x - this.cam.x;
+      const screenY = p.y - this.cam.y;
+      const visionMult = p.mods.visionRange || 1;
+      const range = 420 * visionMult;
+      const ambientRadius = 80 * visionMult;
+      const coneHalfAngle = (36 * Math.PI / 180); // 72 degrees total spread
+
+      // 1. Ambient lighting around player
+      let gradAmbient = mCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, ambientRadius);
+      gradAmbient.addColorStop(0, 'rgba(0,0,0,1.0)');
+      gradAmbient.addColorStop(0.5, 'rgba(0,0,0,0.85)');
+      gradAmbient.addColorStop(1, 'rgba(0,0,0,0.0)');
+      
+      mCtx.fillStyle = gradAmbient;
+      mCtx.beginPath();
+      mCtx.arc(screenX, screenY, ambientRadius, 0, Math.PI * 2);
+      mCtx.fill();
+
+      // 2. Directional cone
+      mCtx.beginPath();
+      mCtx.moveTo(screenX, screenY);
+      mCtx.arc(screenX, screenY, range, p.aimAngle - coneHalfAngle, p.aimAngle + coneHalfAngle);
+      mCtx.closePath();
+
+      let gradCone = mCtx.createRadialGradient(screenX, screenY, ambientRadius * 0.5, screenX, screenY, range);
+      gradCone.addColorStop(0, 'rgba(0,0,0,1.0)');
+      gradCone.addColorStop(0.25, 'rgba(0,0,0,0.85)');
+      gradCone.addColorStop(0.7, 'rgba(0,0,0,0.3)');
+      gradCone.addColorStop(1, 'rgba(0,0,0,0.0)');
+      
+      mCtx.fillStyle = gradCone;
+      mCtx.fill();
+    }
+
+    mCtx.globalCompositeOperation = 'source-over';
+
+    // Draw the mask on top of the main canvas
+    ctx.drawImage(this.maskCanvas, 0, 0);
+
+    // Draw subtle volumetric dust/beam reflection
+    for (const p of this.players) {
+      if (p.hp <= 0) continue;
+
+      const screenX = p.x - this.cam.x;
+      const screenY = p.y - this.cam.y;
+      const visionMult = p.mods.visionRange || 1;
+      const range = 420 * visionMult;
+      const coneHalfAngle = (36 * Math.PI / 180);
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      
+      ctx.beginPath();
+      ctx.moveTo(screenX, screenY);
+      ctx.arc(screenX, screenY, range, p.aimAngle - coneHalfAngle, p.aimAngle + coneHalfAngle);
+      ctx.closePath();
+
+      let beamGrad = ctx.createRadialGradient(screenX, screenY, 20, screenX, screenY, range);
+      beamGrad.addColorStop(0, 'rgba(230, 242, 255, 0.08)');
+      beamGrad.addColorStop(0.4, 'rgba(230, 242, 255, 0.04)');
+      beamGrad.addColorStop(1, 'rgba(230, 242, 255, 0.0)');
+      
+      ctx.fillStyle = beamGrad;
+      ctx.fill();
+      ctx.restore();
     }
   }
 
