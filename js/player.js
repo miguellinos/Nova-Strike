@@ -173,35 +173,140 @@ class Player {
     // dash trail
     for (const t of this.dashTrail) {
       ctx.globalAlpha = t.life * 1.2;
-      ctx.fillStyle = '#2ff3ff';
-      ctx.beginPath(); ctx.arc(t.x, t.y, this.radius * 0.8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(74, 246, 38, 0.4)';
+      ctx.beginPath(); ctx.arc(t.x, t.y, this.radius * 0.85, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
 
-    const bob = Math.sin(this.walkPhase) * 2;
-    // body glow
-    ctx.shadowBlur = 20; ctx.shadowColor = '#2ff3ff';
+    const bob = Math.sin(this.walkPhase) * 1.5;
     const flashing = this.hitFlash > 0 && Math.floor(this.hitFlash * 20) % 2 === 0;
-    ctx.fillStyle = flashing ? '#ff8090' : (this.invuln > 0 ? 'rgba(120,240,255,0.6)' : '#2ff3ff');
-    ctx.beginPath();
-    ctx.arc(this.x, this.y + bob, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    // bright outline
-    ctx.strokeStyle = '#eaffff'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(this.x, this.y + bob, this.radius, 0, Math.PI * 2); ctx.stroke();
-    // inner core
-    ctx.fillStyle = '#0a2a4a';
-    ctx.beginPath(); ctx.arc(this.x, this.y + bob, this.radius * 0.5, 0, Math.PI * 2); ctx.fill();
 
-    // gun barrel toward mouse
-    const gx = this.x + Math.cos(this.aimAngle) * this.radius;
-    const gy = this.y + bob + Math.sin(this.aimAngle) * this.radius;
-    const ex = this.x + Math.cos(this.aimAngle) * (this.radius + 16);
-    const ey = this.y + bob + Math.sin(this.aimAngle) * (this.radius + 16);
-    ctx.strokeStyle = '#eaffff'; ctx.lineWidth = 6; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(ex, ey); ctx.stroke();
-    ctx.strokeStyle = this.weaponDef().color; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(ex, ey); ctx.stroke();
+    // 1. Draw stepping boots/feet
+    const legOffset = Math.sin(this.walkPhase) * 6;
+    // calculate position of left and right boot based on walking phase and aim angle
+    const leftBootX = this.x + Math.cos(this.aimAngle - Math.PI / 2) * 8 + Math.cos(this.aimAngle) * legOffset;
+    const leftBootY = this.y + Math.sin(this.aimAngle - Math.PI / 2) * 8 + Math.sin(this.aimAngle) * legOffset;
+    const rightBootX = this.x + Math.cos(this.aimAngle + Math.PI / 2) * 8 + Math.cos(this.aimAngle) * (-legOffset);
+    const rightBootY = this.y + Math.sin(this.aimAngle + Math.PI / 2) * 8 + Math.sin(this.aimAngle) * (-legOffset);
+    
+    ctx.fillStyle = '#1a1b18';
+    ctx.strokeStyle = '#2d2e2b';
+    ctx.lineWidth = 1;
+    ctx.save();
+    ctx.translate(leftBootX, leftBootY);
+    ctx.rotate(this.aimAngle);
+    ctx.fillRect(-5, -3, 8, 5);
+    ctx.restore();
+    
+    ctx.save();
+    ctx.translate(rightBootX, rightBootY);
+    ctx.rotate(this.aimAngle);
+    ctx.fillRect(-5, -3, 8, 5);
+    ctx.restore();
+
+    // 2. Draw tactical special agent body
+    ctx.save();
+    ctx.translate(this.x, this.y + bob);
+    ctx.rotate(this.aimAngle);
+
+    // Backpack/Harness
+    ctx.fillStyle = '#2f3b25';
+    ctx.fillRect(-11, -8, 5, 16);
+    ctx.fillStyle = '#1c2415';
+    ctx.fillRect(-11, -5, 3, 10);
+
+    // Camo shoulders / sleeves
+    ctx.fillStyle = '#3f4f33'; // Olive drab camo
+    ctx.beginPath();
+    ctx.ellipse(-2, 0, 7.5, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#1e2417';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Tactical chest plate carrier (bulletproof vest)
+    ctx.fillStyle = '#282a2b'; // matte black armor
+    ctx.fillRect(-3, -9, 7, 18);
+    ctx.fillStyle = '#3a3e40';
+    ctx.fillRect(-1, -7, 4, 14);
+
+    // Tactical helmet
+    ctx.fillStyle = '#1a1b1c';
+    ctx.beginPath();
+    ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#323537';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Glowing night-vision goggles / tactical visor
+    ctx.fillStyle = flashing ? '#ff3b52' : '#4af626';
+    ctx.shadowBlur = flashing ? 15 : 10;
+    ctx.shadowColor = flashing ? '#ff3b52' : '#4af626';
+    ctx.fillRect(4.5, -4, 2, 8); // visor lens
+    
+    // Draw NVG strap highlights
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-1, -7.5, 2, 1.5);
+    ctx.fillRect(-1, 6, 2, 1.5);
+
+    // 3. Draw detailed weapon (M4A1 style assault rifle / pistol depending on weapon)
+    ctx.fillStyle = '#151617'; // matte dark steel
+    const wDef = this.weaponDef();
+    
+    if (wDef.key === 'plasma') {
+      // Tactical USP pistol: shorter barrel
+      ctx.fillRect(5, 2, 9, 3.5);
+      ctx.fillStyle = '#222';
+      ctx.fillRect(4, 5.5, 2, 2.5); // grip
+    } else if (wDef.key === 'sniper') {
+      // Giant Barrett .50 Cal sniper: long barrel, big scope, bipod
+      ctx.fillRect(2, 2, 16, 4.5); // body
+      ctx.fillStyle = '#333';
+      ctx.fillRect(7, -0.5, 5, 2.5); // scope
+      ctx.fillRect(9, 6.5, 2.5, 4.5); // mag
+      ctx.fillStyle = '#111';
+      ctx.fillRect(18, 3, 18, 2); // long barrel
+      ctx.fillRect(36, 1.5, 4, 5); // muzzle brake
+    } else if (wDef.key === 'cannon') {
+      // RPG-7 rocket launcher launcher tube
+      ctx.fillStyle = '#4c3f30'; // wood heat shield
+      ctx.fillRect(-2, 3.5, 12, 5);
+      ctx.fillStyle = '#151617'; // steel tubes
+      ctx.fillRect(-8, 4.5, 6, 3);
+      ctx.fillRect(10, 4.5, 12, 3);
+      // ready rocket inside tube front
+      ctx.fillStyle = '#4f5e3d';
+      ctx.beginPath();
+      ctx.moveTo(22, 2.5); ctx.lineTo(29, 6); ctx.lineTo(22, 9.5); ctx.closePath();
+      ctx.fill();
+    } else if (wDef.key === 'shotgun') {
+      // Remington pump shotgun
+      ctx.fillRect(4, 2, 14, 4); // receiver
+      ctx.fillStyle = '#4f3b28'; // wooden forend
+      ctx.fillRect(9, 5, 6, 2.5);
+      ctx.fillStyle = '#222';
+      ctx.fillRect(18, 3, 7, 2); // barrel
+    } else {
+      // M4A1 Sturmgewehr (rifle)
+      ctx.fillRect(3, 2, 14, 4); // receiver
+      ctx.fillStyle = '#222';
+      ctx.fillRect(8, 6, 2.5, 5); // curved magazine
+      ctx.fillRect(7, -0.5, 4, 2); // scope
+      ctx.fillRect(17, 3, 9, 2); // barrel
+      ctx.fillStyle = '#333';
+      ctx.fillRect(12, 5, 5, 2); // handguard
+    }
+
+    // 4. Draw tactical aiming laser guide line
+    ctx.strokeStyle = flashing ? 'rgba(255, 59, 82, 0.4)' : 'rgba(74, 246, 38, 0.4)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(wDef.key === 'cannon' ? 22 : 18, wDef.key === 'cannon' ? 6 : 4);
+    ctx.lineTo(wDef.range, wDef.key === 'cannon' ? 6 : 4);
+    ctx.stroke();
+
+    ctx.restore();
   }
 }

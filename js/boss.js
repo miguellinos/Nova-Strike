@@ -9,7 +9,7 @@ class Boss {
     this.dmg = 26 + tier * 6;
     this.speed = 70;
     this.color = '#ff3b52';
-    this.name = 'NOVA BEAST PRIME';
+    this.name = 'MAMMUT-PANZER "LEVIATHAN"';
     this.dead = false;
     this.phase2 = false;
     this.touchTimer = 0;
@@ -30,7 +30,7 @@ class Boss {
     const dist = Utils.dist(this.x, this.y, p.x, p.y);
     this.spin += dt;
 
-    // phase transition
+    // phase transition (damaged/furious state)
     if (!this.phase2 && this.hp < this.maxHp * 0.5) {
       this.phase2 = true;
       this.speed *= 1.6;
@@ -69,7 +69,7 @@ class Boss {
 
   doAttack(i, game, ang) {
     if (i === 0) {
-      // radial burst
+      // radial artillery burst
       const n = this.phase2 ? 24 : 16;
       for (let k = 0; k < n; k++) {
         const a = (k / n) * Math.PI * 2;
@@ -78,22 +78,21 @@ class Boss {
       }
       Audio2.explosion();
     } else if (i === 1) {
-      // charge at player
+      // charge / ram speed
       this.charging = 0.7; this.chargeDir = { x: Math.cos(ang), y: Math.sin(ang) };
       game.shake(6);
     } else if (i === 2) {
-      // summon minions
+      // call reinforcements (infantry soldiers)
       for (let k = 0; k < (this.phase2 ? 4 : 2); k++) {
-        const sp = game.world.randomSpawnPoint();
         game.enemies.push(new Enemy('drone', this.x + Utils.rand(-80, 80), this.y + Utils.rand(-80, 80), game.hpMult, game.dmgMult));
       }
       Audio2.enemyDie();
     } else {
-      // energy field (aimed spread)
+      // heavy tactical shell spread
       for (let k = -3; k <= 3; k++) {
         const a = ang + k * 0.18;
         game.enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(a) * 320, vy: Math.sin(a) * 320,
-          radius: 11, dmg: this.dmg * 0.7, color: '#b14dff', dead: false, life: 4 });
+          radius: 11, dmg: this.dmg * 0.7, color: '#ff3a22', dead: false, life: 4 });
       }
       Audio2.shoot('cannon');
     }
@@ -102,27 +101,98 @@ class Boss {
   takeDamage(dmg, game) {
     this.hp -= dmg;
     this.hitFlash = 0.08;
-    game.particles.spawn(this.x, this.y, this.color, { count: 4, minSpeed: 60, maxSpeed: 150, size: 4 });
+    game.particles.spawn(this.x, this.y, '#39472e', { count: 4, minSpeed: 60, maxSpeed: 150, size: 4 });
     if (this.hp <= 0 && !this.dead) { this.dead = true; game.onBossKilled(this); }
   }
 
   draw(ctx, time) {
-    const r = this.radius + Math.sin(time * 3) * 4;
-    ctx.shadowBlur = 40; ctx.shadowColor = this.phase2 ? '#ff3b52' : '#b14dff';
-    ctx.fillStyle = this.hitFlash > 0 ? '#fff' : this.color;
+    const flash = this.hitFlash > 0;
+    
+    // get angle towards player
+    const p = window.game ? window.game.player : null;
+    const angle = p ? Math.atan2(p.y - this.y, p.x - this.x) : this.spin * 0.2;
+
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(angle);
+
+    // 1. Draw double tank tracks (huge, left and right)
+    ctx.fillStyle = '#181818';
+    // left tracks
+    ctx.fillRect(-this.radius * 0.95, -this.radius * 0.95, this.radius * 1.9, this.radius * 0.28);
+    ctx.fillRect(-this.radius * 0.95, -this.radius * 0.62, this.radius * 1.9, this.radius * 0.28);
+    // right tracks
+    ctx.fillRect(-this.radius * 0.95, this.radius * 0.34, this.radius * 1.9, this.radius * 0.28);
+    ctx.fillRect(-this.radius * 0.95, this.radius * 0.67, this.radius * 1.9, this.radius * 0.28);
+
+    // Tracks outline details
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-this.radius * 0.95, -this.radius * 0.95, this.radius * 1.9, this.radius * 0.28);
+    ctx.strokeRect(-this.radius * 0.95, -this.radius * 0.62, this.radius * 1.9, this.radius * 0.28);
+    ctx.strokeRect(-this.radius * 0.95, this.radius * 0.34, this.radius * 1.9, this.radius * 0.28);
+    ctx.strokeRect(-this.radius * 0.95, this.radius * 0.67, this.radius * 1.9, this.radius * 0.28);
+
+    // 2. Giant Chassis Body (camo green sloped plating)
+    ctx.fillStyle = flash ? '#ffffff' : '#39472e';
     ctx.beginPath();
-    const sides = 10;
-    for (let i = 0; i < sides; i++) {
-      const a = this.spin * 0.5 + (i / sides) * Math.PI * 2;
-      const rr = i % 2 === 0 ? r : r * 0.7;
-      const px = this.x + Math.cos(a) * rr, py = this.y + Math.sin(a) * rr;
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    ctx.moveTo(-this.radius * 0.85, -this.radius * 0.58);
+    ctx.lineTo(this.radius * 0.65, -this.radius * 0.58);
+    ctx.lineTo(this.radius * 0.85, -this.radius * 0.35);
+    ctx.lineTo(this.radius * 0.85, this.radius * 0.35);
+    ctx.lineTo(this.radius * 0.65, this.radius * 0.58);
+    ctx.lineTo(-this.radius * 0.85, this.radius * 0.58);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#1f2619';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+
+    // Camo shapes on chassis
+    ctx.fillStyle = '#26301f';
+    ctx.beginPath();
+    ctx.ellipse(-this.radius * 0.3, -this.radius * 0.2, this.radius * 0.4, this.radius * 0.25, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(this.radius * 0.2, this.radius * 0.2, this.radius * 0.35, this.radius * 0.25, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Red warning lights / sirens (pulsing in phase 2)
+    if (this.phase2) {
+      const pulse = 0.5 + 0.5 * Math.sin(time * 8);
+      ctx.fillStyle = 'rgba(255, 0, 0, ' + pulse + ')';
+      ctx.beginPath();
+      ctx.arc(-this.radius * 0.6, -this.radius * 0.3, 6, 0, Math.PI * 2);
+      ctx.arc(-this.radius * 0.6, this.radius * 0.3, 6, 0, Math.PI * 2);
+      ctx.fill();
     }
-    ctx.closePath(); ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke();
-    // core
-    ctx.fillStyle = this.phase2 ? '#ffe08a' : '#2ff3ff';
-    ctx.beginPath(); ctx.arc(this.x, this.y, r * 0.35, 0, Math.PI * 2); ctx.fill();
+
+    // 3. Huge Central Turret (rotatable armored circle)
+    ctx.fillStyle = flash ? '#ffffff' : '#435437';
+    ctx.beginPath();
+    ctx.arc(-this.radius * 0.05, 0, this.radius * 0.48, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Hatch doors
+    ctx.fillStyle = '#1c2217';
+    ctx.beginPath();
+    ctx.arc(-this.radius * 0.18, -this.radius * 0.15, this.radius * 0.12, 0, Math.PI * 2);
+    ctx.arc(-this.radius * 0.18, this.radius * 0.15, this.radius * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Dual Cannon Barrels
+    ctx.fillStyle = '#1a1a1a';
+    // left barrel
+    ctx.fillRect(this.radius * 0.3, -this.radius * 0.18, this.radius * 0.95, this.radius * 0.12);
+    // right barrel
+    ctx.fillRect(this.radius * 0.3, this.radius * 0.06, this.radius * 0.95, this.radius * 0.12);
+    
+    // Muzzle tips
+    ctx.fillStyle = '#111';
+    ctx.fillRect(this.radius * 1.25, -this.radius * 0.20, 6, this.radius * 0.16);
+    ctx.fillRect(this.radius * 1.25, this.radius * 0.04, 6, this.radius * 0.16);
+
+    ctx.restore();
   }
 }

@@ -26,22 +26,94 @@ class Projectile {
     if (pointInRects(this.x, this.y, world.rects, this.radius)) this.dead = true;
   }
   draw(ctx) {
-    // trail
-    for (let i = 0; i < this.trail.length; i++) {
-      const a = (i / this.trail.length) * 0.5;
-      ctx.globalAlpha = a;
-      ctx.fillStyle = this.color;
+    if (this.aoe > 0) {
+      // Rocket launcher projectile (RPG-7)
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.angle);
+      
+      // Shadow glow for rocket engine
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#ff6f00';
+      
+      // Rocket tail flame
+      ctx.fillStyle = '#ff3300';
       ctx.beginPath();
-      ctx.arc(this.trail[i].x, this.trail[i].y, this.radius * (i / this.trail.length), 0, Math.PI * 2);
+      ctx.moveTo(-15, -4);
+      ctx.lineTo(-25, 0);
+      ctx.lineTo(-15, 4);
+      ctx.closePath();
       ctx.fill();
+      
+      ctx.fillStyle = '#ffcc00';
+      ctx.beginPath();
+      ctx.moveTo(-15, -2);
+      ctx.lineTo(-20, 0);
+      ctx.lineTo(-15, 2);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.shadowBlur = 0;
+      
+      // Rocket body (cylinder, military green)
+      ctx.fillStyle = '#4f5e3d';
+      ctx.fillRect(-10, -4, 15, 8);
+      
+      // Nose cone (pointed head, dark grey / metallic)
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.moveTo(5, -4);
+      ctx.lineTo(15, 0);
+      ctx.lineTo(5, 4);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Rocket fins (at the back)
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.moveTo(-10, -4);
+      ctx.lineTo(-14, -8);
+      ctx.lineTo(-8, -8);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.moveTo(-10, 4);
+      ctx.lineTo(-14, 8);
+      ctx.lineTo(-8, 8);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.restore();
+    } else {
+      // Regular bullet tracer round (elongated capsule along its movement path)
+      ctx.save();
+      ctx.shadowBlur = this.crit ? 16 : 8;
+      ctx.shadowColor = this.color;
+      ctx.strokeStyle = this.crit ? '#ffffff' : this.color;
+      ctx.lineWidth = this.radius * 1.5;
+      ctx.lineCap = 'round';
+      
+      // Draw a line from current position to a point back along velocity
+      const len = 15;
+      const speed = Math.hypot(this.vx, this.vy);
+      const dx = speed > 0 ? (this.vx / speed) * len : 0;
+      const dy = speed > 0 ? (this.vy / speed) * len : 0;
+      
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y);
+      ctx.lineTo(this.x - dx, this.y - dy);
+      ctx.stroke();
+      
+      // Draw inner white core for extra brightness/impact
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = this.radius * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y);
+      ctx.lineTo(this.x - dx * 0.7, this.y - dy * 0.7);
+      ctx.stroke();
+      
+      ctx.restore();
     }
-    ctx.globalAlpha = 1;
-    // glow core
-    ctx.shadowBlur = 12; ctx.shadowColor = this.color;
-    ctx.fillStyle = this.crit ? '#fff' : this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius + (this.crit ? 2 : 0), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
   }
 }
