@@ -20,6 +20,8 @@ class UI {
       banner: document.getElementById('wave-banner'),
       shopCoins: document.getElementById('shop-coins'),
       shopCards: document.getElementById('shop-cards'),
+      shopCloseBtn: document.getElementById('shop-close-btn'),
+      shopWaitMsg: document.getElementById('shop-wait-msg'),
       gameoverStats: document.getElementById('gameover-stats'),
     };
     this.bannerTimer = 0;
@@ -28,14 +30,14 @@ class UI {
   showHUD(v) { this.el.hud.classList.toggle('hidden', !v); }
 
   updateHUD(game) {
-    const p = game.player;
+    const p = game.localPlayer;
     this.el.hpBar.style.width = Utils.clamp((p.hp / p.maxHp) * 100, 0, 100) + '%';
     this.el.hpText.textContent = Math.ceil(p.hp) + ' / ' + p.maxHp;
     this.el.coins.textContent = p.coins;
     this.el.score.textContent = p.score;
     this.el.kills.textContent = p.kills;
     this.el.wave.textContent = 'WELLE ' + game.waves.wave;
-    this.el.enemiesLeft.textContent = 'Gegner: ' + game.waves.totalRemaining();
+    this.el.enemiesLeft.textContent = 'Gegner: ' + (game.mode === 'guest' ? (game._enemiesLeft || 0) : game.waves.totalRemaining());
     this.el.weaponName.textContent = p.weaponDef().name;
     this.el.ammo.textContent = (p.reloading ? '...' : p.weapons[p.currentWeapon].ammo) + ' / ' + p.magSize();
     this.el.reloadBar.style.width = p.reloading ? ((1 - p.reloadTimer / p.reloadTotal) * 100) + '%' : '0%';
@@ -64,8 +66,12 @@ class UI {
   }
 
   showShop(game, onBuy) {
-    this.el.shopCoins.textContent = game.player.coins;
+    const me = game.localPlayer;
+    this.el.shopCoins.textContent = me.coins;
     this.el.shopCards.innerHTML = '';
+    this.el.shopCloseBtn.classList.toggle('hidden', game.mode === 'guest');
+    this.el.shopWaitMsg.classList.toggle('hidden', game.mode !== 'guest');
+    if (game.mode === 'guest') return; // guest has no shop of its own; host advances the wave for the squad
     const picks = game.shopUpgrades;
     picks.forEach((up) => {
       const card = document.createElement('div');
@@ -78,22 +84,22 @@ class UI {
       const btn = card.querySelector('.buy');
       const refresh = () => {
         const bought = card.classList.contains('bought');
-        btn.disabled = game.player.coins < up.price || (bought && !up.repeatable);
-        this.el.shopCoins.textContent = game.player.coins;
+        btn.disabled = me.coins < up.price || (bought && !up.repeatable);
+        this.el.shopCoins.textContent = me.coins;
       };
       btn.addEventListener('click', () => {
-        if (game.player.coins < up.price) return;
-        game.player.coins -= up.price;
-        up.apply(game.player);
+        if (me.coins < up.price) return;
+        me.coins -= up.price;
+        up.apply(me);
         Audio2.buy();
         card.classList.remove('bought'); void card.offsetWidth; card.classList.add('bought');
         // refresh all cards affordability
         this.el.shopCards.querySelectorAll('.shop-card').forEach((c) => {
           const b = c.querySelector('.buy');
           const price = parseInt(b.textContent.replace(/\D/g, ''), 10);
-          b.disabled = game.player.coins < price;
+          b.disabled = me.coins < price;
         });
-        this.el.shopCoins.textContent = game.player.coins;
+        this.el.shopCoins.textContent = me.coins;
       });
       refresh();
       this.el.shopCards.appendChild(card);

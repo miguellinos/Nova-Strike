@@ -1,0 +1,13 @@
+{
+  "name": "nova-strike",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nova Strike - LAN-Koop Server",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

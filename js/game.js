@@ -5,11 +5,13 @@ class Game {
     this.ctx = canvas.getContext('2d');
     this.ui = new UI();
     this.state = 'menu'; // menu | playing | paused | shop | gameover
+    this.mode = 'solo';  // solo | host | guest (LAN co-op)
     this.cam = { x: 0, y: 0, w: canvas.width, h: canvas.height };
     this.time = 0; this.dt = 0;
     this.shakeAmt = 0;
     this.damageVignette = 0;
     this.hpMult = 1; this.dmgMult = 1;
+    this.player2 = null;
     this.resize();
     window.addEventListener('resize', () => this.resize());
   }
@@ -20,9 +22,27 @@ class Game {
     this.cam.w = this.canvas.width; this.cam.h = this.canvas.height;
   }
 
-  newGame() {
+  // all active players (1 in solo, 2 in co-op)
+  get players() { return this.player2 ? [this.player, this.player2] : [this.player]; }
+  // the player whose stats/HUD belong to THIS browser tab
+  get localPlayer() { return this.mode === 'guest' ? this.player2 : this.player; }
+
+  nearestPlayer(x, y) {
+    let best = this.player, bestD = Infinity;
+    for (const p of this.players) {
+      const d = Utils.dist(x, y, p.x, p.y);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return best;
+  }
+
+  // mode: 'solo' (default) | 'host' | 'guest' — coop games always run 2 player slots
+  newGame(mode) {
+    this.mode = mode || 'solo';
     this.world = new World();
-    this.player = new Player(this.world.w / 2, this.world.h / 2);
+    const spawn = { x: this.world.w / 2, y: this.world.h / 2 };
+    this.player = new Player(spawn.x - 20, spawn.y);
+    this.player2 = this.mode !== 'solo' ? new Player(spawn.x + 20, spawn.y, this.mode === 'host') : null;
     this.projectiles = [];
     this.enemyProjectiles = [];
     this.enemies = [];
@@ -36,62 +56,67 @@ class Game {
     this.cam.y = this.player.y - this.cam.h / 2;
     this.state = 'playing';
     this.ui.showHUD(true);
-    this.waves.startWave(1);
+    if (this.mode !== 'guest') this.waves.startWave(1);
   }
 
   shake(a) { this.shakeAmt = Math.min(this.shakeAmt + a, 22); }
 
   // ----- events -----
   onEnemyKilled(e) {
-    this.player.kills++;
-    this.player.score += e.def.score;
+    const killer = e.lastHitBy || this.player;
+    killer.kills++;
+    killer.score += e.def.score;
     Audio2.enemyDie();
     this.particles.burst(e.x, e.y, e.color, 12, 200);
-    this.dropCoins(e.x, e.y, e.def.coins);
-    if (Utils.chance(this.player.mods.lifesteal)) this.player.heal(5);
-    // chance to drop a medkit — likelier when the player is hurt
-    const hurt = 1 - this.player.hp / this.player.maxHp;
+    this.dropCoins(e.x, e.y, e.def.coins, killer);
+    if (Utils.chance(killer.mods.lifesteal)) killer.heal(5);
+    // chance to drop a medkit — likelier when the killer is hurt
+    const hurt = 1 - killer.hp / killer.maxHp;
     if (Utils.chance(0.06 + hurt * 0.14)) this.dropMedkit(e.x, e.y, 25);
   }
 
   onBossKilled(b) {
-    this.player.kills++;
-    this.player.score += b.score;
+    const killer = b.lastHitBy || this.player;
+    killer.kills++;
+    killer.score += b.score;
     Audio2.explosion();
     this.shake(20);
     this.particles.burst(b.x, b.y, '#ff3b52', 60, 340);
     this.particles.burst(b.x, b.y, '#ffcc33', 30, 260);
-    this.dropCoins(b.x, b.y, b.coins);
+    this.dropCoins(b.x, b.y, b.coins, killer);
     // bosses always drop a couple of big medkits
     for (let i = 0; i < 3; i++) this.dropMedkit(b.x, b.y, 40);
+  }
+
+  dropCoins(x, y, range, killer) {
+    let n = Utils.randInt(range[0], range[1]);
+    n = Math.round(n * (killer ? killer.mods.coinMult : 1));
+    for (let i = 0; i < n; i++) {
+      this.coins.push(new Coin(x + Utils.rand(-20, 20), y + Utils.rand(-20, 20), 1));
+    }
   }
 
   dropMedkit(x, y, heal) {
     this.medkits.push(new Medkit(x + Utils.rand(-16, 16), y + Utils.rand(-16, 16), heal));
   }
 
-  dropCoins(x, y, range) {
-    let n = Utils.randInt(range[0], range[1]);
-    n = Math.round(n * this.player.mods.coinMult);
-    for (let i = 0; i < n; i++) {
-      this.coins.push(new Coin(x + Utils.rand(-20, 20), y + Utils.rand(-20, 20), 1));
-    }
-  }
-
   onPlayerDeath() {
+    // co-op: only end the run once both players are down
+    if (this.players.some((p) => p.hp > 0)) return;
     this.state = 'gameover';
     this.ui.showHUD(false);
     const mins = Math.floor(this.playTime / 60), secs = Math.floor(this.playTime % 60);
+    const p = this.localPlayer;
     this.ui.showGameOver({
-      wave: this.waves.wave, kills: this.player.kills, score: this.player.score,
-      coins: this.player.coins, time: mins + ':' + String(secs).padStart(2, '0'),
+      wave: this.waves.wave, kills: p.kills, score: p.score,
+      coins: p.coins, time: mins + ':' + String(secs).padStart(2, '0'),
     });
     Menus.show('gameover-menu');
   }
 
   // ----- wave lifecycle -----
   endWave() {
-    // auto-collect remaining coins
+    // auto-collect remaining coins for the whole squad
     for (const c of this.coins) { this.player.coins += c.value; }
     this.coins = [];
     this.medkits = [];
@@ -127,6 +152,24 @@ class Game {
     this.time += dt;
     Audio2.updateMusic(dt);
 
+    // guest tabs never simulate — they just forward local input and render
+    // whatever the host last broadcast (see applySnapshot()).
+    if (this.mode === 'guest') {
+      if (this.state === 'playing' && this.player2) {
+        Input.mouse.worldX = this.cam.x + Input.mouse.x;
+        Input.mouse.worldY = this.cam.y + Input.mouse.y;
+        Net.sendInput({
+          keys: { w: Input.key('w'), a: Input.key('a'), s: Input.key('s'), d: Input.key('d'), shift: Input.key('shift'), r: Input.key('r'),
+                   '1': Input.key('1'), '2': Input.key('2'), '3': Input.key('3'), '4': Input.key('4'), '5': Input.key('5') },
+          justPressed: Object.keys(Input.pressed).filter((k) => Input.pressed[k]),
+          mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: Input.mouse.down,
+        });
+      }
+      this.ui.updateHUD(this);
+      Input.clearFrame();
+      return;
+    }
+
     if (this.state !== 'playing') { Input.clearFrame(); return; }
     if (Input.wasPressed('escape')) { this.pause(); Input.clearFrame(); return; }
 
@@ -136,7 +179,7 @@ class Game {
     Input.mouse.worldY = this.cam.y + Input.mouse.y;
 
     this.world.update(dt);
-    this.player.update(dt, this);
+    for (const p of this.players) if (p.hp > 0) p.update(dt, this);
     this.waves.update(dt);
 
     for (const e of this.enemies) e.update(dt, this);
@@ -152,9 +195,11 @@ class Game {
     this.enemies = this.enemies.filter((e) => !e.dead);
     this.particles.update(dt);
 
-    // camera smooth follow
-    const tx = this.player.x - this.cam.w / 2;
-    const ty = this.player.y - this.cam.h / 2;
+    // camera smooth follow (midpoint of the squad in co-op)
+    const midX = this.players.reduce((s, p) => s + p.x, 0) / this.players.length;
+    const midY = this.players.reduce((s, p) => s + p.y, 0) / this.players.length;
+    const tx = midX - this.cam.w / 2;
+    const ty = midY - this.cam.h / 2;
     this.cam.x = Utils.lerp(this.cam.x, tx, 0.12);
     this.cam.y = Utils.lerp(this.cam.y, ty, 0.12);
     this.cam.x = Utils.clamp(this.cam.x, 0, Math.max(0, this.world.w - this.cam.w));
@@ -168,6 +213,62 @@ class Game {
 
     this.ui.updateHUD(this);
     Input.clearFrame();
+    if (this.player2 && this.player2.isRemote) this.player2.input.clearFrame();
+
+    if (this.mode === 'host') Net.sendSnapshot(this.buildSnapshot());
+  }
+
+  // ----- LAN co-op: host -> guest state sync -----
+  buildSnapshot() {
+    return {
+      state: this.state,
+      wave: this.waves ? this.waves.wave : 1,
+      enemiesLeft: this.waves ? this.waves.totalRemaining() : 0,
+      cam: { x: this.cam.x, y: this.cam.y },
+      players: this.players.map((p) => ({
+        x: p.x, y: p.y, aimAngle: p.aimAngle, hp: p.hp, maxHp: p.maxHp,
+        coins: p.coins, score: p.score, kills: p.kills,
+        currentWeapon: p.currentWeapon, ammo: p.weapons[p.currentWeapon].ammo, magSize: p.magSize(),
+        reloading: p.reloading, reloadTimer: p.reloadTimer, reloadTotal: p.reloadTotal,
+        dashCd: p.dashCd, dashCdTotal: p.dashCooldown(), hitFlash: p.hitFlash, invuln: p.invuln, walkPhase: p.walkPhase,
+      })),
+      enemies: this.enemies.map((e) => ({ x: e.x, y: e.y, radius: e.radius, color: e.color, hp: e.hp, maxHp: e.maxHp, type: e.type, hitFlash: e.hitFlash })),
+      boss: this.boss && !this.boss.dead ? {
+        x: this.boss.x, y: this.boss.y, radius: this.boss.radius, hp: this.boss.hp, maxHp: this.boss.maxHp,
+        name: this.boss.name, phase2: this.boss.phase2, spin: this.boss.spin, hitFlash: this.boss.hitFlash,
+      } : null,
+      projectiles: this.projectiles.map((pr) => ({ x: pr.x, y: pr.y, radius: pr.radius, color: pr.color, angle: pr.angle, aoe: pr.aoe })),
+      enemyProjectiles: this.enemyProjectiles.map((ep) => ({ x: ep.x, y: ep.y, radius: ep.radius, color: ep.color })),
+      coins: this.coins.map((c) => ({ x: c.x, y: c.y })),
+      medkits: this.medkits.map((m) => ({ x: m.x, y: m.y, life: m.life })),
+      shakeAmt: this.shakeAmt,
+    };
+  }
+
+  applySnapshot(s) {
+    if (!this.world) return; // not ready yet
+    this.state = s.state;
+    if (this.waves) this.waves.wave = s.wave;
+    this._enemiesLeft = s.enemiesLeft;
+    this.cam.x = s.cam.x; this.cam.y = s.cam.y;
+
+    const assign = (p, d) => Object.assign(p, d);
+    if (s.players[0]) assign(this.player, s.players[0]);
+    if (s.players[1] && this.player2) assign(this.player2, s.players[1]);
+
+    this.enemies = s.enemies.map((d) => Object.assign(Object.create(Enemy.prototype), d, { draw: Enemy.prototype.draw, dead: false }));
+    this.boss = s.boss ? Object.assign(Object.create(Boss.prototype), s.boss, { dead: false }) : null;
+    this.projectiles = s.projectiles.map((d) => Object.assign(Object.create(Projectile.prototype), d, {
+      trail: [], vx: Math.cos(d.angle) * 500, vy: Math.sin(d.angle) * 500,
+    }));
+    this.enemyProjectiles = s.enemyProjectiles;
+    this.coins = s.coins.map((d) => new Coin(d.x, d.y));
+    this.medkits = s.medkits.map((d) => { const m = new Medkit(d.x, d.y); m.life = d.life; return m; });
+    this.shakeAmt = s.shakeAmt;
+
+    if (s.state === 'shop') { this.ui.showShop(this); Menus.show('shop-menu'); }
+    else if (s.state === 'gameover') { this.ui.showHUD(false); this.ui.showGameOver({ wave: s.wave, kills: this.localPlayer.kills, score: this.localPlayer.score, coins: this.localPlayer.coins, time: '--:--' }); Menus.show('gameover-menu'); }
+    else if (s.state === 'playing') { this.ui.showHUD(true); Menus.hideAll(); }
   }
 
   updateProjectiles(dt) {
@@ -193,17 +294,18 @@ class Game {
   hitTarget(pr, target) {
     if (pr.aoe > 0) {
       // explosion: damage all in radius
-      this.explode(pr.x, pr.y, pr.aoe, pr.damage);
+      this.explode(pr.x, pr.y, pr.aoe, pr.damage, pr.owner);
       pr.dead = true;
       return;
     }
+    target.lastHitBy = pr.owner;
     target.takeDamage(pr.damage, this);
     pr.hitSet.add(target);
     this.particles.spawn(pr.x, pr.y, pr.color, { count: 5, angle: pr.angle, spread: 1.2, minSpeed: 40, maxSpeed: 130, life: 0.2, size: 3 });
     if (pr.hitSet.size > pr.pierce) pr.dead = true;
   }
 
-  explode(x, y, radius, dmg) {
+  explode(x, y, radius, dmg, owner) {
     this.particles.burst(x, y, '#ffb14d', 24, 260);
     this.particles.burst(x, y, '#b14dff', 16, 200);
     Audio2.explosion();
@@ -211,9 +313,10 @@ class Game {
     for (const e of this.enemies) {
       if (e.dead) continue;
       const d = Utils.dist(x, y, e.x, e.y);
-      if (d < radius + e.radius) e.takeDamage(dmg * (1 - d / (radius + e.radius) * 0.5), this);
+      if (d < radius + e.radius) { e.lastHitBy = owner; e.takeDamage(dmg * (1 - d / (radius + e.radius) * 0.5), this); }
     }
     if (this.boss && !this.boss.dead && Utils.dist(x, y, this.boss.x, this.boss.y) < radius + this.boss.radius) {
+      this.boss.lastHitBy = owner;
       this.boss.takeDamage(dmg, this);
     }
   }
@@ -223,9 +326,13 @@ class Game {
       ep.x += ep.vx * dt; ep.y += ep.vy * dt;
       ep.life -= dt;
       if (ep.life <= 0 || pointInRects(ep.x, ep.y, this.world.rects, ep.radius)) { ep.dead = true; continue; }
-      if (Utils.dist(ep.x, ep.y, this.player.x, this.player.y) < this.player.radius + ep.radius) {
-        this.player.takeDamage(ep.dmg, this);
-        ep.dead = true;
+      for (const p of this.players) {
+        if (p.hp <= 0) continue;
+        if (Utils.dist(ep.x, ep.y, p.x, p.y) < p.radius + ep.radius) {
+          p.takeDamage(ep.dmg, this);
+          ep.dead = true;
+          break;
+        }
       }
     }
     this.enemyProjectiles = this.enemyProjectiles.filter((e) => !e.dead);
@@ -256,7 +363,7 @@ class Game {
     if (this.boss && !this.boss.dead) this.boss.draw(ctx, this.time);
     for (const pr of this.projectiles) pr.draw(ctx);
     this.particles.draw(ctx);
-    this.player.draw(ctx, this.time);
+    for (const p of this.players) if (p.hp > 0) p.draw(ctx, this.time);
 
     ctx.restore();
 

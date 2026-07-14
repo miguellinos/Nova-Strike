@@ -50,9 +50,53 @@
       <h1 class="title">NOVA<span>STRIKE</span></h1>
       <p class="subtitle">Militärische Spezialoperation. Verteidige die Stellung und überlebe die Wellen.</p>
       <button class="btn btn-primary" data-action="start">Spiel starten</button>
+      <button class="btn" data-action="coop-menu">Koop (LAN)</button>
       <button class="btn" data-action="settings">Einstellungen</button>
       <button class="btn" data-action="controls">Steuerung</button>
       <button class="btn" data-action="quit">Spiel beenden</button>
+    </div>
+  </div>
+
+  <!-- Co-op: choose host or join -->
+  <div id="coop-menu" class="overlay hidden">
+    <div class="menu-panel">
+      <h2 class="panel-title">KOOP (LAN)</h2>
+      <p class="subtitle">Beide Spieler müssen im selben WLAN sein.</p>
+      <button class="btn btn-primary" data-action="coop-host">Raum erstellen</button>
+      <button class="btn" data-action="coop-join">Raum beitreten</button>
+      <button class="btn" data-action="coop-back">Zurück</button>
+    </div>
+  </div>
+
+  <!-- Co-op: host lobby -->
+  <div id="coop-host-menu" class="overlay hidden">
+    <div class="menu-panel wide">
+      <h2 class="panel-title">RAUM ERSTELLT</h2>
+      <div id="coop-host-status">Verbinde zum lokalen Server...</div>
+      <div id="coop-code-wrap" class="hidden">
+        <div class="stat-row"><span class="chip">Code: <b id="coop-room-code">----</b></span></div>
+        <div id="coop-host-ips"></div>
+        <div id="coop-host-guest-status">Warte auf Mitspieler...</div>
+      </div>
+      <button class="btn btn-primary hidden" id="coop-host-ready-btn" data-action="coop-ready">Bereit</button>
+      <button class="btn" data-action="coop-cancel">Abbrechen</button>
+    </div>
+  </div>
+
+  <!-- Co-op: join lobby -->
+  <div id="coop-join-menu" class="overlay hidden">
+    <div class="menu-panel wide">
+      <h2 class="panel-title">RAUM BEITRETEN</h2>
+      <label class="select-row">Raumcode
+        <input type="text" id="coop-code-input" maxlength="4" placeholder="ABCD" style="text-transform:uppercase">
+      </label>
+      <button class="btn btn-primary" data-action="coop-join-submit">Verbinden</button>
+      <div id="coop-join-status"></div>
+      <div id="coop-join-ready-wrap" class="hidden">
+        <div id="coop-join-host-status">Warte auf Host...</div>
+        <button class="btn btn-primary" data-action="coop-ready">Bereit</button>
+      </div>
+      <button class="btn" data-action="coop-cancel">Abbrechen</button>
     </div>
   </div>
 
@@ -105,7 +149,8 @@
       <h2 class="panel-title">UPGRADE-SHOP</h2>
       <div class="shop-coins">Deine Münzen: 🪙 <b id="shop-coins">0</b></div>
       <div id="shop-cards"></div>
-      <button class="btn btn-primary" data-action="shop-close">Nächste Welle ▶</button>
+      <button class="btn btn-primary" id="shop-close-btn" data-action="shop-close">Nächste Welle ▶</button>
+      <div id="shop-wait-msg" class="hidden">Warte auf Host...</div>
     </div>
   </div>
 
@@ -134,6 +179,7 @@
 <script src="js/boss.js"></script>
 <script src="js/coin.js"></script>
 <script src="js/medkit.js"></script>
+<script src="js/network.js"></script>
 <script src="js/upgrades.js"></script>
 <script src="js/waves.js"></script>
 <script src="js/ui.js"></script>
