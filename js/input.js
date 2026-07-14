@@ -1,7 +1,7 @@
 // ---------- input.js : keyboard & mouse ----------
 const Input = {
   keys: {},
-  mouse: { x: 0, y: 0, worldX: 0, worldY: 0, down: false },
+  mouse: { x: 0, y: 0, worldX: 0, worldY: 0, down: false, rightDown: false, rightPressed: false },
   pressed: {}, // one-frame edge triggers
   init(canvas) {
     this.canvas = canvas;
@@ -23,11 +23,17 @@ const Input = {
       this.mouse.x = e.clientX - r.left;
       this.mouse.y = e.clientY - r.top;
     });
-    canvas.addEventListener('mousedown', (e) => { if (e.button === 0) this.mouse.down = true; });
-    window.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouse.down = false; });
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) this.mouse.down = true;
+      if (e.button === 2) { if (!this.mouse.rightDown) this.mouse.rightPressed = true; this.mouse.rightDown = true; }
+    });
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) this.mouse.down = false;
+      if (e.button === 2) this.mouse.rightDown = false;
+    });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   },
   key(k) { return !!this.keys[k]; },
   wasPressed(k) { return !!this.pressed[k]; },
-  clearFrame() { this.pressed = {}; },
+  clearFrame() { this.pressed = {}; this.mouse.rightPressed = false; },
 };

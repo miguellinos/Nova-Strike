@@ -22,13 +22,31 @@ class Boss {
     this.spin = 0;
     this.coins = [50, 100];
     this.score = 1000;
+    this.burnT = 0; this.burnDps = 0; this.burnBy = null;
+    this.slowT = 0;
   }
+
+  applyBurn(dps, dur, by) {
+    this.burnDps = Math.max(this.burnDps, dps);
+    this.burnT = Math.max(this.burnT, dur);
+    this.burnBy = by || this.burnBy;
+  }
+  applySlow(dur) { this.slowT = Math.max(this.slowT, dur); }
 
   update(dt, game) {
     const p = game.nearestPlayer(this.x, this.y);
     const ang = Utils.angle(this.x, this.y, p.x, p.y);
     const dist = Utils.dist(this.x, this.y, p.x, p.y);
     this.spin += dt;
+
+    // status effects
+    if (this.burnT > 0) {
+      this.burnT -= dt;
+      this.hp -= this.burnDps * dt;
+      if (this.hp <= 0 && !this.dead) { this.dead = true; this.lastHitBy = this.burnBy; game.onBossKilled(this); return; }
+    }
+    let bossSlow = 1;
+    if (this.slowT > 0) { this.slowT -= dt; bossSlow = 0.55; }
 
     // phase transition (damaged/furious state)
     if (!this.phase2 && this.hp < this.maxHp * 0.5) {
@@ -46,7 +64,7 @@ class Boss {
       this.charging -= dt;
       mx = this.chargeDir.x; my = this.chargeDir.y; spd = 520;
     }
-    this.x += mx * spd * dt; this.y += my * spd * dt;
+    this.x += mx * spd * bossSlow * dt; this.y += my * spd * bossSlow * dt;
     const res = resolveCircleRects(this.x, this.y, this.radius, game.world.rects);
     this.x = Utils.clamp(res.x, this.radius, game.world.w - this.radius);
     this.y = Utils.clamp(res.y, this.radius, game.world.h - this.radius);

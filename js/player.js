@@ -47,6 +47,14 @@ class Player {
     this.dashTime = 0;
     this.dashDir = { x: 0, y: 0 };
     this.dashTrail = [];
+
+    // melee (right-click) — always available regardless of equipped gun
+    this.meleeCdTotal = 0.45;
+    this.meleeCd = 0;
+    this.meleeSwing = 0;        // >0 while the slash animation plays
+    this.meleeDamage = 46;
+    this.meleeRange = 62;
+    this.meleeArc = Math.PI * 0.6; // ~108° swing cone
   }
 
   weaponDef() { return WEAPON_DEFS[this.currentWeapon]; }
@@ -131,9 +139,48 @@ class Player {
       else this.startReload();
     }
 
+    // melee attack (right-click)
+    if (this.meleeCd > 0) this.meleeCd -= dt;
+    if (this.meleeSwing > 0) this.meleeSwing -= dt;
+    if (this.input.mouse.rightPressed && this.meleeCd <= 0) this.meleeAttack(game);
+
     // active item activations
     if (this.input.wasPressed('q')) this.useMedkit(game);
     if (this.input.wasPressed('e')) this.useShield(game);
+  }
+
+  meleeAttack(game) {
+    this.meleeCd = this.meleeCdTotal;
+    this.meleeSwing = 0.22;
+    Audio2.shoot('shotgun');
+    game.shake(4);
+
+    const cx = this.x + Math.cos(this.aimAngle) * (this.radius + 10);
+    const cy = this.y + Math.sin(this.aimAngle) * (this.radius + 10);
+    game.particles.spawn(cx, cy, '#eaffff', { count: 8, angle: this.aimAngle, spread: this.meleeArc / 2, minSpeed: 120, maxSpeed: 260, life: 0.18, size: 3 });
+
+    // hit every enemy inside the arc in front of the player
+    const targets = [];
+    for (const e of game.enemies) if (!e.dead) targets.push(e);
+    if (game.boss && !game.boss.dead) targets.push(game.boss);
+    let hitAny = false;
+    for (const t of targets) {
+      const d = Utils.dist(this.x, this.y, t.x, t.y);
+      if (d > this.meleeRange + t.radius) continue;
+      const ang = Utils.angle(this.x, this.y, t.x, t.y);
+      let diff = Math.abs(ang - this.aimAngle);
+      if (diff > Math.PI) diff = Math.PI * 2 - diff;
+      if (diff > this.meleeArc / 2) continue;
+      t.lastHitBy = this;
+      t.takeDamage(this.meleeDamage * this.mods.damage, game);
+      // knockback
+      if (!t.dead && t.def && !t.def.elite) {
+        t.x += Math.cos(ang) * 34;
+        t.y += Math.sin(ang) * 34;
+      }
+      hitAny = true;
+    }
+    if (hitAny) { Audio2.hit(); game.shake(6); }
   }
 
   startReload() {
@@ -376,6 +423,26 @@ class Player {
       ctx.stroke();
       ctx.fillStyle = 'rgba(28, 108, 255, 0.08)';
       ctx.fill();
+      ctx.restore();
+    }
+
+    // 6. Draw melee slash arc
+    if (this.meleeSwing > 0) {
+      const prog = 1 - this.meleeSwing / 0.22; // 0 -> 1 over the swing
+      ctx.save();
+      ctx.translate(this.x, this.y + bob);
+      ctx.rotate(this.aimAngle);
+      ctx.globalAlpha = Math.max(0, 1 - prog);
+      ctx.strokeStyle = '#eaffff';
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 14; ctx.shadowColor = '#bfffff';
+      const half = this.meleeArc / 2;
+      // sweep from one side of the arc to the other as the swing progresses
+      const a = -half + this.meleeArc * prog;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.meleeRange, a - 0.5, a + 0.5);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
       ctx.restore();
     }
   }

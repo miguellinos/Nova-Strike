@@ -31,5 +31,29 @@ const WEAPON_DEFS = {
     speed: 560, pellets: 1, spread: 0.02, pierce: 0, radius: 10, color: '#ff4d3b',
     aoe: 90, // explosion radius
   },
+  smg: {
+    key: 'smg', name: 'MP7 Maschinenpistole', sound: 'rifle',
+    damage: 9, fireRate: 17, range: 520, mag: 40, reload: 1.3,
+    speed: 880, pellets: 1, spread: 0.10, pierce: 0, radius: 3, color: '#7dff9e',
+    aoe: 0,
+  },
+  flamethrower: {
+    key: 'flamethrower', name: 'M9 Flammenwerfer', sound: 'shotgun',
+    damage: 5, fireRate: 16, range: 210, mag: 60, reload: 2.2,
+    speed: 430, pellets: 2, spread: 0.28, pierce: 2, radius: 7, color: '#ff8a1e',
+    aoe: 0, burn: 4,       // applies burning damage-over-time
+  },
+  tesla: {
+    key: 'tesla', name: 'Tesla-Blitzgewehr', sound: 'plasma',
+    damage: 20, fireRate: 4.5, range: 560, mag: 14, reload: 1.8,
+    speed: 1100, pellets: 1, spread: 0.02, pierce: 0, radius: 5, color: '#4ad9ff',
+    aoe: 0, chain: 4,      // lightning jumps to nearby enemies
+  },
+  cryo: {
+    key: 'cryo', name: 'CR-6 Frostwerfer', sound: 'sniper',
+    damage: 14, fireRate: 3.5, range: 620, mag: 10, reload: 1.9,
+    speed: 900, pellets: 1, spread: 0.03, pierce: 1, radius: 6, color: '#9fe8ff',
+    aoe: 0, slow: 1.6,     // slows hit enemies for N seconds
+  },
 };
-const WEAPON_ORDER = ['plasma', 'rifle', 'shotgun', 'sniper', 'cannon'];
+const WEAPON_ORDER = ['plasma', 'rifle', 'shotgun', 'sniper', 'cannon', 'smg', 'flamethrower', 'tesla', 'cryo'];

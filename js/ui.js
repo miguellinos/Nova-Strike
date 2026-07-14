@@ -136,7 +136,11 @@ class UI {
       { key: 'rifle', price: 120, name: 'M4A1 Sturmgewehr', icon: '🔫', desc: 'Mittelstrecken-Automatikgewehr.' },
       { key: 'shotgun', price: 180, name: 'Remington 870 Schrotflinte', icon: '💥', desc: 'Verursacht massiven Nahbereichschaden.' },
       { key: 'sniper', price: 250, name: 'Barrett .50 Cal Scharfschütze', icon: '🎯', desc: 'Hoher Einzelschaden, durchdringt Feinde.' },
-      { key: 'cannon', price: 400, name: 'RPG-7 Raketenwerfer', icon: '🚀', desc: 'Verschießt explosive Raketen mit Flächenschaden.' }
+      { key: 'cannon', price: 400, name: 'RPG-7 Raketenwerfer', icon: '🚀', desc: 'Verschießt explosive Raketen mit Flächenschaden.' },
+      { key: 'smg', price: 200, name: 'MP7 Maschinenpistole', icon: '💨', desc: 'Extrem hohe Feuerrate, ideal gegen Schwärme.' },
+      { key: 'flamethrower', price: 320, name: 'M9 Flammenwerfer', icon: '🔥', desc: 'Kurze Reichweite, setzt Gegner in Brand (Schaden über Zeit).' },
+      { key: 'tesla', price: 360, name: 'Tesla-Blitzgewehr', icon: '⚡', desc: 'Blitze springen auf nahe Gegner über.' },
+      { key: 'cryo', price: 300, name: 'CR-6 Frostwerfer', icon: '❄️', desc: 'Verlangsamt getroffene Gegner deutlich.' }
     ];
 
     weaponItems.forEach((w) => {

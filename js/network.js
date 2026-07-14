@@ -6,18 +6,20 @@ class RemoteInput {
   constructor() {
     this.keys = {};
     this.pressed = {};
-    this.mouse = { x: 0, y: 0, worldX: 0, worldY: 0, down: false };
+    this.mouse = { x: 0, y: 0, worldX: 0, worldY: 0, down: false, rightDown: false, rightPressed: false };
   }
   applyPacket(d) {
     this.keys = d.keys || {};
     this.mouse.worldX = d.mouseWorldX || 0;
     this.mouse.worldY = d.mouseWorldY || 0;
     this.mouse.down = !!d.mouseDown;
+    this.mouse.rightDown = !!d.rightDown;
+    if (d.rightPressed) this.mouse.rightPressed = true;
     if (d.justPressed) for (const k of d.justPressed) this.pressed[k] = true;
   }
   key(k) { return !!this.keys[k]; }
   wasPressed(k) { return !!this.pressed[k]; }
-  clearFrame() { this.pressed = {}; }
+  clearFrame() { this.pressed = {}; this.mouse.rightPressed = false; }
 }
 
 const Net = {

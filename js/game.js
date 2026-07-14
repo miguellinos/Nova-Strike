@@ -52,6 +52,7 @@ class Game {
     this.coins = [];
     this.medkits = [];
     this.shields = [];
+    this.lightningArcs = [];
     this.particles = new Particles();
     this.waves = new WaveManager(this);
     this.playTime = 0;
@@ -186,6 +187,7 @@ class Game {
                    '1': Input.key('1'), '2': Input.key('2'), '3': Input.key('3'), '4': Input.key('4'), '5': Input.key('5') },
           justPressed: Object.keys(Input.pressed).filter((k) => Input.pressed[k]),
           mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: Input.mouse.down,
+          rightDown: Input.mouse.rightDown, rightPressed: Input.mouse.rightPressed,
         });
       }
       this.ui.updateHUD(this);
@@ -224,6 +226,10 @@ class Game {
     for (const s of this.shields) s.update(dt, this);
     this.shields = this.shields.filter((s) => !s.dead);
     this.enemies = this.enemies.filter((e) => !e.dead);
+    if (this.lightningArcs) {
+      for (const arc of this.lightningArcs) arc.life -= dt;
+      this.lightningArcs = this.lightningArcs.filter((a) => a.life > 0);
+    }
     this.particles.update(dt);
 
     // camera smooth follow (midpoint of the squad in co-op)
@@ -262,7 +268,7 @@ class Game {
         currentWeapon: p.currentWeapon, ammo: p.weapons[p.currentWeapon].ammo, magSize: p.magSize(),
         reloading: p.reloading, reloadTimer: p.reloadTimer, reloadTotal: p.reloadTotal,
         dashCd: p.dashCd, dashCdTotal: p.dashCooldown(), hitFlash: p.hitFlash, invuln: p.invuln, walkPhase: p.walkPhase,
-        visionRange: p.mods.visionRange,
+        visionRange: p.mods.visionRange, meleeSwing: p.meleeSwing, meleeArc: p.meleeArc, meleeRange: p.meleeRange, shieldHp: p.shieldHp,
       })),
       enemies: this.enemies.map((e) => ({ x: e.x, y: e.y, radius: e.radius, color: e.color, hp: e.hp, maxHp: e.maxHp, type: e.type, hitFlash: e.hitFlash })),
       boss: this.boss && !this.boss.dead ? {
@@ -342,9 +348,35 @@ class Game {
     }
     target.lastHitBy = pr.owner;
     target.takeDamage(pr.damage, this);
+    this.applyProjectileEffects(pr, target);
     pr.hitSet.add(target);
     this.particles.spawn(pr.x, pr.y, pr.color, { count: 5, angle: pr.angle, spread: 1.2, minSpeed: 40, maxSpeed: 130, life: 0.2, size: 3 });
     if (pr.hitSet.size > pr.pierce) pr.dead = true;
+  }
+
+  // burn / slow / lightning-chain from special weapons
+  applyProjectileEffects(pr, target) {
+    if (pr.burn && target.applyBurn) target.applyBurn(pr.burn, 2.5, pr.owner);
+    if (pr.slow && target.applySlow) target.applySlow(pr.slow);
+    if (pr.chain > 0) this.chainLightning(target, pr.damage * 0.6, pr.chain, pr.owner, new Set([target]));
+  }
+
+  chainLightning(from, dmg, jumps, owner, hitSet) {
+    if (jumps <= 0) return;
+    let best = null, bestD = 260; // max jump distance
+    for (const e of this.enemies) {
+      if (e.dead || hitSet.has(e)) continue;
+      const d = Utils.dist(from.x, from.y, e.x, e.y);
+      if (d < bestD) { bestD = d; best = e; }
+    }
+    if (!best) return;
+    hitSet.add(best);
+    // draw the arc
+    this.particles.spawn(best.x, best.y, '#4ad9ff', { count: 6, minSpeed: 40, maxSpeed: 160, life: 0.2, size: 3 });
+    if (this.lightningArcs) this.lightningArcs.push({ x1: from.x, y1: from.y, x2: best.x, y2: best.y, life: 0.12 });
+    best.lastHitBy = owner;
+    best.takeDamage(dmg, this);
+    this.chainLightning(best, dmg * 0.75, jumps - 1, owner, hitSet);
   }
 
   explode(x, y, radius, dmg, owner) {
@@ -441,6 +473,29 @@ class Game {
       ctx.beginPath(); ctx.arc(ep.x, ep.y, ep.radius, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
     }
     for (const pr of this.projectiles) pr.draw(ctx);
+
+    // tesla lightning arcs
+    if (this.lightningArcs) {
+      for (const arc of this.lightningArcs) {
+        ctx.globalAlpha = Utils.clamp(arc.life / 0.12, 0, 1);
+        ctx.strokeStyle = '#bfefff'; ctx.lineWidth = 2.5;
+        ctx.shadowBlur = 12; ctx.shadowColor = '#4ad9ff';
+        ctx.beginPath();
+        // jagged bolt between the two points
+        const segs = 5;
+        ctx.moveTo(arc.x1, arc.y1);
+        for (let i = 1; i < segs; i++) {
+          const t = i / segs;
+          const mxp = arc.x1 + (arc.x2 - arc.x1) * t + Utils.rand(-10, 10);
+          const myp = arc.y1 + (arc.y2 - arc.y1) * t + Utils.rand(-10, 10);
+          ctx.lineTo(mxp, myp);
+        }
+        ctx.lineTo(arc.x2, arc.y2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    }
+
     this.particles.draw(ctx);
 
     ctx.restore();

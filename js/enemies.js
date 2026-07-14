@@ -51,10 +51,25 @@ class Enemy {
     this.wanderAngle = Utils.chance(0.5) ? Utils.rand(0, 6.28) : null;
     this.squadAlertCd = 0.5;
     this.squadAlertTimer = Utils.rand(0, 0.5);
+
+    // status effects
+    this.burnT = 0; this.burnDps = 0; this.burnBy = null;
+    this.slowT = 0;
   }
 
   update(dt, game) {
     const p = game.nearestPlayer(this.x, this.y);
+
+    // status effects: burning DoT + slow
+    if (this.burnT > 0) {
+      this.burnT -= dt;
+      this.hp -= this.burnDps * dt;
+      if (Math.random() < dt * 8) game.particles.spawn(this.x, this.y, '#ff8a1e', { count: 1, minSpeed: 20, maxSpeed: 70, life: 0.35, size: 3 });
+      if (this.hp <= 0 && !this.dead) { this.dead = true; this.lastHitBy = this.burnBy; game.onEnemyKilled(this); return; }
+    }
+    let slowFactor = 1;
+    if (this.slowT > 0) { this.slowT -= dt; slowFactor = 0.45; }
+    this._slowFactor = slowFactor;
     const angleToP = Utils.angle(this.x, this.y, p.x, p.y);
     const distToP = Utils.dist(this.x, this.y, p.x, p.y);
 
@@ -178,8 +193,8 @@ class Enemy {
       }
     }
 
-    this.x += mx * spd * dt;
-    this.y += my * spd * dt;
+    this.x += mx * spd * slowFactor * dt;
+    this.y += my * spd * slowFactor * dt;
     const res = resolveCircleRects(this.x, this.y, this.radius, game.world.rects);
     this.x = Utils.clamp(res.x, this.radius, game.world.w - this.radius);
     this.y = Utils.clamp(res.y, this.radius, game.world.h - this.radius);
@@ -201,6 +216,13 @@ class Enemy {
     Audio2.hit();
     if (this.hp <= 0 && !this.dead) { this.dead = true; game.onEnemyKilled(this); }
   }
+
+  applyBurn(dps, dur, by) {
+    this.burnDps = Math.max(this.burnDps, dps);
+    this.burnT = Math.max(this.burnT, dur);
+    this.burnBy = by || this.burnBy;
+  }
+  applySlow(dur) { this.slowT = Math.max(this.slowT, dur); }
 
   alert(game) {
     if (this.state === 'alerted') return;

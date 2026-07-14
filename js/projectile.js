@@ -11,6 +11,9 @@ class Projectile {
     this.color = def.color;
     this.pierce = pierce;          // extra enemies it can pass through
     this.aoe = def.aoe || 0;
+    this.burn = def.burn || 0;     // burning damage-per-second applied on hit
+    this.slow = def.slow || 0;     // slow duration (s) applied on hit
+    this.chain = def.chain || 0;   // lightning chain jumps
     this.fromPlayer = fromPlayer;
     this.owner = owner;            // which Player fired this (for kill/coin attribution in co-op)
     this.crit = crit;
