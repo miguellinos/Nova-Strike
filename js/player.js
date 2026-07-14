@@ -12,6 +12,12 @@ class Player {
     this.walkPhase = 0;
     this.invuln = 0;         // i-frames (dash / after hit)
     this.hitFlash = 0;
+    
+    // Active Inventory & Shields
+    this.medkitsCount = 1;
+    this.shieldsCount = 1;
+    this.shieldHp = 0;
+    this.maxShieldHp = 100;
 
     // upgrade modifiers
     this.mods = {
@@ -121,6 +127,10 @@ class Player {
       if (w.ammo > 0) this.shoot(game);
       else this.startReload();
     }
+
+    // active item activations
+    if (Input.wasPressed('q')) this.useMedkit(game);
+    if (Input.wasPressed('e')) this.useShield(game);
   }
 
   startReload() {
@@ -157,17 +167,57 @@ class Player {
 
   takeDamage(dmg, game) {
     if (this.invuln > 0) return;
-    this.hp -= dmg;
+    
+    // shield damage absorption
+    if (this.shieldHp > 0) {
+      if (this.shieldHp >= dmg) {
+        this.shieldHp -= dmg;
+        dmg = 0;
+      } else {
+        dmg -= this.shieldHp;
+        this.shieldHp = 0;
+      }
+      game.particles.spawn(this.x, this.y, '#1c6cff', { count: 6, minSpeed: 40, maxSpeed: 140 });
+    }
+
+    if (dmg > 0) {
+      this.hp -= dmg;
+      game.particles.spawn(this.x, this.y, '#ff3b52', { count: 8, minSpeed: 60, maxSpeed: 180 });
+      Audio2.hurt();
+    } else {
+      Audio2.hit();
+    }
+
     this.hitFlash = 0.35;
     this.invuln = 0.4;
-    Audio2.hurt();
     game.shake(6);
     game.damageVignette = 1;
-    game.particles.spawn(this.x, this.y, '#ff3b52', { count: 8, minSpeed: 60, maxSpeed: 180 });
     if (this.hp <= 0) { this.hp = 0; game.onPlayerDeath(); }
   }
 
   heal(a) { this.hp = Utils.clamp(this.hp + a, 0, this.maxHp); }
+
+  useMedkit(game) {
+    if (this.medkitsCount > 0 && this.hp < this.maxHp) {
+      this.medkitsCount--;
+      this.heal(40);
+      Audio2.heal();
+      game.particles.spawn(this.x, this.y, '#4af626', { count: 12, minSpeed: 40, maxSpeed: 140, life: 0.5, size: 4 });
+      return true;
+    }
+    return false;
+  }
+
+  useShield(game) {
+    if (this.shieldsCount > 0 && this.shieldHp < this.maxShieldHp) {
+      this.shieldsCount--;
+      this.shieldHp = Math.min(this.maxShieldHp, this.shieldHp + 50);
+      if (Audio2.shield) Audio2.shield(); else Audio2.reload();
+      game.particles.spawn(this.x, this.y, '#1c6cff', { count: 12, minSpeed: 40, maxSpeed: 140, life: 0.5, size: 4 });
+      return true;
+    }
+    return false;
+  }
 
   draw(ctx, time) {
     // dash trail
@@ -308,5 +358,22 @@ class Player {
     ctx.stroke();
 
     ctx.restore();
+
+    // 5. Draw active energy shield bubble
+    if (this.shieldHp > 0) {
+      ctx.save();
+      ctx.translate(this.x, this.y + bob);
+      const pulseRadius = this.radius * 1.45 + Math.sin(time * 8) * 1.5;
+      ctx.strokeStyle = 'rgba(28, 108, 255, ' + (0.55 + 0.15 * Math.sin(time * 4)) + ')';
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#1c6cff';
+      ctx.beginPath();
+      ctx.arc(0, 0, pulseRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(28, 108, 255, 0.08)';
+      ctx.fill();
+      ctx.restore();
+    }
   }
 }

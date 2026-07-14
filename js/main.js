@@ -1,6 +1,6 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
-  overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu'],
+  overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'upgrade-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
   show(id) { this.hideAll(); document.getElementById(id).classList.remove('hidden'); },
@@ -65,6 +65,20 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     return 'main-menu';
   }
+
+  // On-screen inventory buttons
+  document.getElementById('inv-medkit').addEventListener('click', (e) => {
+    if (game && game.player) {
+      game.player.useMedkit(game);
+    }
+    e.stopPropagation();
+  });
+  document.getElementById('inv-shield').addEventListener('click', (e) => {
+    if (game && game.player) {
+      game.player.useShield(game);
+    }
+    e.stopPropagation();
+  });
 
   // ----- game loop -----
   let last = performance.now();

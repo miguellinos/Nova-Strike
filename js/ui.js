@@ -21,6 +21,13 @@ class UI {
       shopCoins: document.getElementById('shop-coins'),
       shopCards: document.getElementById('shop-cards'),
       gameoverStats: document.getElementById('gameover-stats'),
+      
+      // new active items and shield elements
+      shieldBar: document.getElementById('shield-bar'),
+      shieldText: document.getElementById('shield-text'),
+      invMedkitCount: document.getElementById('inv-medkit-val'),
+      invShieldCount: document.getElementById('inv-shield-val'),
+      upgradeCards: document.getElementById('upgrade-cards'),
     };
     this.bannerTimer = 0;
   }
@@ -31,6 +38,23 @@ class UI {
     const p = game.player;
     this.el.hpBar.style.width = Utils.clamp((p.hp / p.maxHp) * 100, 0, 100) + '%';
     this.el.hpText.textContent = Math.ceil(p.hp) + ' / ' + p.maxHp;
+    
+    // Shield updates
+    if (this.el.shieldBar) {
+      this.el.shieldBar.style.width = Utils.clamp((p.shieldHp / p.maxShieldHp) * 100, 0, 100) + '%';
+    }
+    if (this.el.shieldText) {
+      this.el.shieldText.textContent = 'Schild: ' + Math.ceil(p.shieldHp) + '%';
+    }
+    
+    // Active inventory updates
+    if (this.el.invMedkitCount) {
+      this.el.invMedkitCount.textContent = p.medkitsCount;
+    }
+    if (this.el.invShieldCount) {
+      this.el.invShieldCount.textContent = p.shieldsCount;
+    }
+
     this.el.coins.textContent = p.coins;
     this.el.score.textContent = p.score;
     this.el.kills.textContent = p.kills;
@@ -63,9 +87,8 @@ class UI {
     this.bannerTimer = 2.2;
   }
 
-  showShop(game, onBuy) {
-    this.el.shopCoins.textContent = game.player.coins;
-    this.el.shopCards.innerHTML = '';
+  showUpgradeChoices(game) {
+    this.el.upgradeCards.innerHTML = '';
     const picks = game.shopUpgrades;
     picks.forEach((up) => {
       const card = document.createElement('div');
@@ -74,30 +97,115 @@ class UI {
         '<div class="icon">' + up.icon + '</div>' +
         '<div class="name">' + up.name + '</div>' +
         '<div class="desc">' + up.desc + '</div>' +
-        '<button class="buy">🪙 ' + up.price + '</button>';
+        '<button class="buy">AUSWÄHLEN (Gratis)</button>';
       const btn = card.querySelector('.buy');
-      const refresh = () => {
-        const bought = card.classList.contains('bought');
-        btn.disabled = game.player.coins < up.price || (bought && !up.repeatable);
-        this.el.shopCoins.textContent = game.player.coins;
-      };
       btn.addEventListener('click', () => {
-        if (game.player.coins < up.price) return;
-        game.player.coins -= up.price;
         up.apply(game.player);
         Audio2.buy();
-        card.classList.remove('bought'); void card.offsetWidth; card.classList.add('bought');
-        // refresh all cards affordability
-        this.el.shopCards.querySelectorAll('.shop-card').forEach((c) => {
-          const b = c.querySelector('.buy');
-          const price = parseInt(b.textContent.replace(/\D/g, ''), 10);
-          b.disabled = game.player.coins < price;
-        });
-        this.el.shopCoins.textContent = game.player.coins;
+        Menus.hideAll();
+        game.openTacticalShop();
       });
-      refresh();
+      this.el.upgradeCards.appendChild(card);
+    });
+  }
+
+  showTacticalShop(game) {
+    this.el.shopCoins.textContent = game.player.coins;
+    this.el.shopCards.innerHTML = '';
+    const p = game.player;
+
+    // 1. Weapon Purchase Items
+    const weaponItems = [
+      { key: 'rifle', price: 120, name: 'M4A1 Sturmgewehr', icon: '🔫', desc: 'Mittelstrecken-Automatikgewehr.' },
+      { key: 'shotgun', price: 180, name: 'Remington 870 Schrotflinte', icon: '💥', desc: 'Verursacht massiven Nahbereichschaden.' },
+      { key: 'sniper', price: 250, name: 'Barrett .50 Cal Scharfschütze', icon: '🎯', desc: 'Hoher Einzelschaden, durchdringt Feinde.' },
+      { key: 'cannon', price: 400, name: 'RPG-7 Raketenwerfer', icon: '🚀', desc: 'Verschießt explosive Raketen mit Flächenschaden.' }
+    ];
+
+    weaponItems.forEach((w) => {
+      const isUnlocked = p.weapons[w.key] && p.weapons[w.key].unlocked;
+      const card = document.createElement('div');
+      card.className = 'shop-card';
+      card.innerHTML =
+        '<div class="icon">' + w.icon + '</div>' +
+        '<div class="name">' + w.name + '</div>' +
+        '<div class="desc">' + w.desc + '</div>' +
+        '<button class="buy">' + (isUnlocked ? 'AUSGERÜSTET' : '🪙 ' + w.price) + '</button>';
+      const btn = card.querySelector('.buy');
+      btn.disabled = isUnlocked || p.coins < w.price;
+      btn.addEventListener('click', () => {
+        if (p.coins < w.price) return;
+        p.coins -= w.price;
+        p.unlock(w.key);
+        Audio2.buy();
+        this.showTacticalShop(game); // refresh
+      });
       this.el.shopCards.appendChild(card);
     });
+
+    // 2. Ammo refill
+    const ammoPrice = 30;
+    const ammoCard = document.createElement('div');
+    ammoCard.className = 'shop-card';
+    ammoCard.innerHTML =
+      '<div class="icon">📦</div>' +
+      '<div class="name">Munitionskiste</div>' +
+      '<div class="desc">Füllt die Munition aller freigeschalteten Waffen auf.</div>' +
+      '<button class="buy">🪙 ' + ammoPrice + '</button>';
+    const ammoBtn = ammoCard.querySelector('.buy');
+    ammoBtn.disabled = p.coins < ammoPrice;
+    ammoBtn.addEventListener('click', () => {
+      if (p.coins < ammoPrice) return;
+      p.coins -= ammoPrice;
+      for (const k in p.weapons) {
+        if (p.weapons[k].unlocked) {
+          p.weapons[k].ammo = Math.round(WEAPON_DEFS[k].mag * p.mods.mag);
+        }
+      }
+      Audio2.buy();
+      this.showTacticalShop(game); // refresh
+    });
+    this.el.shopCards.appendChild(ammoCard);
+
+    // 3. Medkit purchase
+    const medkitPrice = 40;
+    const medkitCard = document.createElement('div');
+    medkitCard.className = 'shop-card';
+    medkitCard.innerHTML =
+      '<div class="icon">🎒</div>' +
+      '<div class="name">Tragbares Medkit</div>' +
+      '<div class="desc">Erwirb 1 tragbares Medkit. Heilung per Tastendruck Q.</div>' +
+      '<button class="buy">🪙 ' + medkitPrice + '</button>';
+    const medkitBtn = medkitCard.querySelector('.buy');
+    medkitBtn.disabled = p.coins < medkitPrice;
+    medkitBtn.addEventListener('click', () => {
+      if (p.coins < medkitPrice) return;
+      p.coins -= medkitPrice;
+      p.medkitsCount++;
+      Audio2.buy();
+      this.showTacticalShop(game); // refresh
+    });
+    this.el.shopCards.appendChild(medkitCard);
+
+    // 4. Shield purchase
+    const shieldPrice = 50;
+    const shieldCard = document.createElement('div');
+    shieldCard.className = 'shop-card';
+    shieldCard.innerHTML =
+      '<div class="icon">🛡️</div>' +
+      '<div class="name">Schildzelle</div>' +
+      '<div class="desc">Erwirb 1 aktive Schildzelle. Aufladen per Tastendruck E.</div>' +
+      '<button class="buy">🪙 ' + shieldPrice + '</button>';
+    const shieldBtn = shieldCard.querySelector('.buy');
+    shieldBtn.disabled = p.coins < shieldPrice;
+    shieldBtn.addEventListener('click', () => {
+      if (p.coins < shieldPrice) return;
+      p.coins -= shieldPrice;
+      p.shieldsCount++;
+      Audio2.buy();
+      this.showTacticalShop(game); // refresh
+    });
+    this.el.shopCards.appendChild(shieldCard);
   }
 
   showGameOver(stats) {

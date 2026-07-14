@@ -29,6 +29,7 @@ class Game {
     this.boss = null;
     this.coins = [];
     this.medkits = [];
+    this.shields = [];
     this.particles = new Particles();
     this.waves = new WaveManager(this);
     this.playTime = 0;
@@ -51,7 +52,10 @@ class Game {
     if (Utils.chance(this.player.mods.lifesteal)) this.player.heal(5);
     // chance to drop a medkit — likelier when the player is hurt
     const hurt = 1 - this.player.hp / this.player.maxHp;
-    if (Utils.chance(0.06 + hurt * 0.14)) this.dropMedkit(e.x, e.y, 25);
+    if (Utils.chance(0.05 + hurt * 0.11)) this.dropMedkit(e.x, e.y, 25);
+    // chance to drop a shield battery
+    const shieldHurt = 1 - this.player.shieldHp / this.player.maxShieldHp;
+    if (Utils.chance(0.05 + shieldHurt * 0.11)) this.dropShield(e.x, e.y);
   }
 
   onBossKilled(b) {
@@ -62,12 +66,17 @@ class Game {
     this.particles.burst(b.x, b.y, '#ff3b52', 60, 340);
     this.particles.burst(b.x, b.y, '#ffcc33', 30, 260);
     this.dropCoins(b.x, b.y, b.coins);
-    // bosses always drop a couple of big medkits
-    for (let i = 0; i < 3; i++) this.dropMedkit(b.x, b.y, 40);
+    // bosses always drop medkits and shields
+    for (let i = 0; i < 2; i++) this.dropMedkit(b.x, b.y, 40);
+    for (let i = 0; i < 2; i++) this.dropShield(b.x, b.y);
   }
 
   dropMedkit(x, y, heal) {
     this.medkits.push(new Medkit(x + Utils.rand(-16, 16), y + Utils.rand(-16, 16), heal));
+  }
+
+  dropShield(x, y) {
+    this.shields.push(new ShieldPickup(x + Utils.rand(-16, 16), y + Utils.rand(-16, 16)));
   }
 
   dropCoins(x, y, range) {
@@ -95,11 +104,19 @@ class Game {
     for (const c of this.coins) { this.player.coins += c.value; }
     this.coins = [];
     this.medkits = [];
+    this.shields = [];
     this.boss = null;
     this.shopUpgrades = rollShopUpgrades();
+    this.state = 'upgrade'; // Choose free upgrade first
+    this.ui.showHUD(false);
+    this.ui.showUpgradeChoices(this);
+    Menus.show('upgrade-menu');
+  }
+
+  openTacticalShop() {
     this.state = 'shop';
     this.ui.showHUD(false);
-    this.ui.showShop(this);
+    this.ui.showTacticalShop(this);
     Menus.show('shop-menu');
   }
 
@@ -149,6 +166,8 @@ class Game {
     this.coins = this.coins.filter((c) => !c.dead);
     for (const m of this.medkits) m.update(dt, this);
     this.medkits = this.medkits.filter((m) => !m.dead);
+    for (const s of this.shields) s.update(dt, this);
+    this.shields = this.shields.filter((s) => !s.dead);
     this.enemies = this.enemies.filter((e) => !e.dead);
     this.particles.update(dt);
 
@@ -248,6 +267,7 @@ class Game {
     this.world.draw(ctx, this.cam, this.time);
     for (const c of this.coins) c.draw(ctx, this.time);
     for (const m of this.medkits) m.draw(ctx, this.time);
+    for (const s of this.shields) s.draw(ctx, this.time);
     for (const ep of this.enemyProjectiles) {
       ctx.shadowBlur = 10; ctx.shadowColor = ep.color; ctx.fillStyle = ep.color;
       ctx.beginPath(); ctx.arc(ep.x, ep.y, ep.radius, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;

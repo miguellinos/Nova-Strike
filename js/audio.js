@@ -64,6 +64,8 @@ const Audio2 = {
            this.tone({ freq: 1600, type: 'sine', dur: 0.08, vol: 0.12, delay: 0.05 }); },
   heal() { this.tone({ freq: 700, slideTo: 1200, type: 'sine', dur: 0.14, vol: 0.18 });
            this.tone({ freq: 1000, slideTo: 1500, type: 'sine', dur: 0.16, vol: 0.14, delay: 0.08 }); },
+  shield() { this.tone({ freq: 400, slideTo: 1400, type: 'sine', dur: 0.22, vol: 0.16 });
+             this.tone({ freq: 800, slideTo: 1800, type: 'sine', dur: 0.22, vol: 0.16, delay: 0.05 }); },
   buy() { this.tone({ freq: 500, slideTo: 900, type: 'sine', dur: 0.1, vol: 0.2 });
           this.tone({ freq: 900, slideTo: 1300, type: 'sine', dur: 0.12, vol: 0.18, delay: 0.1 }); },
   dash() { this.tone({ freq: 700, slideTo: 1400, type: 'sine', dur: 0.18, vol: 0.16 }); },

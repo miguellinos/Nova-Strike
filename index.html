@@ -13,14 +13,24 @@
   <!-- In-game HUD -->
   <div id="hud" class="hidden">
     <div id="hud-top-left">
-      <div class="hp-wrap">
-        <div class="hp-bar-bg"><div id="hp-bar" class="hp-bar"></div></div>
-        <span id="hp-text">100 / 100</span>
+      <div class="hp-wrap" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="hp-bar-bg"><div id="hp-bar" class="hp-bar"></div></div>
+          <span id="hp-text">100 / 100</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="shield-bar-bg"><div id="shield-bar" class="shield-bar"></div></div>
+          <span id="shield-text" style="color: #a2bca0; font-size: 13px; text-shadow: 0 0 6px #000;">Schild: 0%</span>
+        </div>
       </div>
       <div class="stat-row">
         <span class="chip" id="coins-chip">🪙 <b id="coins-val">0</b></span>
         <span class="chip" id="score-chip">Punkte: <b id="score-val">0</b></span>
         <span class="chip" id="kills-chip">Kills: <b id="kills-val">0</b></span>
+      </div>
+      <div class="stat-row" style="margin-top: 8px; pointer-events: auto;">
+        <button class="inv-btn" id="inv-medkit" title="Medkit verwenden (Taste Q)">🎒 Medkits: <b id="inv-medkit-val">0</b></button>
+        <button class="inv-btn" id="inv-shield" title="Schild aufladen (Taste E)">🛡️ Schilde: <b id="inv-shield-val">0</b></button>
       </div>
     </div>
 
@@ -99,12 +109,22 @@
     </div>
   </div>
 
-  <!-- Shop -->
+  <!-- Free Upgrade Choice Screen -->
+  <div id="upgrade-menu" class="overlay hidden">
+    <div class="menu-panel wide">
+      <h2 class="panel-title">KOSTENLOSES BATTLEFIELD-UPGRADE</h2>
+      <p class="subtitle">Wähle eine kostenlose Modifikation für deinen Agenten (Runde abgeschlossen!)</p>
+      <div id="upgrade-cards" class="shop-cards-container"></div>
+    </div>
+  </div>
+
+  <!-- Taktischer Münzen-Shop -->
   <div id="shop-menu" class="overlay hidden">
     <div class="menu-panel wide">
-      <h2 class="panel-title">UPGRADE-SHOP</h2>
-      <div class="shop-coins">Deine Münzen: 🪙 <b id="shop-coins">0</b></div>
-      <div id="shop-cards"></div>
+      <h2 class="panel-title">TAKTIK-MÜNZEN-SHOP</h2>
+      <div class="shop-coins">Taktisches Budget: 🪙 <b id="shop-coins">0</b></div>
+      <p class="subtitle">Rüste neue Waffen aus und kaufe aktive Ausrüstung</p>
+      <div id="shop-cards" class="shop-cards-container"></div>
       <button class="btn btn-primary" data-action="shop-close">Nächste Welle ▶</button>
     </div>
   </div>
