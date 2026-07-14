@@ -58,7 +58,10 @@ class Player {
   }
 
   weaponDef() { return WEAPON_DEFS[this.currentWeapon]; }
-  magSize() { return Math.round(this.weaponDef().mag * this.mods.mag); }
+  magSize() {
+    if (this.magCapacity !== undefined) return this.magCapacity;
+    return Math.round(this.weaponDef().mag * this.mods.mag);
+  }
   reloadTime() { return this.weaponDef().reload * this.mods.reload; }
   dashCooldown() { return this.dashCdTotal * this.mods.dashCd; }
 

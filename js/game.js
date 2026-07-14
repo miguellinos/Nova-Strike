@@ -265,7 +265,7 @@ class Game {
       players: this.players.map((p) => ({
         x: p.x, y: p.y, aimAngle: p.aimAngle, hp: p.hp, maxHp: p.maxHp,
         coins: p.coins, score: p.score, kills: p.kills,
-        currentWeapon: p.currentWeapon, ammo: p.weapons[p.currentWeapon].ammo, magSize: p.magSize(),
+        currentWeapon: p.currentWeapon, ammo: p.weapons[p.currentWeapon].ammo, magCapacity: p.magSize(),
         reloading: p.reloading, reloadTimer: p.reloadTimer, reloadTotal: p.reloadTotal,
         dashCd: p.dashCd, dashCdTotal: p.dashCooldown(), hitFlash: p.hitFlash, invuln: p.invuln, walkPhase: p.walkPhase,
         visionRange: p.mods.visionRange, meleeSwing: p.meleeSwing, meleeArc: p.meleeArc, meleeRange: p.meleeRange, shieldHp: p.shieldHp,
