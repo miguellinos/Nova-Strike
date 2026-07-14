@@ -3,7 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { WebSocketServer } = require('ws');
+const { WebSocketServer, WebSocket } = require('ws');
 
 const ROOT = path.join(__dirname, '..');
 const PORT = process.env.PORT || 3000;
@@ -52,8 +52,9 @@ function send(ws, msg) {
   if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   ws.role = null;
+  console.log(`[connect] neue Verbindung von ${req.socket.remoteAddress}`);
 
   ws.on('message', (raw) => {
     let msg;
@@ -63,12 +64,14 @@ wss.on('connection', (ws) => {
       room.host = ws;
       room.guest = null;
       ws.role = 'host';
+      console.log(`[host] registriert, Code=${room.code}`);
       send(ws, { type: 'room-created', code: room.code, ips: localIPs(), port: PORT });
       return;
     }
 
     if (msg.type === 'join') {
-      if (!room.host || room.host.readyState !== ws.OPEN) {
+      console.log(`[join] Versuch mit Code="${msg.code}" (erwartet "${room.code}"), Host aktiv=${!!(room.host && room.host.readyState === WebSocket.OPEN)}`);
+      if (!room.host || room.host.readyState !== WebSocket.OPEN) {
         send(ws, { type: 'join-error', reason: 'no-room' });
         return;
       }
@@ -78,6 +81,7 @@ wss.on('connection', (ws) => {
       }
       room.guest = ws;
       ws.role = 'guest';
+      console.log('[join] erfolgreich, Mitspieler verbunden');
       send(ws, { type: 'joined' });
       send(room.host, { type: 'guest-joined' });
       return;
@@ -90,9 +94,11 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     if (ws.role === 'host') {
+      console.log('[close] Host getrennt');
       room.host = null;
       send(room.guest, { type: 'host-left' });
     } else if (ws.role === 'guest') {
+      console.log('[close] Gast getrennt');
       room.guest = null;
       send(room.host, { type: 'guest-left' });
     }
