@@ -1,11 +1,27 @@
 // ---------- enemies.js : military units + AI ----------
 const ENEMY_DEFS = {
-  drone:   { name: 'Infanterist',        hp: 22,  speed: 200, dmg: 6,  radius: 13, color: '#556b2f', coins: [1, 2],  score: 10,  ranged: false, touchCd: 0.6 },
-  striker: { name: 'Elite-Soldat',      hp: 55,  speed: 130, dmg: 12, radius: 15, color: '#a63a2b', coins: [2, 4],  score: 20,  ranged: false, touchCd: 0.7 },
-  tank:    { name: 'Kampfpanzer',       hp: 220, speed: 55,  dmg: 22, radius: 28, color: '#3f4f34', coins: [5, 10], score: 45,  ranged: false, touchCd: 0.9 },
-  shooter: { name: 'Militär-Humvee',     hp: 34,  speed: 95,  dmg: 9,  radius: 18, color: '#c2b280', coins: [3, 5],  score: 30,  ranged: true,  touchCd: 0.7, shootCd: 1.6, keepDist: 320, projSpeed: 340, projColor: '#ffaa00' },
-  novabeast:{name: 'Schwerer Panzerträger',hp: 900, speed: 90,  dmg: 30, radius: 36, color: '#4f5d65', coins: [10, 20],score: 200, ranged: false, touchCd: 0.8, elite: true },
+  drone:   { name: 'Infanterist',        hp: 35,  speed: 200, dmg: 8,  radius: 13, color: '#556b2f', coins: [1, 2],  score: 10,  ranged: false, touchCd: 0.5, vision: 420 },
+  striker: { name: 'Elite-Soldat',      hp: 70,  speed: 150, dmg: 14, radius: 15, color: '#a63a2b', coins: [2, 4],  score: 20,  ranged: false, touchCd: 0.7, vision: 520 },
+  tank:    { name: 'Kampfpanzer',       hp: 350, speed: 65,  dmg: 28, radius: 28, color: '#3f4f34', coins: [5, 10], score: 45,  ranged: true,  touchCd: 0.9, vision: 580, shootCd: 2.8, projSpeed: 250, projColor: '#ff5500' },
+  shooter: { name: 'Militär-Humvee',     hp: 60,  speed: 110, dmg: 10, radius: 18, color: '#c2b280', coins: [3, 5],  score: 30,  ranged: true,  touchCd: 0.7, shootCd: 1.5, keepDist: 300, projSpeed: 380, projColor: '#ffcc00', vision: 640 },
+  novabeast:{name: 'Schwerer Panzerträger',hp: 1200, speed: 90,  dmg: 40, radius: 36, color: '#4f5d65', coins: [10, 20],score: 200, ranged: false, touchCd: 0.8, elite: true, vision: 680 },
 };
+
+function checkLineOfSight(x1, y1, x2, y2, rects) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const distance = Math.hypot(dx, dy);
+  if (distance < 30) return true; // extremely close distance is always seen
+  const stepSize = 25;
+  const numSteps = Math.ceil(distance / stepSize);
+  for (let i = 1; i < numSteps; i++) {
+    const t = i / numSteps;
+    const px = x1 + dx * t;
+    const py = y1 + dy * t;
+    if (pointInRects(px, py, rects)) return false;
+  }
+  return true;
+}
 
 class Enemy {
   constructor(type, x, y, hpMult, dmgMult) {
@@ -27,43 +43,138 @@ class Enemy {
     this.chargeCd = Utils.rand(2, 4);
     this.charging = 0;
     this.chargeDir = { x: 0, y: 0 };
+
+    // Vision & State properties
+    this.state = 'idle';
+    this.visionRange = d.vision || 450;
+    this.wanderTimer = Utils.rand(0.5, 3.0);
+    this.wanderAngle = Utils.chance(0.5) ? Utils.rand(0, 6.28) : null;
+    this.squadAlertCd = 0.5;
+    this.squadAlertTimer = Utils.rand(0, 0.5);
   }
 
   update(dt, game) {
     const p = game.nearestPlayer(this.x, this.y);
     const angleToP = Utils.angle(this.x, this.y, p.x, p.y);
     const distToP = Utils.dist(this.x, this.y, p.x, p.y);
-    let mx = Math.cos(angleToP), my = Math.sin(angleToP);
-    let spd = this.speed;
 
-    if (this.def.ranged) {
-      // keep distance & strafe (Humvee tactic)
-      if (distToP < this.def.keepDist) { mx = -mx; my = -my; }
-      else if (distToP > this.def.keepDist + 80) { /* approach */ }
-      else { const t = mx; mx = -my; my = t; spd *= 0.6; } // strafe
-      
-      this.shootTimer -= dt;
-      if (this.shootTimer <= 0 && distToP < 700) {
-        this.shootTimer = this.def.shootCd;
-        game.enemyProjectiles.push({
-          x: this.x, y: this.y,
-          vx: Math.cos(angleToP) * this.def.projSpeed,
-          vy: Math.sin(angleToP) * this.def.projSpeed,
-          radius: 6, dmg: this.dmg, color: this.def.projColor, dead: false, life: 3.2,
-        });
-        Audio2.shoot('rifle');
+    // 1. Vision check
+    if (this.state === 'idle') {
+      if (distToP < this.visionRange && p.hp > 0) {
+        if (checkLineOfSight(this.x, this.y, p.x, p.y, game.world.rects)) {
+          this.alert(game);
+        }
       }
     }
 
-    if (this.type === 'novabeast') {
-      this.chargeCd -= dt;
-      if (this.charging > 0) {
-        this.charging -= dt;
-        mx = this.chargeDir.x; my = this.chargeDir.y; spd = 480;
-      } else if (this.chargeCd <= 0 && distToP < 600) {
-        this.charging = 0.6;
-        this.chargeDir = { x: Math.cos(angleToP), y: Math.sin(angleToP) };
-        this.chargeCd = Utils.rand(3, 5);
+    // 2. Alert squad
+    if (this.state === 'alerted') {
+      this.squadAlertTimer -= dt;
+      if (this.squadAlertTimer <= 0) {
+        this.squadAlertTimer = this.squadAlertCd;
+        for (const e of game.enemies) {
+          if (e !== this && e.state === 'idle') {
+            if (Utils.dist(this.x, this.y, e.x, e.y) < 250) {
+              e.alert(game);
+            }
+          }
+        }
+      }
+    }
+
+    // 3. AI Movement Logic
+    let mx = 0, my = 0;
+    let spd = this.speed;
+
+    if (this.state === 'idle') {
+      this.wanderTimer -= dt;
+      if (this.wanderTimer <= 0) {
+        this.wanderTimer = Utils.rand(1.5, 4.0);
+        this.wanderAngle = Utils.chance(0.55) ? Utils.rand(0, 6.28) : null;
+      }
+      if (this.wanderAngle !== null) {
+        mx = Math.cos(this.wanderAngle);
+        my = Math.sin(this.wanderAngle);
+        spd = this.speed * 0.35;
+      } else {
+        mx = 0; my = 0; spd = 0;
+      }
+    } else {
+      mx = Math.cos(angleToP);
+      my = Math.sin(angleToP);
+
+      // Custom behaviors based on unit type
+      if (this.type === 'drone') {
+        if (distToP < 160) {
+          spd = this.speed * 1.35; // charge speed boost
+        }
+      } 
+      else if (this.type === 'striker') {
+        const strafeDir = Math.sin(game.time * 2 + this.phase) > 0 ? 1 : -1;
+        const flankAngle = angleToP + (Math.PI / 3) * strafeDir * (Utils.clamp(distToP / 400, 0.2, 1));
+        mx = Math.cos(flankAngle);
+        my = Math.sin(flankAngle);
+      }
+      else if (this.type === 'tank') {
+        if (distToP < 240) {
+          mx = -mx * 0.3; my = -my * 0.3; // reverse/reposition
+        } else {
+          spd = this.speed * 0.75;
+        }
+
+        this.shootTimer -= dt;
+        if (this.shootTimer <= 0 && distToP < 600 && p.hp > 0) {
+          this.shootTimer = this.def.shootCd;
+          game.enemyProjectiles.push({
+            x: this.x, y: this.y,
+            vx: Math.cos(angleToP) * this.def.projSpeed,
+            vy: Math.sin(angleToP) * this.def.projSpeed,
+            radius: 8,
+            dmg: this.dmg,
+            color: this.def.projColor,
+            dead: false,
+            life: 3.5,
+            isExplosive: true,
+            aoe: 85
+          });
+          Audio2.shoot('cannon');
+          const bx = this.x + Math.cos(angleToP) * this.radius;
+          const by = this.y + Math.sin(angleToP) * this.radius;
+          game.particles.spawn(bx, by, '#ff8b26', { count: 8, angle: angleToP, spread: 0.5, minSpeed: 60, maxSpeed: 180, life: 0.2 });
+        }
+      }
+      else if (this.type === 'shooter') {
+        if (distToP < this.def.keepDist) {
+          mx = -mx; my = -my;
+        } else if (distToP > this.def.keepDist + 80) {
+          // approach
+        } else {
+          const t = mx; mx = -my; my = t;
+          spd *= 0.75; // strafe
+        }
+
+        this.shootTimer -= dt;
+        if (this.shootTimer <= 0 && distToP < 700 && p.hp > 0) {
+          this.shootTimer = this.def.shootCd;
+          game.enemyProjectiles.push({
+            x: this.x, y: this.y,
+            vx: Math.cos(angleToP) * this.def.projSpeed,
+            vy: Math.sin(angleToP) * this.def.projSpeed,
+            radius: 6, dmg: this.dmg, color: this.def.projColor, dead: false, life: 3.2,
+          });
+          Audio2.shoot('rifle');
+        }
+      }
+      else if (this.type === 'novabeast') {
+        this.chargeCd -= dt;
+        if (this.charging > 0) {
+          this.charging -= dt;
+          mx = this.chargeDir.x; my = this.chargeDir.y; spd = 480;
+        } else if (this.chargeCd <= 0 && distToP < 600) {
+          this.charging = 0.6;
+          this.chargeDir = { x: Math.cos(angleToP), y: Math.sin(angleToP) };
+          this.chargeCd = Utils.rand(3, 5);
+        }
       }
     }
 
@@ -73,9 +184,9 @@ class Enemy {
     this.x = Utils.clamp(res.x, this.radius, game.world.w - this.radius);
     this.y = Utils.clamp(res.y, this.radius, game.world.h - this.radius);
 
-    // touch damage
+    // 5. Touch Damage
     if (this.touchTimer > 0) this.touchTimer -= dt;
-    if (distToP < this.radius + p.radius && this.touchTimer <= 0) {
+    if (this.state === 'alerted' && distToP < this.radius + p.radius && this.touchTimer <= 0 && p.hp > 0) {
       p.takeDamage(this.dmg, game);
       this.touchTimer = this.def.touchCd;
     }
@@ -85,17 +196,29 @@ class Enemy {
   takeDamage(dmg, game) {
     this.hp -= dmg;
     this.hitFlash = 0.1;
+    this.alert(game);
     game.particles.spawn(this.x, this.y, this.color, { count: 4, minSpeed: 40, maxSpeed: 120, life: 0.25, size: 3 });
     Audio2.hit();
     if (this.hp <= 0 && !this.dead) { this.dead = true; game.onEnemyKilled(this); }
   }
 
+  alert(game) {
+    if (this.state === 'alerted') return;
+    this.state = 'alerted';
+    game.particles.spawn(this.x, this.y - this.radius, '#ffaa00', { count: 3, minSpeed: 20, maxSpeed: 60, life: 0.3, size: 2.5 });
+  }
+
   draw(ctx, time) {
     const flash = this.hitFlash > 0;
     
-    // get orientation angle towards player
+    // get orientation angle
+    let angle = this.phase;
     const p = window.game ? window.game.player : null;
-    const angle = p ? Math.atan2(p.y - this.y, p.x - this.x) : this.phase;
+    if (this.state === 'alerted' && p) {
+      angle = Math.atan2(p.y - this.y, p.x - this.x);
+    } else if (this.wanderAngle !== null) {
+      angle = this.wanderAngle;
+    }
 
     ctx.save();
     ctx.translate(this.x, this.y);

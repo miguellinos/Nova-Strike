@@ -16,18 +16,58 @@ class World {
     this.rects.push({ x: 0, y: 0, w: t, h: this.h, kind: 'wall' });
     this.rects.push({ x: this.w - t, y: 0, w: t, h: this.h, kind: 'wall' });
 
-    // interior obstacles / cover / crates / bunkers
+    // Define military hangars
+    this.hangars = [
+      { x: 120, y: 120, w: 420, h: 300, name: 'Hangar A' },
+      { x: 1860, y: 120, w: 420, h: 300, name: 'Hangar B' },
+      { x: 120, y: 1380, w: 420, h: 300, name: 'Hangar C' },
+      { x: 1860, y: 1380, w: 420, h: 300, name: 'Hangar D' }
+    ];
+
+    // Dynamic hangar walls creation
+    // Hangar A (Top-Left): gate on South wall
+    this.rects.push({ x: 120, y: 120, w: 420, h: 25, kind: 'hangar-wall' }); // top
+    this.rects.push({ x: 120, y: 120, w: 25, h: 300, kind: 'hangar-wall' }); // left
+    this.rects.push({ x: 515, y: 120, w: 25, h: 300, kind: 'hangar-wall' }); // right
+    this.rects.push({ x: 120, y: 395, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'right' }); // bottom left
+    this.rects.push({ x: 400, y: 395, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'left' }); // bottom right
+
+    // Hangar B (Top-Right): gate on South wall
+    this.rects.push({ x: 1860, y: 120, w: 420, h: 25, kind: 'hangar-wall' }); // top
+    this.rects.push({ x: 1860, y: 120, w: 25, h: 300, kind: 'hangar-wall' }); // left
+    this.rects.push({ x: 2255, y: 120, w: 25, h: 300, kind: 'hangar-wall' }); // right
+    this.rects.push({ x: 1860, y: 395, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'right' }); // bottom left
+    this.rects.push({ x: 2140, y: 395, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'left' }); // bottom right
+
+    // Hangar C (Bottom-Left): gate on North wall
+    this.rects.push({ x: 120, y: 1655, w: 420, h: 25, kind: 'hangar-wall' }); // bottom
+    this.rects.push({ x: 120, y: 1380, w: 25, h: 300, kind: 'hangar-wall' }); // left
+    this.rects.push({ x: 515, y: 1380, w: 25, h: 300, kind: 'hangar-wall' }); // right
+    this.rects.push({ x: 120, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'right' }); // top left
+    this.rects.push({ x: 400, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'left' }); // top right
+
+    // Hangar D (Bottom-Right): gate on North wall
+    this.rects.push({ x: 1860, y: 1655, w: 420, h: 25, kind: 'hangar-wall' }); // bottom
+    this.rects.push({ x: 1860, y: 1380, w: 25, h: 300, kind: 'hangar-wall' }); // left
+    this.rects.push({ x: 2255, y: 1380, w: 25, h: 300, kind: 'hangar-wall' }); // right
+    this.rects.push({ x: 1860, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'right' }); // top left
+    this.rects.push({ x: 2140, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'left' }); // top right
+
+    // interior obstacles (military watchtowers, barricades, crates)
     const obs = [
-      [500, 400, 160, 40, 'wall'], [500, 400, 40, 260, 'wall'],
-      [1700, 300, 200, 40, 'wall'], [1860, 300, 40, 220, 'wall'],
-      [1100, 900, 200, 200, 'machine'], // central sandbag bunker / headquarters
-      [400, 1300, 120, 120, 'crate'], [560, 1300, 120, 120, 'crate'],
-      [1850, 1350, 140, 140, 'crate'], [1700, 1350, 120, 120, 'crate'],
-      [300, 850, 40, 300, 'wall'],
-      [1950, 750, 40, 300, 'wall'],
-      [850, 250, 40, 200, 'wall'],
-      [1500, 1450, 200, 40, 'wall'],
-      [700, 700, 90, 90, 'crate'], [1600, 800, 90, 90, 'crate'],
+      [1100, 850, 200, 100, 'machine'], // central sandbag bunker / headquarters
+      [980, 860, 80, 80, 'crate'], [1340, 860, 80, 80, 'crate'], // crates surrounding the bunker
+      [1150, 250, 100, 35, 'wall'], // north barricade
+      [1150, 1500, 100, 35, 'wall'], // south barricade
+      [700, 800, 40, 200, 'wall'], // left watcher wall
+      [1660, 800, 40, 200, 'wall'], // right watcher wall
+      [850, 420, 90, 90, 'crate'], [1460, 420, 90, 90, 'crate'], // side cover crates
+      [850, 1290, 90, 90, 'crate'], [1460, 1290, 90, 90, 'crate'],
+      // checkpoint gate barricades outside hangars
+      [330, 520, 120, 35, 'wall'],
+      [1950, 520, 120, 35, 'wall'],
+      [330, 1240, 120, 35, 'wall'],
+      [1950, 1240, 120, 35, 'wall'],
     ];
     for (const o of obs) this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4] });
 
@@ -117,6 +157,14 @@ class World {
     }
     return { x: this.w / 2, y: 90 };
   }
+
+  randomHangarSpawnPoint() {
+    const h = Utils.pick(this.hangars);
+    const m = 55; // safe margin from walls
+    const rx = Utils.rand(h.x + m, h.x + h.w - m);
+    const ry = Utils.rand(h.y + m, h.y + h.h - m);
+    return { x: rx, y: ry };
+  }
   draw(ctx, cam, time) {
     // ground base (muddy military brown)
     ctx.fillStyle = '#221b14';
@@ -133,6 +181,29 @@ class World {
       ctx.ellipse(0, 0, p.rx, p.ry, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
+    }
+
+    // 1b. Draw Hangar concrete floors
+    for (const h of this.hangars) {
+      if (h.x > cam.x + cam.w || h.x + h.w < cam.x || h.y > cam.y + cam.h || h.y + h.h < cam.y) continue;
+      ctx.fillStyle = '#2b2f33'; // industrial dark concrete
+      ctx.fillRect(h.x, h.y, h.w, h.h);
+      ctx.strokeStyle = '#1d2024';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      for (let gx = h.x + 70; gx < h.x + h.w; gx += 70) {
+        ctx.moveTo(gx, h.y); ctx.lineTo(gx, h.y + h.h);
+      }
+      for (let gy = h.y + 60; gy < h.y + h.h; gy += 60) {
+        ctx.moveTo(h.x, gy); ctx.lineTo(h.x + h.w, gy);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255, 170, 0, 0.12)';
+      ctx.font = 'bold 36px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(h.name, h.x + h.w / 2, h.y + h.h / 2);
     }
 
     // 2. Draw tire tracks
@@ -251,7 +322,61 @@ class World {
     for (const r of this.rects) {
       if (r.x > cam.x + cam.w || r.x + r.w < cam.x || r.y > cam.y + cam.h || r.y + r.h < cam.y) continue;
       
-      if (r.kind === 'wall') {
+      if (r.kind === 'hangar-wall') {
+        // Steel hangar wall panel
+        ctx.fillStyle = '#3a4146'; // steel slate grey
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        
+        ctx.strokeStyle = '#1e2124';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(r.x, r.y, r.w, r.h);
+        
+        // metal corrugated lines or rivets
+        ctx.fillStyle = '#4c555b'; // highlight metal
+        const isHorizontal = r.w > r.h;
+        if (isHorizontal) {
+          for (let sx = r.x + 20; sx < r.x + r.w; sx += 20) {
+            ctx.fillRect(sx, r.y + 2, 2, r.h - 4);
+            ctx.fillStyle = '#1e2124';
+            ctx.fillRect(sx - 1, r.y + 4, 1.5, 1.5);
+            ctx.fillRect(sx - 1, r.y + r.h - 6, 1.5, 1.5);
+            ctx.fillStyle = '#4c555b';
+          }
+        } else {
+          for (let sy = r.y + 20; sy < r.y + r.h; sy += 20) {
+            ctx.fillRect(r.x + 2, sy, r.w - 4, 2);
+            ctx.fillStyle = '#1e2124';
+            ctx.fillRect(r.x + 4, sy - 1, 1.5, 1.5);
+            ctx.fillRect(r.x + r.w - 6, sy - 1, 1.5, 1.5);
+            ctx.fillStyle = '#4c555b';
+          }
+        }
+
+        // Draw yellow-black hazard stripes on gate ends
+        if (r.gateSide) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(r.x, r.y, r.w, r.h);
+          ctx.clip();
+          
+          const stripeW = 22;
+          const startX = r.gateSide === 'left' ? r.x : r.x + r.w - stripeW;
+          
+          ctx.fillStyle = '#ffaa00';
+          ctx.fillRect(startX, r.y, stripeW, r.h);
+          
+          ctx.strokeStyle = '#111';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          for (let offset = -10; offset < r.h + stripeW; offset += 10) {
+            ctx.moveTo(startX, r.y + offset);
+            ctx.lineTo(startX + stripeW, r.y + offset - stripeW);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+      else if (r.kind === 'wall') {
         // Concrete military barricade blocks
         ctx.fillStyle = '#4a4d49';
         ctx.fillRect(r.x, r.y, r.w, r.h);

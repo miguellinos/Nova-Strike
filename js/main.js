@@ -113,6 +113,12 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'restart': Net.reset(); game.newGame('solo'); Menus.hideAll(); break;
       case 'menu': game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu'); break;
       case 'shop-close': if (game.mode !== 'guest') game.closeShop(); break;
+      case 'open-shop':
+        if (game.state === 'playing') {
+          game.midWaveShop = true;
+          game.openTacticalShop();
+        }
+        break;
 
       case 'coop-menu': Menus.show('coop-menu'); break;
       case 'coop-back': Menus.show('main-menu'); break;

@@ -22,18 +22,33 @@ class WaveManager {
     this.game.ui.showBanner('WELLE ' + n);
 
     if (this.isBossWave) {
-      const sp = this.game.world.randomSpawnPoint();
-      const boss = new Boss(sp.x, sp.y, n);
+      const bx = this.game.world.w / 2;
+      const by = this.game.world.h / 2;
+      const boss = new Boss(bx, by, n);
       this.game.boss = boss;
       Audio2.bossSpawn();
       this.game.ui.showBanner('⚠ BOSS ⚠');
-      // some adds too
-      for (let i = 0; i < 4 + n; i++) this.spawnQueue.push('drone');
-      for (let i = 0; i < 2 + Math.floor(n / 5); i++) this.spawnQueue.push('striker');
+      
+      // Spawn boss escort adds in hangars
+      const drones = 4 + n;
+      for (let i = 0; i < drones; i++) {
+        const sp = this.game.world.randomHangarSpawnPoint();
+        this.game.enemies.push(new Enemy('drone', sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
+      }
+      const strikers = 2 + Math.floor(n / 5);
+      for (let i = 0; i < strikers; i++) {
+        const sp = this.game.world.randomHangarSpawnPoint();
+        this.game.enemies.push(new Enemy('striker', sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
+      }
     } else {
       this.buildQueue(n);
+      while (this.spawnQueue.length > 0) {
+        const type = this.spawnQueue.shift();
+        const sp = this.game.world.randomHangarSpawnPoint();
+        this.game.enemies.push(new Enemy(type, sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
+      }
     }
-    this.spawnTimer = 0.5;
+    this.spawnTimer = 0;
   }
 
   buildQueue(n) {
