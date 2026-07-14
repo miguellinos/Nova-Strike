@@ -89,18 +89,9 @@ class UI {
     this.bannerTimer = 2.2;
   }
 
-<<<<<<< HEAD
   showUpgradeChoices(game) {
     this.el.upgradeCards.innerHTML = '';
-=======
-  showShop(game, onBuy) {
-    const me = game.localPlayer;
-    this.el.shopCoins.textContent = me.coins;
-    this.el.shopCards.innerHTML = '';
-    this.el.shopCloseBtn.classList.toggle('hidden', game.mode === 'guest');
-    this.el.shopWaitMsg.classList.toggle('hidden', game.mode !== 'guest');
-    if (game.mode === 'guest') return; // guest has no shop of its own; host advances the wave for the squad
->>>>>>> 02a618b9950c54887369d212480d7a9e98e53b0a
+    const me = game.localPlayer || game.player;
     const picks = game.shopUpgrades;
     picks.forEach((up) => {
       const card = document.createElement('div');
@@ -111,9 +102,8 @@ class UI {
         '<div class="desc">' + up.desc + '</div>' +
         '<button class="buy">AUSWÄHLEN (Gratis)</button>';
       const btn = card.querySelector('.buy');
-<<<<<<< HEAD
       btn.addEventListener('click', () => {
-        up.apply(game.player);
+        up.apply(me);
         Audio2.buy();
         Menus.hideAll();
         game.openTacticalShop();
@@ -123,9 +113,20 @@ class UI {
   }
 
   showTacticalShop(game) {
-    this.el.shopCoins.textContent = game.player.coins;
+    const me = game.localPlayer || game.player;
+    this.el.shopCoins.textContent = me.coins;
     this.el.shopCards.innerHTML = '';
-    const p = game.player;
+
+    // Handle co-op close buttons
+    const closeBtn = document.querySelector('[data-action="shop-close"]');
+    if (closeBtn) {
+      closeBtn.classList.toggle('hidden', game.mode === 'guest');
+    }
+    // check if wait message exists
+    const waitMsg = document.getElementById('shop-wait-msg');
+    if (waitMsg) {
+      waitMsg.classList.toggle('hidden', game.mode !== 'guest');
+    }
 
     // 1. Weapon Purchase Items
     const weaponItems = [
@@ -136,7 +137,7 @@ class UI {
     ];
 
     weaponItems.forEach((w) => {
-      const isUnlocked = p.weapons[w.key] && p.weapons[w.key].unlocked;
+      const isUnlocked = me.weapons[w.key] && me.weapons[w.key].unlocked;
       const card = document.createElement('div');
       card.className = 'shop-card';
       card.innerHTML =
@@ -145,33 +146,13 @@ class UI {
         '<div class="desc">' + w.desc + '</div>' +
         '<button class="buy">' + (isUnlocked ? 'AUSGERÜSTET' : '🪙 ' + w.price) + '</button>';
       const btn = card.querySelector('.buy');
-      btn.disabled = isUnlocked || p.coins < w.price;
+      btn.disabled = isUnlocked || me.coins < w.price;
       btn.addEventListener('click', () => {
-        if (p.coins < w.price) return;
-        p.coins -= w.price;
-        p.unlock(w.key);
+        if (me.coins < w.price) return;
+        me.coins -= w.price;
+        me.unlock(w.key);
         Audio2.buy();
         this.showTacticalShop(game); // refresh
-=======
-      const refresh = () => {
-        const bought = card.classList.contains('bought');
-        btn.disabled = me.coins < up.price || (bought && !up.repeatable);
-        this.el.shopCoins.textContent = me.coins;
-      };
-      btn.addEventListener('click', () => {
-        if (me.coins < up.price) return;
-        me.coins -= up.price;
-        up.apply(me);
-        Audio2.buy();
-        card.classList.remove('bought'); void card.offsetWidth; card.classList.add('bought');
-        // refresh all cards affordability
-        this.el.shopCards.querySelectorAll('.shop-card').forEach((c) => {
-          const b = c.querySelector('.buy');
-          const price = parseInt(b.textContent.replace(/\D/g, ''), 10);
-          b.disabled = me.coins < price;
-        });
-        this.el.shopCoins.textContent = me.coins;
->>>>>>> 02a618b9950c54887369d212480d7a9e98e53b0a
       });
       this.el.shopCards.appendChild(card);
     });
@@ -186,13 +167,13 @@ class UI {
       '<div class="desc">Füllt die Munition aller freigeschalteten Waffen auf.</div>' +
       '<button class="buy">🪙 ' + ammoPrice + '</button>';
     const ammoBtn = ammoCard.querySelector('.buy');
-    ammoBtn.disabled = p.coins < ammoPrice;
+    ammoBtn.disabled = me.coins < ammoPrice;
     ammoBtn.addEventListener('click', () => {
-      if (p.coins < ammoPrice) return;
-      p.coins -= ammoPrice;
-      for (const k in p.weapons) {
-        if (p.weapons[k].unlocked) {
-          p.weapons[k].ammo = Math.round(WEAPON_DEFS[k].mag * p.mods.mag);
+      if (me.coins < ammoPrice) return;
+      me.coins -= ammoPrice;
+      for (const k in me.weapons) {
+        if (me.weapons[k].unlocked) {
+          me.weapons[k].ammo = Math.round(WEAPON_DEFS[k].mag * me.mods.mag);
         }
       }
       Audio2.buy();
@@ -210,11 +191,11 @@ class UI {
       '<div class="desc">Erwirb 1 tragbares Medkit. Heilung per Tastendruck Q.</div>' +
       '<button class="buy">🪙 ' + medkitPrice + '</button>';
     const medkitBtn = medkitCard.querySelector('.buy');
-    medkitBtn.disabled = p.coins < medkitPrice;
+    medkitBtn.disabled = me.coins < medkitPrice;
     medkitBtn.addEventListener('click', () => {
-      if (p.coins < medkitPrice) return;
-      p.coins -= medkitPrice;
-      p.medkitsCount++;
+      if (me.coins < medkitPrice) return;
+      me.coins -= medkitPrice;
+      me.medkitsCount++;
       Audio2.buy();
       this.showTacticalShop(game); // refresh
     });
@@ -230,11 +211,11 @@ class UI {
       '<div class="desc">Erwirb 1 aktive Schildzelle. Aufladen per Tastendruck E.</div>' +
       '<button class="buy">🪙 ' + shieldPrice + '</button>';
     const shieldBtn = shieldCard.querySelector('.buy');
-    shieldBtn.disabled = p.coins < shieldPrice;
+    shieldBtn.disabled = me.coins < shieldPrice;
     shieldBtn.addEventListener('click', () => {
-      if (p.coins < shieldPrice) return;
-      p.coins -= shieldPrice;
-      p.shieldsCount++;
+      if (me.coins < shieldPrice) return;
+      me.coins -= shieldPrice;
+      me.shieldsCount++;
       Audio2.buy();
       this.showTacticalShop(game); // refresh
     });

@@ -9,6 +9,11 @@
 </head>
 
 <body>
+  <script>
+    window.addEventListener('error', function(e) {
+      alert("FEHLER: " + e.message + "\nDatei: " + e.filename + "\nZeile: " + e.lineno);
+    });
+  </script>
   <div id="game-container">
     <canvas id="game-canvas"></canvas>
 
