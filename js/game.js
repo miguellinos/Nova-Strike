@@ -56,6 +56,7 @@ class Game {
     this.cam.x = this.player.x - this.cam.w / 2;
     this.cam.y = this.player.y - this.cam.h / 2;
     this.state = 'playing';
+    this.midWaveShop = false;
     this.ui.showHUD(true);
     if (this.mode !== 'guest') this.waves.startWave(1);
   }
@@ -148,7 +149,11 @@ class Game {
     Menus.hideAll();
     this.state = 'playing';
     this.ui.showHUD(true);
-    this.waves.startWave(this.waves.wave + 1);
+    if (this.midWaveShop) {
+      this.midWaveShop = false;
+    } else {
+      this.waves.startWave(this.waves.wave + 1);
+    }
   }
 
   pause() {
@@ -343,17 +348,41 @@ class Game {
     for (const ep of this.enemyProjectiles) {
       ep.x += ep.vx * dt; ep.y += ep.vy * dt;
       ep.life -= dt;
-      if (ep.life <= 0 || pointInRects(ep.x, ep.y, this.world.rects, ep.radius)) { ep.dead = true; continue; }
+      const hitWall = pointInRects(ep.x, ep.y, this.world.rects, ep.radius);
+      if (ep.life <= 0 || hitWall) {
+        if (ep.isExplosive) this.explodeEnemyProj(ep.x, ep.y, ep.aoe || 80, ep.dmg);
+        ep.dead = true;
+        continue;
+      }
       for (const p of this.players) {
         if (p.hp <= 0) continue;
         if (Utils.dist(ep.x, ep.y, p.x, p.y) < p.radius + ep.radius) {
-          p.takeDamage(ep.dmg, this);
+          if (ep.isExplosive) {
+            this.explodeEnemyProj(ep.x, ep.y, ep.aoe || 80, ep.dmg);
+          } else {
+            p.takeDamage(ep.dmg, this);
+          }
           ep.dead = true;
           break;
         }
       }
     }
     this.enemyProjectiles = this.enemyProjectiles.filter((e) => !e.dead);
+  }
+
+  explodeEnemyProj(x, y, radius, dmg) {
+    this.particles.burst(x, y, '#ff8b26', 18, 220);
+    this.particles.burst(x, y, '#ffaa00', 12, 160);
+    Audio2.explosion();
+    this.shake(8);
+    for (const p of this.players) {
+      if (p.hp > 0) {
+        const d = Utils.dist(x, y, p.x, p.y);
+        if (d < radius + p.radius) {
+          p.takeDamage(dmg * (1 - d / (radius + p.radius) * 0.5), this);
+        }
+      }
+    }
   }
 
   // ----- render -----
