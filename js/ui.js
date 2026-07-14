@@ -92,10 +92,8 @@ class UI {
 
   showUpgradeChoices(game) {
     this.el.upgradeCards.innerHTML = '';
-    if (this.el.upgradeWaitMsg) this.el.upgradeWaitMsg.classList.toggle('hidden', game.mode !== 'guest');
-    if (game.mode === 'guest') return; // only the host drives the squad's wave progression
-    const me = game.localPlayer || game.player;
-    const picks = game.shopUpgrades;
+    if (this.el.upgradeWaitMsg) this.el.upgradeWaitMsg.classList.add('hidden');
+    const picks = game.shopUpgrades || [];
     picks.forEach((up) => {
       const card = document.createElement('div');
       card.className = 'shop-card';
@@ -105,14 +103,17 @@ class UI {
         '<div class="desc">' + up.desc + '</div>' +
         '<button class="buy">AUSWÄHLEN (Gratis)</button>';
       const btn = card.querySelector('.buy');
-      btn.addEventListener('click', () => {
-        up.apply(me);
-        Audio2.buy();
-        Menus.hideAll();
-        game.openTacticalShop();
-      });
+      btn.addEventListener('click', () => { game.chooseUpgrade(up); });
       this.el.upgradeCards.appendChild(card);
     });
+  }
+
+  // waiting-for-partner overlay after finishing the co-op shop
+  showShopWaiting() {
+    this.el.shopCoins.textContent = '';
+    this.el.shopCards.innerHTML = '<div style="grid-column: 1/-1; padding: 30px; color: var(--gold); font-size: 18px;">✅ Du bist bereit.<br><br>Warte auf deinen Mitspieler...</div>';
+    const closeBtn = document.querySelector('[data-action="shop-close"]');
+    if (closeBtn) closeBtn.classList.add('hidden');
   }
 
   showTacticalShop(game) {
@@ -120,16 +121,14 @@ class UI {
     this.el.shopCoins.textContent = me.coins;
     this.el.shopCards.innerHTML = '';
 
-    // Handle co-op close buttons
+    // everyone can shop for themselves now — always show the close/next button
     const closeBtn = document.querySelector('[data-action="shop-close"]');
     if (closeBtn) {
-      closeBtn.classList.toggle('hidden', game.mode === 'guest');
+      closeBtn.classList.remove('hidden');
+      closeBtn.textContent = (game.mode !== 'solo' && !game.midWaveShop) ? 'Fertig / Bereit ▶' : (game.midWaveShop ? 'Weiter ▶' : 'Nächste Welle ▶');
     }
-    // check if wait message exists
     const waitMsg = document.getElementById('shop-wait-msg');
-    if (waitMsg) {
-      waitMsg.classList.toggle('hidden', game.mode !== 'guest');
-    }
+    if (waitMsg) waitMsg.classList.add('hidden');
 
     // 1. Weapon Purchase Items
     const weaponItems = [
@@ -155,11 +154,7 @@ class UI {
       const btn = card.querySelector('.buy');
       btn.disabled = isUnlocked || me.coins < w.price;
       btn.addEventListener('click', () => {
-        if (me.coins < w.price) return;
-        me.coins -= w.price;
-        me.unlock(w.key);
-        Audio2.buy();
-        this.showTacticalShop(game); // refresh
+        if (game.purchase('weapon', w.key, w.price)) this.showTacticalShop(game); // refresh
       });
       this.el.shopCards.appendChild(card);
     });
@@ -176,15 +171,7 @@ class UI {
     const ammoBtn = ammoCard.querySelector('.buy');
     ammoBtn.disabled = me.coins < ammoPrice;
     ammoBtn.addEventListener('click', () => {
-      if (me.coins < ammoPrice) return;
-      me.coins -= ammoPrice;
-      for (const k in me.weapons) {
-        if (me.weapons[k].unlocked) {
-          me.weapons[k].ammo = Math.round(WEAPON_DEFS[k].mag * me.mods.mag);
-        }
-      }
-      Audio2.buy();
-      this.showTacticalShop(game); // refresh
+      if (game.purchase('ammo', null, ammoPrice)) this.showTacticalShop(game); // refresh
     });
     this.el.shopCards.appendChild(ammoCard);
 
@@ -200,11 +187,7 @@ class UI {
     const medkitBtn = medkitCard.querySelector('.buy');
     medkitBtn.disabled = me.coins < medkitPrice;
     medkitBtn.addEventListener('click', () => {
-      if (me.coins < medkitPrice) return;
-      me.coins -= medkitPrice;
-      me.medkitsCount++;
-      Audio2.buy();
-      this.showTacticalShop(game); // refresh
+      if (game.purchase('medkit', null, medkitPrice)) this.showTacticalShop(game); // refresh
     });
     this.el.shopCards.appendChild(medkitCard);
 
@@ -220,11 +203,7 @@ class UI {
     const shieldBtn = shieldCard.querySelector('.buy');
     shieldBtn.disabled = me.coins < shieldPrice;
     shieldBtn.addEventListener('click', () => {
-      if (me.coins < shieldPrice) return;
-      me.coins -= shieldPrice;
-      me.shieldsCount++;
-      Audio2.buy();
-      this.showTacticalShop(game); // refresh
+      if (game.purchase('shield', null, shieldPrice)) this.showTacticalShop(game); // refresh
     });
     this.el.shopCards.appendChild(shieldCard);
   }

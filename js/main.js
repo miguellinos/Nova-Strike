@@ -93,6 +93,8 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   Net.on('snapshot', (data) => { if (game.mode === 'guest') game.applySnapshot(data); });
   Net.on('input', (data) => { if (game.player2 && game.player2.isRemote) game.player2.input.applyPacket(data); });
+  Net.on('shop-action', (data) => { game.onGuestShopAction(data); });
+  Net.on('shop-done', () => { game.onGuestShopDone(); });
   Net.on('peer-left', () => {
     if (game.state === 'playing' || game.state === 'shop') {
       alert('Verbindung zum Mitspieler verloren.');
@@ -118,11 +120,17 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'resume': game.resume(); break;
       case 'restart': Net.reset(); game.newGame('solo', game.gameMode); Menus.hideAll(); break;
       case 'menu': game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu'); break;
-      case 'shop-close': if (game.mode !== 'guest') game.closeShop(); break;
+      case 'shop-close': game.leaveShop(); break;
       case 'open-shop':
-        if (game.state === 'playing') {
+        if (game.mode === 'solo') {
+          if (game.state === 'playing') { game.midWaveShop = true; game.openTacticalShop(); }
+        } else if (!game.shopOpenLocal && game.state === 'playing') {
+          // co-op: personal mid-wave shop overlay, no free upgrade, world keeps running
           game.midWaveShop = true;
-          game.openTacticalShop();
+          game.shopOpenLocal = true;
+          game.ui.showHUD(false);
+          game.ui.showTacticalShop(game);
+          Menus.show('shop-menu');
         }
         break;
 

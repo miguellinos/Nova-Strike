@@ -61,6 +61,12 @@ class Game {
     this.cam.y = target.y - this.cam.h / 2;
     this.state = 'playing';
     this.midWaveShop = false;
+    // per-client shop state (co-op: each player shops independently)
+    this.shopOpenLocal = false;
+    this.shopUpgradeIds = [];
+    this.hostShopDone = false;
+    this.guestShopDone = false;
+    this._syncState = 'playing';
     this.ui.showHUD(true);
     if (this.mode !== 'guest') this.waves.startWave(1);
   }
@@ -136,7 +142,27 @@ class Game {
     this.shields = [];
     this.boss = null;
     this.shopUpgrades = rollShopUpgrades(this.gameMode);
-    this.state = 'upgrade'; // Choose free upgrade first
+    this.shopUpgradeIds = this.shopUpgrades.map((u) => u.id);
+    this.midWaveShop = false;
+    if (this.mode === 'solo') {
+      this.state = 'upgrade'; // Choose free upgrade first
+      this.ui.showHUD(false);
+      this.ui.showUpgradeChoices(this);
+      Menus.show('upgrade-menu');
+    } else {
+      // co-op: one shared intermission; every client shops for itself
+      this.state = 'shop';
+      this.hostShopDone = false;
+      this.guestShopDone = false;
+      this.beginLocalIntermission();
+      // the guest starts its own intermission when it receives the 'shop' snapshot
+    }
+  }
+
+  // enter the per-client free-upgrade → shop flow (host and guest both call this)
+  beginLocalIntermission() {
+    this.midWaveShop = false;
+    this.shopOpenLocal = true;
     this.ui.showHUD(false);
     this.ui.showUpgradeChoices(this);
     Menus.show('upgrade-menu');
@@ -147,6 +173,88 @@ class Game {
     this.ui.showHUD(false);
     this.ui.showTacticalShop(this);
     Menus.show('shop-menu');
+  }
+
+  // ----- shop interactions (used by the UI, work for solo + co-op) -----
+  chooseUpgrade(up) {
+    up.apply(this.localPlayer);
+    if (this.mode === 'guest') Net.sendShopAction({ action: 'upgrade', id: up.id });
+    Audio2.buy();
+    Menus.hideAll();
+    if (this.mode === 'solo') { this.openTacticalShop(); }
+    else { this.ui.showTacticalShop(this); Menus.show('shop-menu'); }
+  }
+
+  purchase(kind, key, price) {
+    const me = this.localPlayer;
+    if (me.coins < price) return false;
+    me.coins -= price;
+    this.applyPurchase(me, kind, key);
+    if (this.mode === 'guest') Net.sendShopAction({ action: 'buy', kind, key, price });
+    Audio2.buy();
+    return true;
+  }
+
+  applyPurchase(p, kind, key) {
+    if (kind === 'weapon') p.unlock(key);
+    else if (kind === 'ammo') {
+      for (const k in p.weapons) if (p.weapons[k].unlocked) p.weapons[k].ammo = Math.round(WEAPON_DEFS[k].mag * p.mods.mag);
+    } else if (kind === 'medkit') p.medkitsCount++;
+    else if (kind === 'shield') p.shieldsCount++;
+  }
+
+  // the "Nächste Welle ▶" / close button
+  leaveShop() {
+    if (this.mode === 'solo') { this.closeShop(); return; }
+    // co-op mid-wave personal shop: just close the overlay, keep playing
+    if (this.midWaveShop) {
+      this.midWaveShop = false;
+      this.shopOpenLocal = false;
+      Menus.hideAll();
+      this.ui.showHUD(true);
+      return;
+    }
+    // co-op intermission: mark myself done and wait for my partner
+    this.shopOpenLocal = false;
+    if (this.mode === 'host') { this.hostShopDone = true; this.maybeStartNextWaveCoop(); }
+    else { Net.sendShopDone(); }
+    if (!(this.hostShopDone && this.guestShopDone)) this.showShopWaiting();
+  }
+
+  showShopWaiting() {
+    this.ui.showShopWaiting();
+    Menus.show('shop-menu');
+  }
+
+  maybeStartNextWaveCoop() {
+    if (!(this.hostShopDone && this.guestShopDone)) return;
+    this.hostShopDone = false;
+    this.guestShopDone = false;
+    this.shopOpenLocal = false;
+    Menus.hideAll();
+    this.state = 'playing';
+    this.ui.showHUD(true);
+    this.waves.startWave(this.waves.wave + 1);
+  }
+
+  // host receives a guest shop action and applies it to the guest's authoritative player
+  onGuestShopAction(msg) {
+    if (this.mode !== 'host' || !this.player2) return;
+    if (msg.action === 'upgrade') {
+      const up = UPGRADES.find((u) => u.id === msg.id);
+      if (up) up.apply(this.player2);
+    } else if (msg.action === 'buy') {
+      if (this.player2.coins >= msg.price) {
+        this.player2.coins -= msg.price;
+        this.applyPurchase(this.player2, msg.kind, msg.key);
+      }
+    }
+  }
+
+  onGuestShopDone() {
+    if (this.mode !== 'host') return;
+    this.guestShopDone = true;
+    this.maybeStartNextWaveCoop();
   }
 
   closeShop() {
@@ -184,13 +292,18 @@ class Game {
         this.updateCamera(dt);
         Input.mouse.worldX = this.cam.x + Input.mouse.x;
         Input.mouse.worldY = this.cam.y + Input.mouse.y;
-        Net.sendInput({
-          keys: { w: Input.key('w'), a: Input.key('a'), s: Input.key('s'), d: Input.key('d'), shift: Input.key('shift'), r: Input.key('r'),
-                   '1': Input.key('1'), '2': Input.key('2'), '3': Input.key('3'), '4': Input.key('4'), '5': Input.key('5') },
-          justPressed: Object.keys(Input.pressed).filter((k) => Input.pressed[k]),
-          mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: Input.mouse.down,
-          rightDown: Input.mouse.rightDown, rightPressed: Input.mouse.rightPressed,
-        });
+        if (this.shopOpenLocal) {
+          // shop overlay open: stand still, don't fire — send a neutral packet
+          Net.sendInput({ keys: {}, justPressed: [], mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: false, rightDown: false, rightPressed: false });
+        } else {
+          Net.sendInput({
+            keys: { w: Input.key('w'), a: Input.key('a'), s: Input.key('s'), d: Input.key('d'), shift: Input.key('shift'), r: Input.key('r'),
+                     '1': Input.key('1'), '2': Input.key('2'), '3': Input.key('3'), '4': Input.key('4'), '5': Input.key('5') },
+            justPressed: Object.keys(Input.pressed).filter((k) => Input.pressed[k]),
+            mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: Input.mouse.down,
+            rightDown: Input.mouse.rightDown, rightPressed: Input.mouse.rightPressed,
+          });
+        }
       }
       this.ui.updateHUD(this);
       Input.clearFrame();
@@ -255,6 +368,7 @@ class Game {
       gameMode: this.gameMode,
       wave: this.waves ? this.waves.wave : 1,
       enemiesLeft: this.waves ? this.waves.totalRemaining() : 0,
+      shopUpgradeIds: this.shopUpgradeIds || [],
       cam: { x: this.cam.x, y: this.cam.y },
       players: this.players.map((p) => ({
         x: p.x, y: p.y, aimAngle: p.aimAngle, hp: p.hp, maxHp: p.maxHp,
@@ -279,10 +393,16 @@ class Game {
 
   applySnapshot(s) {
     if (!this.world) return; // not ready yet
+    const prevSync = this._syncState;
+    this._syncState = s.state;
     this.state = s.state;
     this.gameMode = s.gameMode || 'standard';
     if (this.waves) this.waves.wave = s.wave;
-    this._enemiesLeft = s.enemiesLeft;
+    // reconstruct the (identical) upgrade options the host rolled, so our menu matches
+    if (s.shopUpgradeIds) {
+      this.shopUpgradeIds = s.shopUpgradeIds;
+      this.shopUpgrades = s.shopUpgradeIds.map((id) => UPGRADES.find((u) => u.id === id)).filter(Boolean);
+    }
 
     const assign = (p, d) => Object.assign(p, d);
     if (s.players[0]) {
@@ -290,10 +410,19 @@ class Game {
       if (!this.player.mods) this.player.mods = {};
       this.player.mods.visionRange = s.players[0].visionRange || 1;
     }
+    // While my own shop is open I own my inventory locally — take only render/status
+    // fields from the host so my coins/weapons/upgrades don't get clobbered mid-purchase.
     if (s.players[1] && this.player2) {
-      assign(this.player2, s.players[1]);
-      if (!this.player2.mods) this.player2.mods = {};
-      this.player2.mods.visionRange = s.players[1].visionRange || 1;
+      const d = s.players[1];
+      if (this.shopOpenLocal && this.localPlayer === this.player2) {
+        this.player2.x = d.x; this.player2.y = d.y; this.player2.aimAngle = d.aimAngle;
+        this.player2.hp = d.hp; this.player2.maxHp = d.maxHp; this.player2.hitFlash = d.hitFlash;
+        this.player2.invuln = d.invuln; this.player2.walkPhase = d.walkPhase; this.player2.shieldHp = d.shieldHp;
+      } else {
+        assign(this.player2, d);
+        if (!this.player2.mods) this.player2.mods = {};
+        this.player2.mods.visionRange = d.visionRange || 1;
+      }
     }
 
     this.enemies = s.enemies.map((d) => Object.assign(Object.create(Enemy.prototype), d, { draw: Enemy.prototype.draw, dead: false }));
@@ -306,10 +435,24 @@ class Game {
     this.medkits = s.medkits.map((d) => { const m = new Medkit(d.x, d.y); m.life = d.life; return m; });
     this.shakeAmt = s.shakeAmt;
 
-    if (s.state === 'upgrade') { this.ui.showHUD(false); this.ui.showUpgradeChoices(this); Menus.show('upgrade-menu'); }
-    else if (s.state === 'shop') { this.ui.showHUD(false); this.ui.showTacticalShop(this); Menus.show('shop-menu'); }
-    else if (s.state === 'gameover') { this.ui.showHUD(false); this.ui.showGameOver({ wave: s.wave, kills: this.localPlayer.kills, score: this.localPlayer.score, coins: this.localPlayer.coins, time: '--:--' }); Menus.show('gameover-menu'); }
-    else if (s.state === 'playing') { this.ui.showHUD(true); Menus.hideAll(); }
+    // ----- menu / phase handling (guest) -----
+    if (s.state === 'gameover') {
+      this.ui.showHUD(false);
+      this.ui.showGameOver({ wave: s.wave, kills: this.localPlayer.kills, score: this.localPlayer.score, coins: this.localPlayer.coins, time: '--:--' });
+      Menus.show('gameover-menu');
+    } else if (s.state === 'shop') {
+      // enter my own intermission exactly once (when the wave first ends)
+      if (prevSync !== 'shop') this.beginLocalIntermission();
+      // otherwise leave my local shop navigation alone
+    } else if (s.state === 'playing') {
+      // host started the next wave — leave the intermission (unless I have a
+      // personal mid-wave shop overlay open)
+      if (!(this.shopOpenLocal && this.midWaveShop)) {
+        this.shopOpenLocal = false;
+        this.ui.showHUD(true);
+        Menus.hideAll();
+      }
+    }
   }
 
   updateProjectiles(dt) {
