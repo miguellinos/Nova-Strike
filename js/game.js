@@ -28,6 +28,7 @@ class Game {
     this.enemies = [];
     this.boss = null;
     this.coins = [];
+    this.medkits = [];
     this.particles = new Particles();
     this.waves = new WaveManager(this);
     this.playTime = 0;
@@ -48,6 +49,9 @@ class Game {
     this.particles.burst(e.x, e.y, e.color, 12, 200);
     this.dropCoins(e.x, e.y, e.def.coins);
     if (Utils.chance(this.player.mods.lifesteal)) this.player.heal(5);
+    // chance to drop a medkit — likelier when the player is hurt
+    const hurt = 1 - this.player.hp / this.player.maxHp;
+    if (Utils.chance(0.06 + hurt * 0.14)) this.dropMedkit(e.x, e.y, 25);
   }
 
   onBossKilled(b) {
@@ -58,6 +62,12 @@ class Game {
     this.particles.burst(b.x, b.y, '#ff3b52', 60, 340);
     this.particles.burst(b.x, b.y, '#ffcc33', 30, 260);
     this.dropCoins(b.x, b.y, b.coins);
+    // bosses always drop a couple of big medkits
+    for (let i = 0; i < 3; i++) this.dropMedkit(b.x, b.y, 40);
+  }
+
+  dropMedkit(x, y, heal) {
+    this.medkits.push(new Medkit(x + Utils.rand(-16, 16), y + Utils.rand(-16, 16), heal));
   }
 
   dropCoins(x, y, range) {
@@ -84,6 +94,7 @@ class Game {
     // auto-collect remaining coins
     for (const c of this.coins) { this.player.coins += c.value; }
     this.coins = [];
+    this.medkits = [];
     this.boss = null;
     this.shopUpgrades = rollShopUpgrades();
     this.state = 'shop';
@@ -136,6 +147,8 @@ class Game {
 
     for (const c of this.coins) c.update(dt, this);
     this.coins = this.coins.filter((c) => !c.dead);
+    for (const m of this.medkits) m.update(dt, this);
+    this.medkits = this.medkits.filter((m) => !m.dead);
     this.enemies = this.enemies.filter((e) => !e.dead);
     this.particles.update(dt);
 
@@ -234,6 +247,7 @@ class Game {
 
     this.world.draw(ctx, this.cam, this.time);
     for (const c of this.coins) c.draw(ctx, this.time);
+    for (const m of this.medkits) m.draw(ctx, this.time);
     for (const ep of this.enemyProjectiles) {
       ctx.shadowBlur = 10; ctx.shadowColor = ep.color; ctx.fillStyle = ep.color;
       ctx.beginPath(); ctx.arc(ep.x, ep.y, ep.radius, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
