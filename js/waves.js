@@ -21,7 +21,7 @@ class WaveManager {
     // weapon unlocks
     const unlockMap = { 2: 'rifle', 3: 'shotgun', 4: 'sniper', 5: 'cannon' };
     if (unlockMap[n]) {
-      this.game.player.unlock(unlockMap[n]);
+      for (const p of this.game.players) p.unlock(unlockMap[n]);
       this.game.ui.showBanner('NEUE WAFFE: ' + WEAPON_DEFS[unlockMap[n]].name + '  (Taste ' + (WEAPON_ORDER.indexOf(unlockMap[n]) + 1) + ')');
     } else {
       this.game.ui.showBanner('WELLE ' + n);

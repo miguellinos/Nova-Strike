@@ -1,6 +1,7 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
-  overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu'],
+  overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu',
+             'coop-menu', 'coop-host-menu', 'coop-join-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
   show(id) { this.hideAll(); document.getElementById(id).classList.remove('hidden'); },
@@ -39,6 +40,61 @@ window.addEventListener('DOMContentLoaded', () => {
     else if (!fs.checked && document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
   });
 
+  // ----- LAN co-op networking -----
+  const coop = {
+    hostStatus: document.getElementById('coop-host-status'),
+    codeWrap: document.getElementById('coop-code-wrap'),
+    roomCode: document.getElementById('coop-room-code'),
+    hostIps: document.getElementById('coop-host-ips'),
+    hostGuestStatus: document.getElementById('coop-host-guest-status'),
+    hostReadyBtn: document.getElementById('coop-host-ready-btn'),
+    codeInput: document.getElementById('coop-code-input'),
+    joinStatus: document.getElementById('coop-join-status'),
+    joinReadyWrap: document.getElementById('coop-join-ready-wrap'),
+    joinHostStatus: document.getElementById('coop-join-host-status'),
+  };
+
+  function maybeStartMatch() {
+    if (Net.hostReady && Net.guestReady && Net.role === 'host') {
+      Net.sendStart();
+      game.newGame('host');
+      Menus.hideAll();
+    }
+  }
+
+  Net.on('room-created', (msg) => {
+    coop.hostStatus.classList.add('hidden');
+    coop.codeWrap.classList.remove('hidden');
+    coop.roomCode.textContent = msg.code;
+    coop.hostIps.innerHTML = (msg.ips || []).map((ip) => `<div>http://${ip}:${msg.port}</div>`).join('') || '<div>(keine LAN-IP gefunden)</div>';
+    coop.hostReadyBtn.classList.remove('hidden');
+  });
+  Net.on('guest-joined', () => { coop.hostGuestStatus.textContent = 'Mitspieler verbunden! Beide auf Bereit klicken.'; });
+  Net.on('joined', () => {
+    coop.joinStatus.textContent = 'Verbunden.';
+    coop.joinReadyWrap.classList.remove('hidden');
+  });
+  Net.on('join-error', (msg) => {
+    coop.joinStatus.textContent = msg.reason === 'bad-code' ? 'Falscher Code.' : 'Kein Raum gefunden.';
+  });
+  Net.on('ready-changed', () => {
+    if (Net.role === 'host') coop.hostGuestStatus.textContent = Net.guestReady ? 'Mitspieler ist bereit!' : 'Warte auf Mitspieler...';
+    else coop.joinHostStatus.textContent = Net.hostReady ? 'Host ist bereit!' : 'Warte auf Host...';
+    maybeStartMatch();
+  });
+  Net.on('start', () => {
+    if (Net.role === 'guest') { game.newGame('guest'); Menus.hideAll(); }
+  });
+  Net.on('snapshot', (data) => { if (game.mode === 'guest') game.applySnapshot(data); });
+  Net.on('input', (data) => { if (game.player2 && game.player2.isRemote) game.player2.input.applyPacket(data); });
+  Net.on('peer-left', () => {
+    if (game.state === 'playing' || game.state === 'shop') {
+      alert('Verbindung zum Mitspieler verloren.');
+      game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu');
+    }
+  });
+  Net.on('disconnected', () => { Net.peerConnected = false; });
+
   // ----- button actions (event delegation) -----
   document.getElementById('game-container').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
@@ -46,16 +102,45 @@ window.addEventListener('DOMContentLoaded', () => {
     Audio2.init(); Audio2.resume();
     const action = btn.dataset.action;
     switch (action) {
-      case 'start': game.newGame(); Menus.hideAll(); break;
+      case 'start': Net.reset(); game.newGame('solo'); Menus.hideAll(); break;
       case 'settings': Menus.prev = getVisibleOverlay(); Menus.show('settings-menu'); break;
       case 'settings-back': Menus.show(Menus.prev || 'main-menu'); if (game.state === 'paused') {/* stay paused overlay */} break;
       case 'controls': Menus.prev = getVisibleOverlay(); Menus.show('controls-menu'); break;
       case 'controls-back': Menus.show(Menus.prev || 'main-menu'); break;
       case 'quit': Menus.show('main-menu'); alert('Danke fürs Spielen! Du kannst den Tab schließen.'); break;
       case 'resume': game.resume(); break;
-      case 'restart': game.newGame(); Menus.hideAll(); break;
-      case 'menu': game.state = 'menu'; game.ui.showHUD(false); Menus.show('main-menu'); break;
-      case 'shop-close': game.closeShop(); break;
+      case 'restart': Net.reset(); game.newGame('solo'); Menus.hideAll(); break;
+      case 'menu': game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu'); break;
+      case 'shop-close': if (game.mode !== 'guest') game.closeShop(); break;
+
+      case 'coop-menu': Menus.show('coop-menu'); break;
+      case 'coop-back': Menus.show('main-menu'); break;
+      case 'coop-cancel': Net.reset(); Menus.show('main-menu'); break;
+      case 'coop-ready': Net.setReady(); btn.disabled = true; btn.textContent = 'Bereit ✓'; break;
+
+      case 'coop-host':
+        coop.hostStatus.textContent = 'Verbinde zum lokalen Server...';
+        coop.hostStatus.classList.remove('hidden');
+        coop.codeWrap.classList.add('hidden');
+        coop.hostReadyBtn.classList.add('hidden'); coop.hostReadyBtn.disabled = false; coop.hostReadyBtn.textContent = 'Bereit';
+        Menus.show('coop-host-menu');
+        Net.hostGame().catch(() => { coop.hostStatus.textContent = 'Server nicht erreichbar. Läuft "npm start"?'; });
+        break;
+
+      case 'coop-join':
+        coop.joinStatus.textContent = '';
+        coop.joinReadyWrap.classList.add('hidden');
+        coop.codeInput.value = '';
+        Menus.show('coop-join-menu');
+        break;
+
+      case 'coop-join-submit': {
+        const code = coop.codeInput.value.trim();
+        if (code.length !== 4) { coop.joinStatus.textContent = 'Bitte 4-stelligen Code eingeben.'; break; }
+        coop.joinStatus.textContent = 'Verbinde...';
+        Net.joinGame(code).catch(() => { coop.joinStatus.textContent = 'Verbindung fehlgeschlagen.'; });
+        break;
+      }
     }
   });
 

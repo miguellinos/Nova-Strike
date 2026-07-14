@@ -1,7 +1,9 @@
 // ---------- player.js : player, movement, dash, shooting ----------
 class Player {
-  constructor(x, y) {
+  constructor(x, y, isRemote = false) {
     this.x = x; this.y = y;
+    this.isRemote = isRemote;
+    this.input = isRemote ? new RemoteInput() : Input;
     this.radius = 16;
     this.baseSpeed = 260;
     this.aimAngle = 0;
@@ -56,20 +58,20 @@ class Player {
   update(dt, game) {
     const world = game.world;
     // aim toward mouse (world coords)
-    this.aimAngle = Utils.angle(this.x, this.y, Input.mouse.worldX, Input.mouse.worldY);
+    this.aimAngle = Utils.angle(this.x, this.y, this.input.mouse.worldX, this.input.mouse.worldY);
 
     // movement input
     let mx = 0, my = 0;
-    if (Input.key('w')) my -= 1;
-    if (Input.key('s')) my += 1;
-    if (Input.key('a')) mx -= 1;
-    if (Input.key('d')) mx += 1;
+    if (this.input.key('w')) my -= 1;
+    if (this.input.key('s')) my += 1;
+    if (this.input.key('a')) mx -= 1;
+    if (this.input.key('d')) mx += 1;
     const len = Math.hypot(mx, my);
     if (len > 0) { mx /= len; my /= len; }
 
     // dash
     if (this.dashCd > 0) this.dashCd -= dt;
-    if (Input.wasPressed('shift') && this.dashCd <= 0 && this.dashTime <= 0 && len > 0) {
+    if (this.input.wasPressed('shift') && this.dashCd <= 0 && this.dashTime <= 0 && len > 0) {
       this.dashTime = 0.18;
       this.dashDir = { x: mx, y: my };
       this.dashCd = this.dashCooldown();
@@ -101,11 +103,11 @@ class Player {
 
     // weapon switch by number keys
     for (let i = 0; i < WEAPON_ORDER.length; i++) {
-      if (Input.wasPressed(String(i + 1))) this.switchWeapon(WEAPON_ORDER[i]);
+      if (this.input.wasPressed(String(i + 1))) this.switchWeapon(WEAPON_ORDER[i]);
     }
 
     // reload
-    if (Input.wasPressed('r')) this.startReload();
+    if (this.input.wasPressed('r')) this.startReload();
     if (this.reloading) {
       this.reloadTimer -= dt;
       if (this.reloadTimer <= 0) {
@@ -116,7 +118,7 @@ class Player {
 
     // shooting
     if (this.fireCooldown > 0) this.fireCooldown -= dt;
-    if (Input.mouse.down && !this.reloading && this.fireCooldown <= 0) {
+    if (this.input.mouse.down && !this.reloading && this.fireCooldown <= 0) {
       const w = this.weapons[this.currentWeapon];
       if (w.ammo > 0) this.shoot(game);
       else this.startReload();
@@ -147,7 +149,7 @@ class Player {
       const crit = Utils.chance(this.mods.crit);
       let dmg = def.damage * this.mods.damage * (crit ? 2 : 1);
       const pierce = def.pierce + this.mods.pierce;
-      game.projectiles.push(new Projectile(bx, by, ang, def, dmg, pierce, true, crit));
+      game.projectiles.push(new Projectile(bx, by, ang, def, dmg, pierce, true, crit, this));
     }
     // muzzle flash
     game.particles.spawn(bx, by, def.color, { count: 5, angle: this.aimAngle, spread: 0.4, minSpeed: 60, maxSpeed: 160, life: 0.15, size: 3 });
