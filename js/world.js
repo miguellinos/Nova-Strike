@@ -53,21 +53,57 @@ class World {
     this.rects.push({ x: 1860, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'right' }); // top left
     this.rects.push({ x: 2140, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'left' }); // top right
 
-    // interior obstacles (military watchtowers, barricades, crates)
+    // Add interior hangar walls to split them into 4 tactical rooms
+    this.addHangarInterior(120, 120, 420, 300, 'south');   // Hangar A
+    this.addHangarInterior(1860, 120, 420, 300, 'south');  // Hangar B
+    this.addHangarInterior(120, 1380, 420, 300, 'north');  // Hangar C
+    this.addHangarInterior(1860, 1380, 420, 300, 'north'); // Hangar D
+
+    // interior obstacles forming a tactical labyrinth
     const obs = [
-      [1100, 850, 200, 100, 'machine'], // central sandbag bunker / headquarters
-      [980, 860, 80, 80, 'crate'], [1340, 860, 80, 80, 'crate'], // crates surrounding the bunker
-      [1150, 250, 100, 35, 'wall'], // north barricade
-      [1150, 1500, 100, 35, 'wall'], // south barricade
-      [700, 800, 40, 200, 'wall'], // left watcher wall
-      [1660, 800, 40, 200, 'wall'], // right watcher wall
-      [850, 420, 90, 90, 'crate'], [1460, 420, 90, 90, 'crate'], // side cover crates
-      [850, 1290, 90, 90, 'crate'], [1460, 1290, 90, 90, 'crate'],
-      // checkpoint gate barricades outside hangars
-      [330, 520, 120, 35, 'wall'],
-      [1950, 520, 120, 35, 'wall'],
-      [330, 1240, 120, 35, 'wall'],
-      [1950, 1240, 120, 35, 'wall'],
+      // Central bunker
+      [1100, 850, 200, 100, 'machine'],
+      // Crates next to central bunker
+      [980, 860, 80, 80, 'crate'],
+      [1340, 860, 80, 80, 'crate'],
+      
+      // Left main tactical divider at x = 700 (three parts with gaps for flow)
+      [700, 40, 35, 480, 'wall'],
+      [700, 640, 35, 520, 'wall'],
+      [700, 1280, 35, 480, 'wall'],
+      
+      // Right main tactical divider at x = 1665 (three parts with gaps)
+      [1665, 40, 35, 480, 'wall'],
+      [1665, 640, 35, 520, 'wall'],
+      [1665, 1280, 35, 480, 'wall'],
+      
+      // Central area horizontal dividers
+      [700, 640, 320, 35, 'wall'],
+      [1380, 640, 320, 35, 'wall'],
+      [700, 1125, 320, 35, 'wall'],
+      [1380, 1125, 320, 35, 'wall'],
+      
+      // North / South center dividers
+      [1020, 40, 35, 420, 'wall'],
+      [1345, 40, 35, 420, 'wall'],
+      [1020, 1340, 35, 420, 'wall'],
+      [1345, 1340, 35, 420, 'wall'],
+      
+      // Side crates in the outer lanes
+      [330, 600, 90, 90, 'crate'],
+      [330, 1110, 90, 90, 'crate'],
+      [1980, 600, 90, 90, 'crate'],
+      [1980, 1110, 90, 90, 'crate'],
+      
+      // Side crates in the inner pockets
+      [840, 280, 80, 80, 'crate'],
+      [1480, 280, 80, 80, 'crate'],
+      [840, 1440, 80, 80, 'crate'],
+      [1480, 1440, 80, 80, 'crate'],
+      
+      // Barriers near central bunker
+      [850, 885, 100, 35, 'wall'],
+      [1450, 885, 100, 35, 'wall']
     ];
     for (const o of obs) this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4] });
 
@@ -133,6 +169,35 @@ class World {
       });
     }
   }
+
+  addHangarInterior(hx, hy, hw, hh, gateSide) {
+    if (gateSide === 'south') {
+      // Horizontal middle divider
+      this.rects.push({ x: hx, y: hy + 140, w: 140, h: 25, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 220, y: hy + 140, w: hw - 220, h: 25, kind: 'hangar-wall' });
+      
+      // Vertical top partition
+      this.rects.push({ x: hx + 200, y: hy, w: 25, h: 50, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 200, y: hy + 110, w: 25, h: 30, kind: 'hangar-wall' });
+      
+      // Vertical bottom partition
+      this.rects.push({ x: hx + 140, y: hy + 140, w: 25, h: 50, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 140, y: hy + 250, w: 25, h: hh - 250, kind: 'hangar-wall' });
+    } else {
+      // Horizontal middle divider
+      this.rects.push({ x: hx, y: hy + 140, w: 140, h: 25, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 220, y: hy + 140, w: hw - 220, h: 25, kind: 'hangar-wall' });
+      
+      // Vertical top partition
+      this.rects.push({ x: hx + 140, y: hy, w: 25, h: 50, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 140, y: hy + 110, w: 25, h: 30, kind: 'hangar-wall' });
+      
+      // Vertical bottom partition
+      this.rects.push({ x: hx + 200, y: hy + 140, w: 25, h: 55, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 200, y: hy + 250, w: 25, h: hh - 250, kind: 'hangar-wall' });
+    }
+  }
+
   update(dt) {
     // move dust storm clouds slowly to the right
     for (const d of this.energyDots) {
@@ -159,11 +224,17 @@ class World {
   }
 
   randomHangarSpawnPoint() {
+    for (let i = 0; i < 50; i++) {
+      const h = Utils.pick(this.hangars);
+      const m = 40; // safe margin
+      const rx = Utils.rand(h.x + m, h.x + h.w - m);
+      const ry = Utils.rand(h.y + m, h.y + h.h - m);
+      if (!pointInRects(rx, ry, this.rects, 25)) {
+        return { x: rx, y: ry };
+      }
+    }
     const h = Utils.pick(this.hangars);
-    const m = 55; // safe margin from walls
-    const rx = Utils.rand(h.x + m, h.x + h.w - m);
-    const ry = Utils.rand(h.y + m, h.y + h.h - m);
-    return { x: rx, y: ry };
+    return { x: h.x + h.w / 2, y: h.y + h.h / 2 };
   }
   draw(ctx, cam, time) {
     // ground base (muddy military brown)

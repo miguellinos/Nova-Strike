@@ -67,7 +67,7 @@ const Net = {
 
   sendInput(data) { this.send({ type: 'input', data }); },
   sendSnapshot(data) { this.send({ type: 'snapshot', data }); },
-  sendStart() { this.send({ type: 'start' }); },
+  sendStart(gameMode) { this.send({ type: 'start', gameMode }); },
 
   handleMessage(msg) {
     switch (msg.type) {

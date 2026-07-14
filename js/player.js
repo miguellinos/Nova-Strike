@@ -25,6 +25,7 @@ class Player {
     this.mods = {
       damage: 1, fireRate: 1, move: 1, reload: 1, mag: 1,
       pierce: 0, crit: 0, dashCd: 1, lifesteal: 0, coinRange: 120, coinMult: 1,
+      visionRange: 1,
     };
 
     // weapons: player owns all, but only plasma at first? Spec says start with plasma,
