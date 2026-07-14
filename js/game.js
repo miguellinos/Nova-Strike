@@ -56,8 +56,9 @@ class Game {
     this.particles = new Particles();
     this.waves = new WaveManager(this);
     this.playTime = 0;
-    this.cam.x = this.player.x - this.cam.w / 2;
-    this.cam.y = this.player.y - this.cam.h / 2;
+    const target = this.localPlayer || this.player;
+    this.cam.x = target.x - this.cam.w / 2;
+    this.cam.y = target.y - this.cam.h / 2;
     this.state = 'playing';
     this.midWaveShop = false;
     this.ui.showHUD(true);
@@ -180,6 +181,7 @@ class Game {
     // whatever the host last broadcast (see applySnapshot()).
     if (this.mode === 'guest') {
       if (this.state === 'playing' && this.player2) {
+        this.updateCamera(dt);
         Input.mouse.worldX = this.cam.x + Input.mouse.x;
         Input.mouse.worldY = this.cam.y + Input.mouse.y;
         Net.sendInput({
@@ -232,15 +234,7 @@ class Game {
     }
     this.particles.update(dt);
 
-    // camera smooth follow (midpoint of the squad in co-op)
-    const midX = this.players.reduce((s, p) => s + p.x, 0) / this.players.length;
-    const midY = this.players.reduce((s, p) => s + p.y, 0) / this.players.length;
-    const tx = midX - this.cam.w / 2;
-    const ty = midY - this.cam.h / 2;
-    this.cam.x = Utils.lerp(this.cam.x, tx, 0.12);
-    this.cam.y = Utils.lerp(this.cam.y, ty, 0.12);
-    this.cam.x = Utils.clamp(this.cam.x, 0, Math.max(0, this.world.w - this.cam.w));
-    this.cam.y = Utils.clamp(this.cam.y, 0, Math.max(0, this.world.h - this.cam.h));
+    this.updateCamera(dt);
 
     if (this.shakeAmt > 0) this.shakeAmt = Math.max(0, this.shakeAmt - dt * 40);
     if (this.damageVignette > 0) this.damageVignette = Math.max(0, this.damageVignette - dt * 2);
@@ -289,7 +283,6 @@ class Game {
     this.gameMode = s.gameMode || 'standard';
     if (this.waves) this.waves.wave = s.wave;
     this._enemiesLeft = s.enemiesLeft;
-    this.cam.x = s.cam.x; this.cam.y = s.cam.y;
 
     const assign = (p, d) => Object.assign(p, d);
     if (s.players[0]) {
@@ -614,5 +607,17 @@ class Game {
       ctx.fillRect(x, y, 2, 2);
     }
     ctx.globalAlpha = 1;
+  }
+
+  updateCamera(dt) {
+    if (!this.world) return;
+    const target = this.localPlayer || this.player;
+    if (!target) return;
+    const tx = target.x - this.cam.w / 2;
+    const ty = target.y - this.cam.h / 2;
+    this.cam.x = Utils.lerp(this.cam.x, tx, 0.12);
+    this.cam.y = Utils.lerp(this.cam.y, ty, 0.12);
+    this.cam.x = Utils.clamp(this.cam.x, 0, Math.max(0, this.world.w - this.cam.w));
+    this.cam.y = Utils.clamp(this.cam.y, 0, Math.max(0, this.world.h - this.cam.h));
   }
 }
