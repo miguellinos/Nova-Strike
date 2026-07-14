@@ -32,10 +32,14 @@ const Net = {
   on(event, cb) { this.handlers[event] = cb; },
   emit(event, data) { if (this.handlers[event]) this.handlers[event](data); },
 
-  connect() {
+  connect(ip) {
     return new Promise((resolve, reject) => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      this.ws = new WebSocket(`${proto}://${location.host}`);
+      let targetHost = location.host;
+      if (ip) {
+        targetHost = ip.includes(':') ? ip : `${ip}:3000`;
+      }
+      this.ws = new WebSocket(`${proto}://${targetHost}`);
       this.ws.addEventListener('open', () => resolve());
       this.ws.addEventListener('error', (e) => reject(e));
       this.ws.addEventListener('message', (ev) => this.handleMessage(JSON.parse(ev.data)));
@@ -52,10 +56,10 @@ const Net = {
     this.send({ type: 'host' });
   },
 
-  async joinGame(code) {
+  async joinGame(code, ip) {
     this.role = 'guest';
     this.hostReady = false; this.guestReady = false; this.peerConnected = false;
-    await this.connect();
+    await this.connect(ip);
     this.send({ type: 'join', code: code.toUpperCase() });
   },
 

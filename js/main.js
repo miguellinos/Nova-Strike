@@ -144,14 +144,20 @@ window.addEventListener('DOMContentLoaded', () => {
         coop.joinStatus.textContent = '';
         coop.joinReadyWrap.classList.add('hidden');
         coop.codeInput.value = '';
+        const ipInput = document.getElementById('coop-ip-input');
+        if (ipInput) {
+          ipInput.value = (location.hostname && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') ? location.hostname : '';
+        }
         Menus.show('coop-join-menu');
         break;
 
       case 'coop-join-submit': {
         const code = coop.codeInput.value.trim();
+        const ipValInput = document.getElementById('coop-ip-input');
+        const ip = ipValInput ? ipValInput.value.trim() : '';
         if (code.length !== 4) { coop.joinStatus.textContent = 'Bitte 4-stelligen Code eingeben.'; break; }
         coop.joinStatus.textContent = 'Verbinde...';
-        Net.joinGame(code).catch(() => { coop.joinStatus.textContent = 'Verbindung fehlgeschlagen.'; });
+        Net.joinGame(code, ip).catch(() => { coop.joinStatus.textContent = 'Verbindung fehlgeschlagen. IP korrekt?'; });
         break;
       }
     }
