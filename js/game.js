@@ -120,7 +120,7 @@ class Game {
     Audio2.enemyDie();
     this.particles.burst(e.x, e.y, e.color, 12, 200);
     this.dropCoins(e.x, e.y, e.def.coins, killer);
-    if (Utils.chance(killer.mods.lifesteal)) killer.heal(5);
+    if (killer.mods && Utils.chance(killer.mods.lifesteal) && killer.heal) killer.heal(5);
     // chance to drop a medkit — likelier when the killer is hurt
     const hurt = 1 - killer.hp / killer.maxHp;
     if (Utils.chance(0.05 + hurt * 0.11)) this.dropMedkit(e.x, e.y, 25);
@@ -145,7 +145,9 @@ class Game {
 
   dropCoins(x, y, range, killer) {
     let n = Utils.randInt(range[0], range[1]);
-    n = Math.round(n * (killer ? killer.mods.coinMult : 1));
+    // killer can be a boss (friendly-fire kill of its own spawned reinforcements via
+    // its own explosion) — bosses have no .mods, only players do.
+    n = Math.round(n * (killer && killer.mods ? killer.mods.coinMult : 1));
     for (let i = 0; i < n; i++) {
       this.coins.push(new Coin(x + Utils.rand(-20, 20), y + Utils.rand(-20, 20), 1));
     }
@@ -1080,7 +1082,9 @@ class Game {
     this.particles.burst(x, y, '#ffb14d', 24, 260);
     this.particles.burst(x, y, '#b14dff', 16, 200);
     Audio2.explosion();
-    this.shake(10);
+    // Was shake(10) — the artillery boss's mortarStrike lands 3-4 of these within
+    // the same ~50ms window, which used to slam the shake cap every volley.
+    this.shake(4);
     for (const e of this.enemies) {
       if (e.dead) continue;
       const d = Utils.dist(x, y, e.x, e.y);
@@ -1148,7 +1152,11 @@ class Game {
     this.particles.burst(x, y, '#ff8b26', 18, 220);
     this.particles.burst(x, y, '#ffaa00', 12, 160);
     Audio2.explosion();
-    this.shake(8);
+    // Was shake(8) — bosses that spam many simultaneous explosive projectiles
+    // (e.g. the artillery "GOLIATH" burst, 12-20 shells at once, or mortarStrike's
+    // 3-4 near-simultaneous landings) stacked several of these in the same frame,
+    // slamming into the shake cap and holding the whole screen there.
+    this.shake(3);
     for (const p of this.players) {
       if (p.hp > 0) {
         const d = Utils.dist(x, y, p.x, p.y);
