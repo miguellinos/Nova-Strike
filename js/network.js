@@ -77,6 +77,7 @@ const Net = {
   sendShopAction(data) { this.send({ type: 'shop-action', data }); },
   sendShopDone() { this.send({ type: 'shop-done' }); },
   sendWorkbenchAction(data) { this.send({ type: 'workbench-action', data }); },
+  sendCharacter(charId) { this.send({ type: 'character', charId }); },
 
   handleMessage(msg) {
     switch (msg.type) {
@@ -116,6 +117,9 @@ const Net = {
         break;
       case 'workbench-action':
         this.emit('workbench-action', msg.data);
+        break;
+      case 'character':
+        this.emit('character', msg);
         break;
       case 'host-left':
       case 'guest-left':

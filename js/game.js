@@ -532,6 +532,7 @@ class Game {
         shieldsCount: p.shieldsCount || 0,
         breadCount: p.breadCount || 0,
         novacolaCount: p.novacolaCount || 0,
+        charId: p.charId,
       })),
       enemies: this.enemies.map((e) => ({ x: e.x, y: e.y, radius: e.radius, color: e.color, hp: e.hp, maxHp: e.maxHp, type: e.type, hitFlash: e.hitFlash })),
       boss: this.boss && !this.boss.dead ? {

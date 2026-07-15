@@ -1,7 +1,7 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
   overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'upgrade-menu',
-             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu'],
+             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
   show(id) { this.hideAll(); document.getElementById(id).classList.remove('hidden'); },
@@ -89,13 +89,18 @@ window.addEventListener('DOMContentLoaded', () => {
     maybeStartMatch();
   });
   Net.on('start', (msg) => {
-    if (Net.role === 'guest') { game.newGame('guest', msg.gameMode, msg.mapIndex); Menus.hideAll(); }
+    if (Net.role === 'guest') {
+      game.newGame('guest', msg.gameMode, msg.mapIndex);
+      Menus.hideAll();
+      Net.sendCharacter(Settings.data.character); // tell the host which skin to render for us
+    }
   });
   Net.on('snapshot', (data) => { if (game.mode === 'guest') game.applySnapshot(data); });
   Net.on('input', (data) => { if (game.player2 && game.player2.isRemote) game.player2.input.applyPacket(data); });
   Net.on('shop-action', (data) => { game.onGuestShopAction(data); });
   Net.on('shop-done', () => { game.onGuestShopDone(); });
   Net.on('workbench-action', (data) => { game.onGuestWorkbenchAction(data); });
+  Net.on('character', (msg) => { if (game.mode === 'host' && game.player2) game.player2.charId = msg.charId; });
   Net.on('peer-left', () => {
     if (game.state === 'playing' || game.state === 'shop') {
       alert('Verbindung zum Mitspieler verloren.');
@@ -137,6 +142,14 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         break;
 
+      case 'character-menu': Menus.show('character-menu'); renderCharacterMenu(); break;
+      case 'character-back': Menus.show('main-menu'); break;
+      case 'pick-character':
+        Settings.set('character', btn.dataset.char);
+        if (game.player) game.player.charId = btn.dataset.char;
+        renderCharacterMenu();
+        break;
+
       case 'coop-menu': Menus.show('coop-menu'); break;
       case 'coop-back': Menus.show('main-menu'); break;
       case 'coop-cancel': Net.reset(); Menus.show('main-menu'); break;
@@ -173,6 +186,24 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  function renderCharacterMenu() {
+    const container = document.getElementById('character-cards');
+    if (!container) return;
+    container.innerHTML = '';
+    CHARACTERS.forEach((c) => {
+      const selected = Settings.data.character === c.id;
+      const card = document.createElement('div');
+      card.className = 'shop-card' + (selected ? ' bought' : '');
+      card.innerHTML =
+        '<div class="icon">' + c.icon + '</div>' +
+        '<div class="name">' + c.name + '</div>' +
+        '<div style="width:36px;height:14px;border-radius:4px;margin:4px 0 8px;background:' + c.camo + ';border:1px solid ' + c.camoStroke + ';"></div>' +
+        '<button class="buy" data-action="pick-character" data-char="' + c.id + '">' + (selected ? 'AUSGEWÄHLT' : 'AUSWÄHLEN') + '</button>';
+      card.querySelector('.buy').disabled = selected;
+      container.appendChild(card);
+    });
+  }
 
   function getVisibleOverlay() {
     for (const id of Menus.overlays) {

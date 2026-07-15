@@ -14,7 +14,8 @@ class Player {
     this.walkPhase = 0;
     this.invuln = 0;         // i-frames (dash / after hit)
     this.hitFlash = 0;
-    
+    this.charId = Settings.data.character; // selected skin (camo/visor colors)
+
     // Active Inventory & Shields
     this.medkitsCount = 1;
     this.shieldsCount = 1;
@@ -369,6 +370,7 @@ class Player {
 
     const bob = Math.sin(this.walkPhase) * 1.5;
     const flashing = this.hitFlash > 0 && Math.floor(this.hitFlash * 20) % 2 === 0;
+    const skin = getCharacter(this.charId);
 
     // 1. Draw stepping boots/feet
     const legOffset = Math.sin(this.walkPhase) * 6;
@@ -405,11 +407,11 @@ class Player {
     ctx.fillRect(-11, -5, 3, 10);
 
     // Camo shoulders / sleeves
-    ctx.fillStyle = '#3f4f33'; // Olive drab camo
+    ctx.fillStyle = skin.camo;
     ctx.beginPath();
     ctx.ellipse(-2, 0, 7.5, 14, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#1e2417';
+    ctx.strokeStyle = skin.camoStroke;
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
@@ -429,9 +431,9 @@ class Player {
     ctx.stroke();
 
     // Glowing night-vision goggles / tactical visor
-    ctx.fillStyle = flashing ? '#ff3b52' : '#4af626';
+    ctx.fillStyle = flashing ? '#ff3b52' : skin.visor;
     ctx.shadowBlur = flashing ? 15 : 10;
-    ctx.shadowColor = flashing ? '#ff3b52' : '#4af626';
+    ctx.shadowColor = flashing ? '#ff3b52' : skin.visor;
     ctx.fillRect(4.5, -4, 2, 8); // visor lens
     
     // Draw NVG strap highlights
