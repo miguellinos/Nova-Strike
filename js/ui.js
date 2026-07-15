@@ -31,6 +31,7 @@ class UI {
       invShieldCount: document.getElementById('inv-shield-val'),
       upgradeCards: document.getElementById('upgrade-cards'),
       upgradeWaitMsg: document.getElementById('upgrade-wait-msg'),
+      upgradeScore: document.getElementById('upgrade-score'),
       interactPrompt: document.getElementById('interact-prompt'),
       workbenchCoins: document.getElementById('workbench-coins'),
       workbenchCards: document.getElementById('workbench-cards'),
@@ -86,12 +87,15 @@ class UI {
     }
 
     if (this.el.interactPrompt) {
-      const showPrompt = game.state === 'playing' && !game.workbenchOpenLocal && !game.shopOpenLocal;
+      const showPrompt = game.state === 'playing' && !game.workbenchOpenLocal && !game.shopOpenLocal && !game.trainingOpenLocal;
       if (showPrompt && game.nearWorkbench) {
         this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für die Werkbank';
         this.el.interactPrompt.classList.remove('hidden');
       } else if (showPrompt && game.nearShop) {
         this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für den Shop';
+        this.el.interactPrompt.classList.remove('hidden');
+      } else if (showPrompt && game.nearTrainingRange) {
+        this.el.interactPrompt.innerHTML = 'Drücke <b>E</b> für Trainingsrange';
         this.el.interactPrompt.classList.remove('hidden');
       } else {
         this.el.interactPrompt.classList.add('hidden');
@@ -109,17 +113,27 @@ class UI {
   showUpgradeChoices(game) {
     this.el.upgradeCards.innerHTML = '';
     if (this.el.upgradeWaitMsg) this.el.upgradeWaitMsg.classList.add('hidden');
+    
+    const me = game.localPlayer || game.player;
+    if (this.el.upgradeScore) this.el.upgradeScore.textContent = me.score;
+
     const picks = game.shopUpgrades || [];
     picks.forEach((up) => {
+      const cost = up.price * 10;
       const card = document.createElement('div');
       card.className = 'shop-card';
       card.innerHTML =
         '<div class="icon">' + up.icon + '</div>' +
         '<div class="name">' + up.name + '</div>' +
         '<div class="desc">' + up.desc + '</div>' +
-        '<button class="buy">AUSWÄHLEN (Gratis)</button>';
+        '<button class="buy">🏆 ' + cost + '</button>';
       const btn = card.querySelector('.buy');
-      btn.addEventListener('click', () => { game.chooseUpgrade(up); });
+      btn.disabled = me.score < cost;
+      btn.addEventListener('click', () => { 
+        if (game.buyUpgradeAtTrainingRange(up, cost)) {
+          this.showUpgradeChoices(game); // refresh / reroll
+        }
+      });
       this.el.upgradeCards.appendChild(card);
     });
   }
