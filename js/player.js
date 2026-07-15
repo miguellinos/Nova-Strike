@@ -60,6 +60,8 @@ class Player {
     this.novaColaTimer = 0;
     this.breadCount = 0;
     this.novacolaCount = 0;
+    this.scanTimer = 0;
+    this.scanTarget = null;
   }
 
   // effective def for the equipped weapon, including per-weapon workbench upgrades
@@ -196,6 +198,40 @@ class Player {
     // active item activations
     if (!menusOpen && this.input.wasPressed('q')) this.useMedkit(game);
     if (!menusOpen && this.input.wasPressed('e')) this.useShield(game);
+
+    // tactical scan V
+    if (!menusOpen && this.input.wasPressed('v')) {
+      let closest = null;
+      let minDist = Infinity;
+      for (const e of game.enemies) {
+        if (e.dead || e.hp <= 0) continue;
+        const d = Utils.dist(this.x, this.y, e.x, e.y);
+        if (d < minDist) {
+          minDist = d;
+          closest = e;
+        }
+      }
+      if (game.boss && !game.boss.dead) {
+        const d = Utils.dist(this.x, this.y, game.boss.x, game.boss.y);
+        if (d < minDist) {
+          minDist = d;
+          closest = game.boss;
+        }
+      }
+
+      if (closest) {
+        this.scanTarget = closest;
+        this.scanTimer = 1.5;
+        Audio2.reload(); // play scanner activation feedback
+      }
+    }
+
+    if (this.scanTimer > 0) {
+      this.scanTimer -= dt;
+      if (this.scanTimer <= 0) {
+        this.scanTarget = null;
+      }
+    }
   }
 
   meleeAttack(game) {

@@ -473,19 +473,14 @@ class Game {
         this.updateCamera(dt);
         Input.mouse.worldX = this.cam.x + Input.mouse.x;
         Input.mouse.worldY = this.cam.y + Input.mouse.y;
-        // cosmetic proximity check (map layout is synced, so this matches the host's)
         this.nearWorkbench = this.workbench && Utils.dist(this.player2.x, this.player2.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
+        if (this.nearWorkbench && !this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('f')) {
+          this.openWorkbench();
+        }
         this.nearShop = this.shopTable && Utils.dist(this.player2.x, this.player2.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
-<<<<<<< HEAD
         if (this.nearShop && !this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('e')) {
           this.openShopFromWorld();
           Input.pressed['e'] = false;
-=======
-        if (!this.shopOpenLocal && !this.workbenchOpenLocal && Input.wasPressed('f')) {
-          if (this.nearWorkbench) this.openWorkbench();
-          else if (this.nearShop) this.openShopFromWorld();
-          Input.pressed['f'] = false;
->>>>>>> 6209680e828056dcd23a6ea95f5c91c651a5a4e8
         }
         this.nearTrainingRange = this.trainingRange && Utils.dist(this.player2.x, this.player2.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
         if (this.nearTrainingRange && !this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('e')) {
@@ -859,6 +854,38 @@ class Game {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.drawFlashlightMask(ctx);
       ctx.restore();
+    }
+
+    // 2.5 Draw active tactical scan lines on top of darkness mask
+    for (const p of this.players) {
+      if (p.hp > 0 && p.scanTimer > 0 && p.scanTarget && !p.scanTarget.dead && p.scanTarget.hp > 0) {
+        const alpha = Utils.clamp(p.scanTimer / 1.5, 0, 1);
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 30, 30, ${alpha * 0.8})`;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.scanTarget.x, p.scanTarget.y);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(255, 30, 30, ${alpha * 0.95})`;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(p.scanTarget.x, p.scanTarget.y, (p.scanTarget.radius || 20) + 12, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(255, 30, 30, ${alpha * 0.95})`;
+        const r = (p.scanTarget.radius || 20) + 12;
+        const tx = p.scanTarget.x;
+        const ty = p.scanTarget.y;
+        ctx.fillRect(tx - r - 4, ty - 2, 8, 4);
+        ctx.fillRect(tx + r - 4, ty - 2, 8, 4);
+        ctx.fillRect(tx - 2, ty - r - 4, 4, 8);
+        ctx.fillRect(tx - 2, ty + r - 4, 4, 8);
+        ctx.restore();
+      }
     }
 
     // 3. Draw glowing elements on top of the dark overlay (projectiles, sparks, explosions)
