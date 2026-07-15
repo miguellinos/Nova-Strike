@@ -220,12 +220,14 @@ class Enemy {
       let sepX = 0, sepY = 0;
       for (const e of game.enemies) {
         if (e === this || e.dead) continue;
-        const d = Utils.dist(this.x, this.y, e.x, e.y);
         const minD = this.radius + e.radius + 10;
-        if (d > 0 && d < minD) {
+        const dx0 = this.x - e.x, dy0 = this.y - e.y;
+        const d2 = dx0 * dx0 + dy0 * dy0;
+        if (d2 > 0 && d2 < minD * minD) {
+          const d = Math.sqrt(d2);
           const push = (minD - d) / minD;
-          sepX += (this.x - e.x) / d * push;
-          sepY += (this.y - e.y) / d * push;
+          sepX += dx0 / d * push;
+          sepY += dy0 / d * push;
         }
       }
       if (sepX !== 0 || sepY !== 0) {

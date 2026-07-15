@@ -90,33 +90,35 @@ class Projectile {
       
       ctx.restore();
     } else {
-      // Regular bullet tracer round (elongated capsule along its movement path)
+      // Regular bullet tracer round (elongated capsule along its movement path).
+      // shadowBlur is a real-time blur pass and by far the most expensive canvas op
+      // in this file — only pay for it on crits (rare), never on regular fire.
       ctx.save();
-      ctx.shadowBlur = this.crit ? 16 : 8;
-      ctx.shadowColor = this.color;
+      if (this.crit) { ctx.shadowBlur = 16; ctx.shadowColor = this.color; }
       ctx.strokeStyle = this.crit ? '#ffffff' : this.color;
       ctx.lineWidth = this.radius * 1.5;
       ctx.lineCap = 'round';
-      
+
       // Draw a line from current position to a point back along velocity
       const len = 15;
       const speed = Math.hypot(this.vx, this.vy);
       const dx = speed > 0 ? (this.vx / speed) * len : 0;
       const dy = speed > 0 ? (this.vy / speed) * len : 0;
-      
+
       ctx.beginPath();
       ctx.moveTo(this.x, this.y);
       ctx.lineTo(this.x - dx, this.y - dy);
       ctx.stroke();
-      
+
       // Draw inner white core for extra brightness/impact
+      if (this.crit) ctx.shadowBlur = 0;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = this.radius * 0.6;
       ctx.beginPath();
       ctx.moveTo(this.x, this.y);
       ctx.lineTo(this.x - dx * 0.7, this.y - dy * 0.7);
       ctx.stroke();
-      
+
       ctx.restore();
     }
   }

@@ -466,14 +466,15 @@ class Player {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Glowing night-vision goggles / tactical visor
+    // Glowing night-vision goggles / tactical visor — shadowBlur is expensive and this
+    // ran every frame for every player regardless of state; only pay for the glow
+    // while actually flashing from a hit.
     ctx.fillStyle = flashing ? '#ff3b52' : skin.visor;
-    ctx.shadowBlur = flashing ? 15 : 10;
-    ctx.shadowColor = flashing ? '#ff3b52' : skin.visor;
+    if (flashing) { ctx.shadowBlur = 15; ctx.shadowColor = '#ff3b52'; }
     ctx.fillRect(4.5, -4, 2, 8); // visor lens
-    
+
     // Draw NVG strap highlights
-    ctx.shadowBlur = 0;
+    if (flashing) ctx.shadowBlur = 0;
     ctx.fillStyle = '#111';
     ctx.fillRect(-1, -7.5, 2, 1.5);
     ctx.fillRect(-1, 6, 2, 1.5);

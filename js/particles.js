@@ -3,6 +3,9 @@ class Particles {
   constructor() { this.list = []; }
   spawn(x, y, color, opts = {}) {
     const count = opts.count || 6;
+    // hard cap: intense fights (many burning/dying enemies) could otherwise queue
+    // thousands of particles, each an extra draw call and GC allocation per frame.
+    if (this.list.length > 500) this.list.splice(0, this.list.length - 500);
     for (let i = 0; i < count; i++) {
       const a = opts.angle != null ? opts.angle + Utils.rand(-opts.spread || -0.5, opts.spread || 0.5) : Utils.rand(0, Math.PI * 2);
       const spd = Utils.rand(opts.minSpeed || 40, opts.maxSpeed || 160);

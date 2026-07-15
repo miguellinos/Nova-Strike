@@ -601,6 +601,7 @@ class Game {
       state: this.state,
       gameMode: this.gameMode,
       wave: this.waves ? this.waves.wave : 1,
+      enemiesLeft: this.waves ? this.waves.totalRemaining() : 0,
       layoutIndex: this.world ? this.world.layoutIndex : 0,
       shopUpgradeIds: this.shopUpgradeIds || [],
       cam: { x: this.cam.x, y: this.cam.y },
@@ -639,6 +640,7 @@ class Game {
     this.state = s.state;
     this.gameMode = s.gameMode || 'standard';
     if (this.waves) this.waves.wave = s.wave;
+    this._enemiesLeft = s.enemiesLeft || 0;
     if (s.layoutIndex !== undefined && this.world && this.world.layoutIndex !== s.layoutIndex) {
       this.world = new World(s.layoutIndex);
       this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
@@ -695,9 +697,14 @@ class Game {
       if (prevSync !== 'shop') this.beginLocalIntermission();
       // otherwise leave my local shop navigation alone
     } else if (s.state === 'playing') {
-      // host started the next wave — leave the intermission (unless I have a
-      // personal mid-wave shop overlay open)
-      if (!(this.shopOpenLocal && this.midWaveShop)) {
+      // host started the next wave — leave the intermission, but never yank a
+      // locally-open per-player overlay (shop/workbench/training/inventory)
+      // closed out from under the guest just because a snapshot arrived —
+      // that left the local "*OpenLocal" flags stuck true forever, which in
+      // turn permanently blocked movement/shooting input for the guest.
+      const localOverlayOpen = (this.shopOpenLocal && this.midWaveShop) ||
+        this.workbenchOpenLocal || this.trainingOpenLocal || this.inventoryOpenLocal;
+      if (!localOverlayOpen) {
         this.shopOpenLocal = false;
         this.ui.showHUD(true);
         Menus.hideAll();
@@ -709,14 +716,18 @@ class Game {
     for (const pr of this.projectiles) {
       pr.update(dt, this.world);
       if (pr.dead) continue;
-      // vs boss
-      if (this.boss && !this.boss.dead && Utils.dist(pr.x, pr.y, this.boss.x, this.boss.y) < this.boss.radius + pr.radius) {
-        this.hitTarget(pr, this.boss);
+      // vs boss (squared-distance check — avoids a sqrt for every projectile/frame)
+      if (this.boss && !this.boss.dead) {
+        const bdx = pr.x - this.boss.x, bdy = pr.y - this.boss.y;
+        const br = this.boss.radius + pr.radius;
+        if (bdx * bdx + bdy * bdy < br * br) this.hitTarget(pr, this.boss);
       }
       if (pr.dead) continue;
       for (const e of this.enemies) {
         if (e.dead || pr.hitSet.has(e)) continue;
-        if (Utils.dist(pr.x, pr.y, e.x, e.y) < e.radius + pr.radius) {
+        const edx = pr.x - e.x, edy = pr.y - e.y;
+        const er = e.radius + pr.radius;
+        if (edx * edx + edy * edy < er * er) {
           this.hitTarget(pr, e);
           if (pr.dead) break;
         }
