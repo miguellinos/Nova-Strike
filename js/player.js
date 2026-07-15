@@ -204,19 +204,24 @@ class Player {
       }
     }
 
-    // shooting (disabled inside safe base camp at x < 20)
+    // shooting — no separate "safe base camp" gate needed: the enemy-barrier wall
+    // that seals off the workbench/shop alcove (x < 0) already blocks every
+    // projectile (Projectile.update() checks the full, unfiltered world.rects), so
+    // there was never anything to exploit by firing from inside it. The old x >= 20
+    // check just meant shooting silently stayed broken after closing the workbench/
+    // shop until you manually walked back out past the gate.
     if (this.fireCooldown > 0) this.fireCooldown -= dt;
-    const canShoot = !menusOpen && this.x >= 20;
+    const canShoot = !menusOpen;
     if (canShoot && this.input.mouse.down && !this.reloading && this.fireCooldown <= 0) {
       const w = this.weapons[this.currentWeapon];
       if (w.ammo > 0) this.shoot(game);
       else this.startReload();
     }
 
-    // melee attack (right-click, disabled inside safe base camp at x < 20)
+    // melee attack (right-click)
     if (this.meleeCd > 0) this.meleeCd -= dt;
     if (this.meleeSwing > 0) this.meleeSwing -= dt;
-    const canMelee = !menusOpen && this.x >= 20;
+    const canMelee = !menusOpen;
     if (canMelee && this.input.mouse.rightPressed && this.meleeCd <= 0) this.meleeAttack(game);
 
     // active item activations
