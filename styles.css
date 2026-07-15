@@ -147,3 +147,170 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 
 .shop-cards-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
   justify-content: center; margin-bottom: 18px; max-height: 62vh; overflow-y: auto; padding: 2px; }
+
+/* ---------- Minecraft Style Inventory ---------- */
+.inventory-panel {
+  background: #3c3c3c;
+  border: 4px solid #1a1a1a;
+  border-top-color: #8b8b8b;
+  border-left-color: #8b8b8b;
+  padding: 16px;
+  width: 520px;
+  max-width: 95vw;
+  box-shadow: 0 0 30px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: #fff;
+  image-rendering: pixelated;
+}
+.inventory-top {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+.box-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #a0a0a0;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+.player-preview-box {
+  background: #111;
+  border: 2px solid #8b8b8b;
+  border-right-color: #3c3c3c;
+  border-bottom-color: #3c3c3c;
+  padding: 10px;
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.inventory-weapons-box {
+  flex: 1;
+  background: #2a2a2a;
+  border: 2px solid #1a1a1a;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.weapons-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 150px;
+  padding-right: 4px;
+}
+.weapon-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #8b8b8b;
+  border: 2px solid #3c3c3c;
+  border-top-color: #dbdbdb;
+  border-left-color: #dbdbdb;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #000;
+  font-weight: bold;
+}
+.weapon-slot-row .weapon-icon {
+  font-size: 18px;
+}
+.weapon-slot-row .weapon-name {
+  flex: 1;
+  text-align: left;
+}
+.weapon-slot-row .weapon-ammo {
+  font-size: 11px;
+  color: #333;
+}
+
+/* Slots grid */
+.inventory-bottom {
+  background: #2a2a2a;
+  border: 2px solid #1a1a1a;
+  padding: 14px;
+}
+.minecraft-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 60px;
+  align-items: center;
+}
+.mc-slot {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  background: #8b8b8b;
+  border: 3px solid #3c3c3c;
+  border-top-color: #1a1a1a;
+  border-left-color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.mc-slot:hover {
+  background: #c6c6c6;
+  border-color: #ffaa00;
+}
+.mc-slot .slot-icon {
+  font-size: 32px;
+  user-select: none;
+}
+.mc-slot .slot-count {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 2px 2px 0px #000;
+  user-select: none;
+}
+/* Tooltip/Label description when hovering slots */
+.mc-slot-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  background: rgba(20, 20, 20, 0.95);
+  border: 2px solid var(--gold);
+  border-radius: 4px;
+  padding: 8px 12px;
+  width: 220px;
+  z-index: 100;
+  pointer-events: none;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  text-align: center;
+}
+.mc-slot:hover .mc-slot-tooltip {
+  opacity: 1;
+}
+.mc-tooltip-title {
+  font-weight: bold;
+  color: var(--gold);
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.mc-tooltip-action {
+  color: #00ffcc;
+  margin-top: 4px;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+

@@ -45,7 +45,7 @@ class Game {
     this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
     this.nearWorkbench = false;
     this.workbenchOpenLocal = false;
-    this.shopTable = new ShopTable(2250, 130);
+    this.shopTable = new ShopTable(120, 300);
     this.nearShop = false;
     this.inventoryOpenLocal = false;
     const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
@@ -800,6 +800,10 @@ class Game {
       g.addColorStop(1, 'rgba(255,0,40,' + (0.5 * this.damageVignette) + ')');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    if (this.inventoryOpenLocal) {
+      this.ui.drawInventoryPreview(this);
     }
   }
 

@@ -3,46 +3,46 @@
 // different obstacle density/shape, not just rearranged furniture in the same shell.
 // Picked randomly per match (the index is synced host->guest so both see the same map).
 const MAP_LAYOUTS = [
-  // Map 0: "Festung Nord" — 2 hangars along the north edge, huge open south,
-  // sparse cover. Wide sightlines, very different feel from a maze map.
+  // Map 0: "Hangar-Komplex Alpha" — massive hangar buildings covering 80% of the map,
+  // leaving road space outside.
   {
-    name: 'Festung Nord',
+    name: 'Hangar-Komplex Alpha',
     hangars: [
-      { x: 300, y: 100, w: 420, h: 300, gateSide: 'south', name: 'Nordbasis West' },
-      { x: 1680, y: 100, w: 420, h: 300, gateSide: 'south', name: 'Nordbasis Ost' },
+      { x: 350, y: 80, w: 1950, h: 740, gateSide: 'south', name: 'Alpha Hangar Nord' },
+      { x: 350, y: 980, w: 1950, h: 740, gateSide: 'north', name: 'Alpha Hangar Süd' },
     ],
     obs: [
-      [1100, 900, 200, 120, 'machine'],
-      [1100, 500, 200, 35, 'wall'],
-      [1100, 1550, 200, 35, 'wall'],
-      [500, 700, 100, 100, 'crate'],
-      [1800, 700, 100, 100, 'crate'],
-      [500, 1300, 100, 100, 'crate'],
-      [1800, 1300, 100, 100, 'crate'],
-      [900, 1150, 90, 90, 'crate'],
-      [1410, 1150, 90, 90, 'crate'],
+      // format: [x, y, w, h, kind, angle]
+      [870, 430, 160, 40, 'airplane-fuselage', 0],
+      [1470, 1330, 160, 40, 'airplane-fuselage', Math.PI],
+      [800, 870, 60, 60, 'fuel-tank'],
+      [860, 870, 60, 60, 'fuel-tank'],
+      [1200, 870, 80, 40, 'car', 0],
+      [600, 1200, 40, 80, 'car', Math.PI / 2],
+      [500, 300, 80, 80, 'crate'],
+      [2000, 1200, 80, 80, 'crate'],
+      [2100, 200, 60, 60, 'fuel-tank'],
+      [2160, 200, 60, 60, 'fuel-tank'],
     ],
   },
-  // Map 1: "Kreuzfeuer-Ruinen" — 2 hangars in opposite corners (NW / SE), a dense
-  // zigzag maze of ruined walls fills the rest — tight, claustrophobic, very different.
+  // Map 1: "Hangar-Komplex Beta" — alternative layout with massive hangars
   {
-    name: 'Kreuzfeuer-Ruinen',
+    name: 'Hangar-Komplex Beta',
     hangars: [
-      { x: 120, y: 120, w: 420, h: 300, gateSide: 'south', name: 'Ruinen-Bunker Nord' },
-      { x: 1860, y: 1380, w: 420, h: 300, gateSide: 'north', name: 'Ruinen-Bunker Süd' },
+      { x: 350, y: 80, w: 1950, h: 740, gateSide: 'south', name: 'Beta Hangar Nord' },
+      { x: 350, y: 980, w: 1950, h: 740, gateSide: 'north', name: 'Beta Hangar Süd' },
     ],
     obs: [
-      [700, 250, 300, 30, 'wall'], [1200, 250, 300, 30, 'wall'], [1700, 250, 300, 30, 'wall'],
-      [850, 280, 30, 220, 'wall'], [1350, 280, 30, 220, 'wall'],
-      [300, 650, 300, 30, 'wall'], [800, 650, 300, 30, 'wall'], [1300, 650, 300, 30, 'wall'], [1800, 650, 300, 30, 'wall'],
-      [450, 680, 30, 220, 'wall'], [950, 680, 30, 220, 'wall'], [1450, 680, 30, 220, 'wall'], [1950, 680, 30, 220, 'wall'],
-      [300, 1050, 300, 30, 'wall'], [800, 1050, 300, 30, 'wall'], [1300, 1050, 300, 30, 'wall'], [1800, 1050, 300, 30, 'wall'],
-      [450, 1080, 30, 220, 'wall'], [950, 1080, 30, 220, 'wall'], [1450, 1080, 30, 220, 'wall'],
-      [300, 1470, 300, 30, 'wall'], [800, 1470, 300, 30, 'wall'], [1300, 1470, 300, 30, 'wall'],
-      [1100, 850, 200, 120, 'machine'],
-      [600, 400, 80, 80, 'crate'], [1100, 400, 80, 80, 'crate'], [1600, 420, 80, 80, 'crate'],
-      [600, 850, 80, 80, 'crate'], [1600, 850, 80, 80, 'crate'],
-      [600, 1250, 80, 80, 'crate'], [1100, 1250, 80, 80, 'crate'], [1600, 1250, 80, 80, 'crate'],
+      [1550, 430, 160, 40, 'airplane-fuselage', 0],
+      [950, 1330, 160, 40, 'airplane-fuselage', Math.PI],
+      [1600, 870, 60, 60, 'fuel-tank'],
+      [1660, 870, 60, 60, 'fuel-tank'],
+      [1000, 870, 80, 40, 'car', 0],
+      [1800, 300, 40, 80, 'car', Math.PI / 2],
+      [2000, 300, 80, 80, 'crate'],
+      [500, 1200, 80, 80, 'crate'],
+      [800, 200, 60, 60, 'fuel-tank'],
+      [860, 200, 60, 60, 'fuel-tank'],
     ],
   },
 ];
@@ -64,7 +64,8 @@ class World {
   // pushes a hangar's perimeter walls (with a gate gap) + its interior partition
   buildHangar(hx, hy, hw, hh, gateSide, name) {
     this.hangars.push({ x: hx, y: hy, w: hw, h: hh, name });
-    const gate = 140; // width of each gate-side wall segment (gap = hw - 2*gate)
+    const gateGap = 160; // standard door gap width
+    const gate = (hw - gateGap) / 2; // calculate wall segment sizes
     if (gateSide === 'south') {
       this.rects.push({ x: hx, y: hy, w: hw, h: 25, kind: 'hangar-wall' }); // top
       this.rects.push({ x: hx, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // left
@@ -91,25 +92,19 @@ class World {
 
     const layout = MAP_LAYOUTS[this.layoutIndex] || MAP_LAYOUTS[0];
     for (const h of layout.hangars) this.buildHangar(h.x, h.y, h.w, h.h, h.gateSide, h.name);
-    for (const o of layout.obs) this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4] });
+    for (const o of layout.obs) {
+      this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4], angle: o[5] || 0 });
+    }
 
-    // Shop building walls in the top right
-    this.rects.push({ x: 2120, y: 40, w: 20, h: 240, kind: 'hangar-wall' }); // West wall
-    // South walls leaving a doorway from 2190 to 2270
-    this.rects.push({ x: 2120, y: 260, w: 70, h: 20, kind: 'hangar-wall' }); // South wall left
-    this.rects.push({ x: 2270, y: 260, w: 90, h: 20, kind: 'hangar-wall' }); // South wall right
+    // Shop building walls in the top-left (outside the hangars)
+    this.rects.push({ x: 40, y: 200, w: 200, h: 20, kind: 'hangar-wall' }); // North wall
+    this.rects.push({ x: 40, y: 400, w: 200, h: 20, kind: 'hangar-wall' }); // South wall
+    
+    // East wall leaving a doorway from 270 to 330
+    this.rects.push({ x: 220, y: 200, w: 20, h: 70, kind: 'hangar-wall' }); // East wall top
+    this.rects.push({ x: 220, y: 330, w: 20, h: 90, kind: 'hangar-wall' }); // East wall bottom
 
-    // workbench: pick the first clear spot near the player's own spawn point (see
-    // game.js's newGame()) so it's always in the same open area the player starts in
-    // — never deep inside a maze pocket that might not actually be reachable.
-    const sx = this.w / 2, sy = this.h / 2 - 180;
-    const wbCandidates = [
-      { x: sx + 180, y: sy + 90 }, { x: sx - 180, y: sy + 90 },
-      { x: sx + 180, y: sy - 90 }, { x: sx - 180, y: sy - 90 },
-      { x: sx, y: sy + 150 }, { x: sx, y: sy - 150 },
-      { x: sx, y: sy }, // last resort: exact spawn point — always clear, always reachable
-    ];
-    this.workbenchPos = wbCandidates.find((p) => !pointInRects(p.x, p.y, this.rects, 40)) || { x: sx, y: sy };
+    this.workbenchPos = { x: 120, y: 470 };
 
     // generate static terrain features
     this.grassPatches = [];
@@ -175,6 +170,7 @@ class World {
   }
 
   addHangarInterior(hx, hy, hw, hh, gateSide) {
+    if (hw >= 600) return; // leave massive hangars open for airplanes and vehicles
     if (gateSide === 'south') {
       // Horizontal middle divider
       this.rects.push({ x: hx, y: hy + 140, w: 140, h: 25, kind: 'hangar-wall' });
@@ -281,11 +277,11 @@ class World {
       ctx.fillText(h.name, h.x + h.w / 2, h.y + h.h / 2);
     }
 
-    // 1c. Draw Shop Floor
-    const shopFloorX = 2140;
-    const shopFloorY = 40;
-    const shopFloorW = 220;
-    const shopFloorH = 220;
+    // 1c. Draw Shop Floor (on the left outside area)
+    const shopFloorX = 40;
+    const shopFloorY = 220;
+    const shopFloorW = 180;
+    const shopFloorH = 180;
     if (!(shopFloorX > cam.x + cam.w || shopFloorX + shopFloorW < cam.x || shopFloorY > cam.y + cam.h || shopFloorY + shopFloorH < cam.y)) {
       ctx.fillStyle = '#1e1c24'; // sleek dark purple-ish grey
       ctx.fillRect(shopFloorX, shopFloorY, shopFloorW, shopFloorH);
@@ -294,20 +290,20 @@ class World {
       ctx.strokeStyle = 'rgba(0, 255, 200, 0.15)'; // glowing cyan tiles
       ctx.lineWidth = 1.8;
       ctx.beginPath();
-      for (let gx = shopFloorX + 44; gx < shopFloorX + shopFloorW; gx += 44) {
+      for (let gx = shopFloorX + 45; gx < shopFloorX + shopFloorW; gx += 45) {
         ctx.moveTo(gx, shopFloorY); ctx.lineTo(gx, shopFloorY + shopFloorH);
       }
-      for (let gy = shopFloorY + 44; gy < shopFloorY + shopFloorH; gy += 44) {
+      for (let gy = shopFloorY + 45; gy < shopFloorY + shopFloorH; gy += 45) {
         ctx.moveTo(shopFloorX, gy); ctx.lineTo(shopFloorX + shopFloorW, gy);
       }
       ctx.stroke();
 
-      // Draw "SHOP" or a shopping cart logo on the floor
+      // Draw "SHOP" on the floor
       ctx.fillStyle = 'rgba(0, 255, 200, 0.2)';
-      ctx.font = 'bold 24px sans-serif';
+      ctx.font = 'bold 20px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🛒 TACTICAL SHOP', shopFloorX + shopFloorW / 2, shopFloorY + shopFloorH / 2);
+      ctx.fillText('🛒 SHOP', shopFloorX + shopFloorW / 2, shopFloorY + shopFloorH / 2);
     }
 
     // 2. Draw tire tracks
@@ -552,6 +548,179 @@ class World {
           }
         }
       }
+      else if (r.kind === 'fuel-tank') {
+        drawFuelTank(ctx, r.x + r.w / 2, r.y + r.h / 2, r.w / 2);
+      }
+      else if (r.kind === 'car') {
+        drawCar(ctx, r.x + r.w / 2, r.y + r.h / 2, r.angle || 0);
+      }
+      else if (r.kind === 'airplane-fuselage') {
+        drawAirplane(ctx, r.x + r.w / 2, r.y + r.h / 2, r.angle || 0);
+      }
     }
   }
+}
+
+// ---------- Custom Vehicle/Obstacle Drawing Helpers ----------
+function drawAirplane(ctx, x, y, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  
+  // Shadow
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+  ctx.beginPath();
+  ctx.ellipse(0, 15, 110, 30, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(0, 15, 30, 90, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Airplane Body (military grey)
+  ctx.fillStyle = '#6b7280';
+  ctx.strokeStyle = '#374151';
+  ctx.lineWidth = 3.5;
+  
+  // Main fuselage
+  ctx.beginPath();
+  ctx.moveTo(-100, 0);
+  ctx.quadraticCurveTo(0, -22, 100, 0);
+  ctx.quadraticCurveTo(0, 22, -100, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Large swept back wings
+  ctx.fillStyle = '#4b5563';
+  ctx.beginPath();
+  ctx.moveTo(-20, -18);
+  ctx.lineTo(-65, -105);
+  ctx.lineTo(-35, -105);
+  ctx.lineTo(20, -18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.moveTo(-20, 18);
+  ctx.lineTo(-65, 105);
+  ctx.lineTo(-35, 105);
+  ctx.lineTo(20, 18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Tail wings (elevators)
+  ctx.beginPath();
+  ctx.moveTo(-80, -8);
+  ctx.lineTo(-98, -38);
+  ctx.lineTo(-86, -38);
+  ctx.lineTo(-70, -8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(-80, 8);
+  ctx.lineTo(-98, 38);
+  ctx.lineTo(-86, 38);
+  ctx.lineTo(-70, 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Canopy (cockpit window, glowing blue)
+  ctx.fillStyle = 'rgba(6, 182, 212, 0.65)';
+  ctx.strokeStyle = '#0891b2';
+  ctx.beginPath();
+  ctx.ellipse(32, 0, 24, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  
+  // Nose cone
+  ctx.fillStyle = '#1f2937';
+  ctx.beginPath();
+  ctx.moveTo(90, -5);
+  ctx.lineTo(110, 0);
+  ctx.lineTo(90, 5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawFuelTank(ctx, x, y, r) {
+  ctx.save();
+  ctx.translate(x, y);
+  
+  // Shadow
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.beginPath();
+  ctx.arc(0, r * 0.3, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Tank body (orange-red cylinder)
+  ctx.fillStyle = '#b45309'; // rust orange
+  ctx.strokeStyle = '#78350f';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Inner top plate
+  ctx.fillStyle = '#d97706';
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.1, r * 0.82, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Danger stripes / text on top
+  ctx.fillStyle = '#1e2937';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('FUEL', 0, -r * 0.1);
+
+  ctx.restore();
+}
+
+function drawCar(ctx, x, y, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.fillRect(-45, -23, 90, 46);
+
+  // Wheels
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-35, -26, 18, 7);
+  ctx.fillRect(15, -26, 18, 7);
+  ctx.fillRect(-35, 19, 18, 7);
+  ctx.fillRect(15, 19, 18, 7);
+
+  // Car Body (military green)
+  ctx.fillStyle = '#3f4f33';
+  ctx.strokeStyle = '#1e2417';
+  ctx.lineWidth = 3.5;
+  ctx.fillRect(-40, -19, 80, 38);
+  ctx.strokeRect(-40, -19, 80, 38);
+
+  // Windshield
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillRect(5, -15, 6, 30);
+  ctx.fillStyle = 'rgba(6, 182, 212, 0.4)';
+  ctx.fillRect(5, -15, 6, 30);
+
+  // Hood grill
+  ctx.fillStyle = '#2d3725';
+  ctx.fillRect(20, -11, 14, 22);
+
+  // Cargo back
+  ctx.fillStyle = '#2d3725';
+  ctx.fillRect(-35, -15, 30, 30);
+
+  ctx.restore();
 }
