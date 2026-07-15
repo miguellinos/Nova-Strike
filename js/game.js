@@ -533,6 +533,16 @@ class Game {
         this.particles.update(dt);
         if (this.shakeAmt > 0) this.shakeAmt = Math.max(0, this.shakeAmt - dt * 40);
         if (this.damageVignette > 0) this.damageVignette = Math.max(0, this.damageVignette - dt * 2);
+        
+        // Decay melee swings and scan timers locally
+        if (this.player) {
+          if (this.player.meleeSwing > 0) this.player.meleeSwing -= dt;
+          if (this.player.scanTimer > 0) this.player.scanTimer -= dt;
+        }
+        if (this.player2) {
+          if (this.player2.meleeSwing > 0) this.player2.meleeSwing -= dt;
+          if (this.player2.scanTimer > 0) this.player2.scanTimer -= dt;
+        }
 
         this.updateCamera(dt);
         Input.mouse.worldX = this.cam.x + Input.mouse.x;
@@ -646,12 +656,10 @@ class Game {
     if (this.mode === 'host') this.sendSnapshotThrottled(dt);
   }
 
-  // broadcasting a full snapshot every single frame (60/s) needlessly saturates
-  // both the host's and guest's CPU with JSON (de)serialization; ~20/s is still smooth.
   sendSnapshotThrottled(dt) {
     this._snapshotTimer -= dt;
     if (this._snapshotTimer > 0) return;
-    this._snapshotTimer = 1 / 45;
+    this._snapshotTimer = 1 / 60;
     Net.sendSnapshot(this.buildSnapshot());
   }
 
@@ -677,6 +685,9 @@ class Game {
         breadCount: p.breadCount || 0,
         novacolaCount: p.novacolaCount || 0,
         charId: p.charId,
+        scanTimer: p.scanTimer || 0,
+        scanTargetX: p.scanTarget ? p.scanTarget.x : null,
+        scanTargetY: p.scanTarget ? p.scanTarget.y : null,
       })),
       enemies: this.enemies.map((e) => ({ x: e.x, y: e.y, radius: e.radius, color: e.color, hp: e.hp, maxHp: e.maxHp, type: e.type, hitFlash: e.hitFlash })),
       boss: this.boss && !this.boss.dead ? {
@@ -738,6 +749,12 @@ class Game {
         this.player.walkPhase = d.walkPhase;
         this.player.shieldHp = d.shieldHp;
         this.player.charId = d.charId;
+        this.player.meleeSwing = d.meleeSwing || 0;
+        this.player.meleeArc = d.meleeArc || 0;
+        this.player.meleeRange = d.meleeRange || 0;
+        this.player.scanTimer = d.scanTimer || 0;
+        this.player.scanTargetX = d.scanTargetX;
+        this.player.scanTargetY = d.scanTargetY;
         if (!this.player.mods) this.player.mods = {};
         this.player.mods.visionRange = d.visionRange || 1;
       } else {
@@ -764,6 +781,12 @@ class Game {
         this.player2.breadCount = d.breadCount || 0;
         this.player2.novacolaCount = d.novacolaCount || 0;
         this.player2.charId = d.charId;
+        this.player2.meleeSwing = d.meleeSwing || 0;
+        this.player2.meleeArc = d.meleeArc || 0;
+        this.player2.meleeRange = d.meleeRange || 0;
+        this.player2.scanTimer = d.scanTimer || 0;
+        this.player2.scanTargetX = d.scanTargetX;
+        this.player2.scanTargetY = d.scanTargetY;
         if (!this.player2.mods) this.player2.mods = {};
         this.player2.mods.visionRange = d.visionRange || 1;
 
@@ -1049,28 +1072,32 @@ class Game {
 
     // 2.5 Draw active tactical scan lines on top of darkness mask
     for (const p of this.players) {
-      if (p.hp > 0 && p.scanTimer > 0 && p.scanTarget && !p.scanTarget.dead && p.scanTarget.hp > 0) {
+      const hasScan = p.hp > 0 && p.scanTimer > 0 && 
+        ((p.scanTarget && !p.scanTarget.dead && p.scanTarget.hp > 0) || (this.mode === 'guest' && p.scanTargetX !== null && p.scanTargetX !== undefined));
+      if (hasScan) {
         const alpha = Utils.clamp(p.scanTimer / 1.5, 0, 1);
+        const tx = p.scanTarget ? p.scanTarget.x : p.scanTargetX;
+        const ty = p.scanTarget ? p.scanTarget.y : p.scanTargetY;
+        const radius = p.scanTarget ? (p.scanTarget.radius || 20) : 20;
+
         ctx.save();
         ctx.strokeStyle = `rgba(255, 30, 30, ${alpha * 0.8})`;
         ctx.lineWidth = 3;
         ctx.setLineDash([8, 6]);
         ctx.beginPath();
         ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.scanTarget.x, p.scanTarget.y);
+        ctx.lineTo(tx, ty);
         ctx.stroke();
 
         ctx.strokeStyle = `rgba(255, 30, 30, ${alpha * 0.95})`;
         ctx.lineWidth = 2.5;
         ctx.setLineDash([]);
         ctx.beginPath();
-        ctx.arc(p.scanTarget.x, p.scanTarget.y, (p.scanTarget.radius || 20) + 12, 0, Math.PI * 2);
+        ctx.arc(tx, ty, radius + 12, 0, Math.PI * 2);
         ctx.stroke();
 
         ctx.fillStyle = `rgba(255, 30, 30, ${alpha * 0.95})`;
-        const r = (p.scanTarget.radius || 20) + 12;
-        const tx = p.scanTarget.x;
-        const ty = p.scanTarget.y;
+        const r = radius + 12;
         ctx.fillRect(tx - r - 4, ty - 2, 8, 4);
         ctx.fillRect(tx + r - 4, ty - 2, 8, 4);
         ctx.fillRect(tx - 2, ty - r - 4, 4, 8);
