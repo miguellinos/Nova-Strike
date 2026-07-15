@@ -276,6 +276,10 @@ window.addEventListener('DOMContentLoaded', () => {
     Input.pressed['e'] = true;
     e.stopPropagation();
   });
+  document.getElementById('inv-grenade').addEventListener('click', (e) => {
+    Input.pressed['g'] = true;
+    e.stopPropagation();
+  });
 
   // ----- game loop -----
   let last = performance.now();

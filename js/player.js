@@ -21,6 +21,7 @@ class Player {
     this.shieldsCount = 1;
     this.shieldHp = 0;
     this.maxShieldHp = 100;
+    this.grenadeCount = 0;
 
     // upgrade modifiers
     this.mods = {
@@ -227,6 +228,7 @@ class Player {
     // active item activations
     if (!menusOpen && this.input.wasPressed('q')) this.useMedkit(game);
     if (!menusOpen && this.input.wasPressed('e')) this.useShield(game);
+    if (!menusOpen && this.input.wasPressed('g')) this.throwGrenade(game);
 
     // tactical scan V
     if (!menusOpen && this.input.wasPressed('v')) {
@@ -409,6 +411,35 @@ class Player {
       return true;
     }
     return false;
+  }
+
+  // Thrown with G — lobbed to wherever the mouse is aimed (clamped to a max throw
+  // range), landing after a short flight before detonating. Mirrors the boss
+  // grenadier/mortar pattern already used elsewhere: a timed AOE at a fixed spot
+  // rather than a simulated arc, since that's simple, predictable, and already
+  // proven to work well for lobbed explosives in this codebase.
+  throwGrenade(game) {
+    if (this.grenadeCount <= 0) return false;
+    this.grenadeCount--;
+
+    const maxRange = 420;
+    const dx = this.input.mouse.worldX - this.x, dy = this.input.mouse.worldY - this.y;
+    const rawDist = Math.hypot(dx, dy) || 1;
+    const dist = Math.min(maxRange, rawDist);
+    const ang = Math.atan2(dy, dx);
+    const tx = this.x + Math.cos(ang) * dist;
+    const ty = this.y + Math.sin(ang) * dist;
+
+    Audio2.shoot('cannon');
+    game.particles.spawn(this.x, this.y, '#4f5e3d', { count: 6, angle: ang, spread: 0.2, minSpeed: 80, maxSpeed: 200, life: 0.2 });
+
+    const owner = this;
+    const dmg = 55 * this.mods.damage;
+    setTimeout(() => {
+      game.particles.spawn(tx, ty, '#ffaa00', { count: 8, minSpeed: 40, maxSpeed: 110, life: 0.35, size: 3 });
+      game.explode(tx, ty, 90, dmg, owner);
+    }, 550);
+    return true;
   }
 
   draw(ctx, time) {

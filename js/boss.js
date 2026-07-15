@@ -22,6 +22,13 @@ class Boss {
     this.blinkFlash = 0;
     this.burnT = 0; this.burnDps = 0; this.burnBy = null;
     this.slowT = 0;
+    // Reinforcements only spawn freely above 50% hp (the regular attack rotation).
+    // Once phase2 kicks in, that slot in the rotation is replaced with a normal
+    // attack instead, and the boss gets at most 2 more "emergency" call-ins total,
+    // spaced far apart — so it doesn't just keep flooding the arena with adds for
+    // the whole second half of the fight.
+    this.postPhase2SpawnTimer = 0;
+    this.postPhase2SpawnsUsed = 0;
 
     if (this.bossType === 'swarm') {
       this.radius = 50;
@@ -90,10 +97,22 @@ class Boss {
     if (!this.phase2 && this.hp < this.maxHp * 0.5) {
       this.phase2 = true;
       this.speed *= this.bossType === 'artillery' ? 1.2 : 1.6;
-      game.shake(14);
+      game.shake(6);
       game.particles.burst(this.x, this.y, this.color, 40, 300);
       Audio2.bossSpawn();
       if (this.bossType === 'artillery') this.shielded = 2.5; // brief invuln while it "reloads" into fury mode
+      this.postPhase2SpawnTimer = Utils.rand(16, 20); // long wait before the first emergency call-in
+    }
+
+    // the (at most 2) emergency post-50%-hp reinforcement call-ins, independent of
+    // the normal attack rotation
+    if (this.phase2 && this.postPhase2SpawnsUsed < 2) {
+      this.postPhase2SpawnTimer -= dt;
+      if (this.postPhase2SpawnTimer <= 0) {
+        this.spawnReinforcements(game, 2);
+        this.postPhase2SpawnsUsed++;
+        this.postPhase2SpawnTimer = Utils.rand(20, 26);
+      }
     }
     const rate = this.phase2 ? 0.6 : 1;
     this.legPhase += dt * (this.bossType === 'spider' ? 10 : 4);
@@ -163,6 +182,15 @@ class Boss {
     if (this.hitFlash > 0) this.hitFlash -= dt;
   }
 
+  spawnReinforcements(game, count) {
+    const addType = { tank: 'drone', spider: 'striker', artillery: 'shooter', swarm: 'drone' }[this.bossType] || 'drone';
+    for (let k = 0; k < count; k++) {
+      game.enemies.push(new Enemy(addType, this.x + Utils.rand(-80, 80), this.y + Utils.rand(-80, 80), game.hpMult, game.dmgMult));
+    }
+    Audio2.enemyDie();
+    game.particles.burst(this.x, this.y, this.color, 14, 200);
+  }
+
   mortarStrike(game, p) {
     const n = this.phase2 ? 4 : 3;
     for (let k = 0; k < n; k++) {
@@ -189,13 +217,22 @@ class Boss {
     } else if (i === 1) {
       // charge / ram speed
       this.charging = 0.7; this.chargeDir = { x: Math.cos(ang), y: Math.sin(ang) };
-      game.shake(6);
+      game.shake(3);
     } else if (i === 2) {
-      // call reinforcements (infantry soldiers)
-      for (let k = 0; k < (this.phase2 ? 4 : 2); k++) {
-        game.enemies.push(new Enemy('drone', this.x + Utils.rand(-80, 80), this.y + Utils.rand(-80, 80), game.hpMult, game.dmgMult));
+      if (!this.phase2) {
+        // call reinforcements (infantry soldiers) — only while still above 50% hp;
+        // past that the boss gets rare emergency call-ins instead (see update())
+        this.spawnReinforcements(game, 2);
+      } else {
+        // radial burst again in place of a 3rd summon wave
+        const n = 24;
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * Math.PI * 2;
+          game.enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260,
+            radius: 9, dmg: this.dmg * 0.6, color: '#ff8a3b', dead: false, life: 4 });
+        }
+        Audio2.explosion();
       }
-      Audio2.enemyDie();
     } else {
       // heavy tactical shell spread
       for (let k = -3; k <= 3; k++) {
@@ -211,7 +248,7 @@ class Boss {
     if (i === 0) {
       // fast lunge dash at the player
       this.charging = 0.45; this.chargeDir = { x: Math.cos(ang), y: Math.sin(ang) };
-      game.shake(5);
+      game.shake(2.5);
     } else if (i === 1) {
       // scatter web mines (small delayed-blast pods) around itself
       const n = this.phase2 ? 5 : 3;
@@ -223,11 +260,20 @@ class Boss {
       }
       Audio2.shoot('cannon');
     } else {
-      // call spider-brood reinforcements
-      for (let k = 0; k < (this.phase2 ? 3 : 2); k++) {
-        game.enemies.push(new Enemy('striker', this.x + Utils.rand(-70, 70), this.y + Utils.rand(-70, 70), game.hpMult, game.dmgMult));
+      if (!this.phase2) {
+        // call spider-brood reinforcements — only while still above 50% hp
+        this.spawnReinforcements(game, 2);
+      } else {
+        // web mines again in place of a brood call
+        const n = 5;
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * Math.PI * 2 + Utils.rand(-0.3, 0.3);
+          const mx = this.x + Math.cos(a) * 90, my = this.y + Math.sin(a) * 90;
+          game.particles.spawn(mx, my, '#b14dff', { count: 3, minSpeed: 20, maxSpeed: 50, life: 1.2, size: 3 });
+          setTimeout(() => { if (!this.dead) game.explode(mx, my, 55, this.dmg * 0.55, this); }, 900);
+        }
+        Audio2.shoot('cannon');
       }
-      Audio2.enemyDie();
     }
   }
 
@@ -250,11 +296,18 @@ class Boss {
       }
       Audio2.shoot('cannon');
     } else {
-      // call in turret support drones
-      for (let k = 0; k < (this.phase2 ? 4 : 2); k++) {
-        game.enemies.push(new Enemy('shooter', this.x + Utils.rand(-100, 100), this.y + Utils.rand(-100, 100), game.hpMult, game.dmgMult));
+      if (!this.phase2) {
+        // call in turret support drones — only while still above 50% hp
+        this.spawnReinforcements(game, 2);
+      } else {
+        // aimed volley again in place of a support call
+        for (let k = -2; k <= 2; k++) {
+          const a = ang + k * 0.12;
+          game.enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(a) * 380, vy: Math.sin(a) * 380,
+            radius: 12, dmg: this.dmg * 0.8, color: '#ff3a22', dead: false, life: 3 });
+        }
+        Audio2.shoot('cannon');
       }
-      Audio2.enemyDie();
     }
   }
 
@@ -269,11 +322,19 @@ class Boss {
       }
       Audio2.shoot('plasma');
     } else if (i === 1) {
-      // mass drone swarm — its signature move
-      for (let k = 0; k < (this.phase2 ? 6 : 4); k++) {
-        game.enemies.push(new Enemy('drone', this.x + Utils.rand(-90, 90), this.y + Utils.rand(-90, 90), game.hpMult, game.dmgMult));
+      if (!this.phase2) {
+        // mass drone swarm — its signature move, only while still above 50% hp
+        this.spawnReinforcements(game, 4);
+      } else {
+        // shock bolt ring again in place of a swarm call
+        const n = 16;
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * Math.PI * 2;
+          game.enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(a) * 340, vy: Math.sin(a) * 340,
+            radius: 7, dmg: this.dmg * 0.55, color: '#4ad9ff', dead: false, life: 3 });
+        }
+        Audio2.shoot('plasma');
       }
-      Audio2.enemyDie();
     } else {
       // aimed triple bolt volley
       for (let k = -1; k <= 1; k++) {

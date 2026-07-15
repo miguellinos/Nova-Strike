@@ -7,6 +7,9 @@ const ENEMY_DEFS = {
   novabeast:{name: 'aw Panzerträger',hp: 1200, speed: 90,  dmg: 40, radius: 36, color: '#4f5d65', coins: [10, 20],score: 200, ranged: false, touchCd: 0.8, elite: true, vision: 680 },
   marksman:{ name: 'Scharfschütze',      hp: 45,  speed: 85,  dmg: 24, radius: 14, color: '#5a5342', coins: [3, 6],  score: 35,  ranged: true,  touchCd: 0.7, shootCd: 2.4, keepDist: 520, projSpeed: 700, projColor: '#ffe680', vision: 720 },
   bomber:  { name: 'Sprengstoff-Läufer', hp: 22,  speed: 235, dmg: 55, radius: 14, color: '#8a3a1e', coins: [2, 4],  score: 25,  ranged: false, touchCd: 1, vision: 460, blastRadius: 90 },
+  medic:   { name: 'Feldsanitäter',      hp: 40,  speed: 155, dmg: 0,  radius: 13, color: '#e8e4d8', coins: [3, 6],  score: 30,  ranged: false, touchCd: 1, vision: 500, healAmount: 12, healCd: 2.2, healRange: 200 },
+  grenadier:{name: 'Granatwerfer',       hp: 65,  speed: 115, dmg: 30, radius: 16, color: '#5c5a3a', coins: [3, 6],  score: 32,  ranged: true,  touchCd: 0.8, shootCd: 3, keepDist: 260, vision: 560, blastRadius: 75 },
+  shieldtrooper:{name: 'Schildträger',   hp: 90,  speed: 95,  dmg: 16, radius: 17, color: '#3a4a5a', coins: [4, 8],  score: 38,  ranged: false, touchCd: 0.8, vision: 480, shieldHp: 90 },
 };
 
 // steer a movement direction around nearby walls instead of walking straight
@@ -81,6 +84,12 @@ class Enemy {
     // status effects
     this.burnT = 0; this.burnDps = 0; this.burnBy = null;
     this.slowT = 0;
+
+    // medic
+    this.healTimer = Utils.rand(0.5, d.healCd || 2);
+    // shieldtrooper: absorbs damage first, shown as a separate bar above the HP bar
+    this.shieldHp = d.shieldHp || 0;
+    this.maxShieldHp = d.shieldHp || 0;
   }
 
   update(dt, game) {
@@ -263,6 +272,49 @@ class Enemy {
           return;
         }
       }
+      else if (this.type === 'medic') {
+        // support unit: never attacks, hangs back and patches up nearby squadmates —
+        // a priority target since it makes everything around it harder to kill
+        mx = -mx; my = -my; spd = this.speed * (distToP < 220 ? 1.2 : 0.6);
+
+        this.healTimer -= dt;
+        if (this.healTimer <= 0) {
+          this.healTimer = this.def.healCd;
+          let healed = false;
+          for (const e of game.enemies) {
+            if (e === this || e.dead || e.hp >= e.maxHp) continue;
+            if (Utils.dist(this.x, this.y, e.x, e.y) < this.def.healRange) {
+              e.hp = Math.min(e.maxHp, e.hp + this.def.healAmount);
+              game.particles.spawn(e.x, e.y, '#8fffb0', { count: 4, minSpeed: 20, maxSpeed: 60, life: 0.4, size: 3 });
+              healed = true;
+            }
+          }
+          if (healed) game.particles.spawn(this.x, this.y, '#8fffb0', { count: 3, minSpeed: 30, maxSpeed: 80, life: 0.3, size: 2.5 });
+        }
+      }
+      else if (this.type === 'grenadier') {
+        if (distToP < this.def.keepDist) { mx = -mx; my = -my; }
+        else if (distToP > this.def.keepDist + 100) { /* approach */ }
+        else { mx = 0; my = 0; spd = 0; }
+
+        this.shootTimer -= dt;
+        if (this.shootTimer <= 0 && distToP < 620 && p.hp > 0) {
+          this.shootTimer = this.def.shootCd;
+          const tx = p.x, ty = p.y; // lobbed to the player's current spot, not tracked
+          const flightTime = 850;
+          game.particles.spawn(this.x, this.y, '#8a8a4a', { count: 5, angle: angleToP, spread: 0.3, minSpeed: 60, maxSpeed: 140, life: 0.2 });
+          Audio2.shoot('cannon');
+          setTimeout(() => {
+            game.particles.spawn(tx, ty, '#ffaa00', { count: 6, minSpeed: 30, maxSpeed: 90, life: 0.3, size: 3 });
+            game.explodeEnemyProj(tx, ty, this.def.blastRadius, this.dmg);
+          }, flightTime);
+        }
+      }
+      else if (this.type === 'shieldtrooper') {
+        // slow, steady advance — the shield pool (see takeDamage) is what makes it
+        // a priority target, not its movement or a special attack
+        spd = this.speed * (this.shieldHp > 0 ? 0.85 : 1.1);
+      }
     }
 
     // squad separation: nudge apart from very close allies so they don't stack
@@ -313,9 +365,19 @@ class Enemy {
   }
 
   takeDamage(dmg, game) {
-    this.hp -= dmg;
     this.hitFlash = 0.1;
     this.alert(game);
+    if (this.shieldHp > 0) {
+      // shieldtrooper: soak damage into the shield pool first, blue sparks instead
+      // of the usual hit color while it holds
+      const absorbed = Math.min(this.shieldHp, dmg);
+      this.shieldHp -= absorbed;
+      dmg -= absorbed;
+      game.particles.spawn(this.x, this.y, '#4ad9ff', { count: 5, minSpeed: 50, maxSpeed: 140, life: 0.25, size: 3 });
+      Audio2.hit();
+      if (dmg <= 0) return;
+    }
+    this.hp -= dmg;
     game.particles.spawn(this.x, this.y, this.color, { count: 4, minSpeed: 40, maxSpeed: 120, life: 0.25, size: 3 });
     Audio2.hit();
     if (this.hp <= 0 && !this.dead) { this.dead = true; game.onEnemyKilled(this); }
@@ -586,16 +648,96 @@ class Enemy {
       ctx.fillStyle = '#1a1a1a';
       ctx.fillRect(-this.radius * 0.9, -this.radius * 0.3, this.radius * 0.4, this.radius * 0.6);
     }
+    else if (this.type === 'medic') {
+      // Support trooper: pale coat, red-cross satchel, no visible weapon
+      ctx.fillStyle = '#3a3f2e';
+      ctx.beginPath();
+      ctx.ellipse(-1, 0, this.radius * 0.65, this.radius * 1.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#1e2417';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      ctx.fillStyle = flash ? '#ffffff' : '#e8e4d8';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // medkit satchel with red cross
+      ctx.fillStyle = '#d8d4c4';
+      ctx.fillRect(-this.radius * 0.9, -this.radius * 0.4, this.radius * 0.6, this.radius * 0.8);
+      ctx.fillStyle = '#e04040';
+      ctx.fillRect(-this.radius * 0.68, -this.radius * 0.12, this.radius * 0.16, this.radius * 0.44);
+      ctx.fillRect(-this.radius * 0.8, this.radius * 0.02, this.radius * 0.4, this.radius * 0.16);
+    }
+    else if (this.type === 'grenadier') {
+      // Bulky launcher-carrying trooper
+      ctx.fillStyle = '#2c2b1c';
+      ctx.beginPath();
+      ctx.ellipse(-1, 0, this.radius * 0.7, this.radius * 1.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#161608';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      ctx.fillStyle = flash ? '#ffffff' : '#5c5a3a';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // stubby launcher barrel
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(this.radius * 0.15, -this.radius * 0.35, this.radius * 0.7, this.radius * 0.5);
+      ctx.fillStyle = '#ffaa00';
+      ctx.beginPath();
+      ctx.arc(this.radius * 0.5, -this.radius * 0.1, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    else if (this.type === 'shieldtrooper') {
+      // Heavy trooper with a raised riot shield facing the player
+      ctx.fillStyle = '#20262e';
+      ctx.beginPath();
+      ctx.ellipse(-1, 0, this.radius * 0.7, this.radius * 1.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#0f1216';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      ctx.fillStyle = flash ? '#ffffff' : '#3a4a5a';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // riot shield in front, glowing while its energy pool holds
+      const shieldUp = this.shieldHp > 0;
+      ctx.fillStyle = shieldUp ? 'rgba(74, 217, 255, 0.35)' : 'rgba(60, 70, 80, 0.5)';
+      ctx.strokeStyle = shieldUp ? '#4ad9ff' : '#2a3540';
+      ctx.lineWidth = 2.5;
+      ctx.fillRect(this.radius * 0.5, -this.radius * 0.85, this.radius * 0.35, this.radius * 1.7);
+      ctx.strokeRect(this.radius * 0.5, -this.radius * 0.85, this.radius * 0.35, this.radius * 1.7);
+    }
 
     ctx.restore();
 
-    // HP Bar drawn directly above the model
+    // HP bar drawn directly above the model
     if (this.hp < this.maxHp) {
       const w = this.radius * 2;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(this.x - w / 2, this.y - this.radius - 12, w, 4);
       ctx.fillStyle = '#ff3b52';
       ctx.fillRect(this.x - w / 2, this.y - this.radius - 12, w * (this.hp / this.maxHp), 4);
+    }
+    // shield bar (shieldtrooper) sits just above the HP bar while it still holds
+    if (this.maxShieldHp > 0 && this.shieldHp > 0) {
+      const w = this.radius * 2;
+      const y = this.y - this.radius - (this.hp < this.maxHp ? 18 : 12);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(this.x - w / 2, y, w, 4);
+      ctx.fillStyle = '#4ad9ff';
+      ctx.fillRect(this.x - w / 2, y, w * (this.shieldHp / this.maxShieldHp), 4);
     }
   }
 }

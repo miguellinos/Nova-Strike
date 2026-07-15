@@ -29,6 +29,7 @@ class UI {
       shieldText: document.getElementById('shield-text'),
       invMedkitCount: document.getElementById('inv-medkit-val'),
       invShieldCount: document.getElementById('inv-shield-val'),
+      invGrenadeCount: document.getElementById('inv-grenade-val'),
       upgradeCards: document.getElementById('upgrade-cards'),
       upgradeWaitMsg: document.getElementById('upgrade-wait-msg'),
       upgradeScore: document.getElementById('upgrade-score'),
@@ -61,6 +62,9 @@ class UI {
     }
     if (this.el.invShieldCount) {
       this.el.invShieldCount.textContent = p.shieldsCount;
+    }
+    if (this.el.invGrenadeCount) {
+      this.el.invGrenadeCount.textContent = p.grenadeCount || 0;
     }
 
     this.el.coins.textContent = p.coins;
@@ -247,6 +251,22 @@ class UI {
       if (game.purchase('novacola', null, novacolaPrice)) this.showTacticalShop(game); // refresh
     });
     this.el.shopCards.appendChild(novacolaCard);
+
+    // 7. Handgranate purchase
+    const grenadePrice = 40;
+    const grenadeCard = document.createElement('div');
+    grenadeCard.className = 'shop-card';
+    grenadeCard.innerHTML =
+      '<div class="icon">💣</div>' +
+      '<div class="name">Handgranate</div>' +
+      '<div class="desc">Wirf sie mit Taste G. Flächenschaden am Zielpunkt.</div>' +
+      '<button class="buy">🪙 ' + grenadePrice + '</button>';
+    const grenadeBtn = grenadeCard.querySelector('.buy');
+    grenadeBtn.disabled = me.coins < grenadePrice;
+    grenadeBtn.addEventListener('click', () => {
+      if (game.purchase('grenade', null, grenadePrice)) this.showTacticalShop(game); // refresh
+    });
+    this.el.shopCards.appendChild(grenadeCard);
   }
 
   // ----- workbench: buy new weapons + upgrade owned weapons (per player, "press E") -----
@@ -371,7 +391,8 @@ class UI {
         { id: 'bread', name: 'Frisches Brot', icon: '🍞', count: me.breadCount || 0, desc: 'Heilt dich sofort um 15 HP.', canUse: me.hp < me.maxHp },
         { id: 'novacola', name: 'Novacola', icon: '🥤', count: me.novacolaCount || 0, desc: 'Gibt dir einen Speedboost für 8 Sek.', canUse: true },
         { id: 'medkit', name: 'Tragbares Medkit', icon: '🎒', count: me.medkitsCount || 0, desc: 'Heilt dich sofort um 40 HP.', canUse: me.hp < me.maxHp },
-        { id: 'shield', name: 'Schildzelle', icon: '🛡️', count: me.shieldsCount || 0, desc: 'Lädt dein Schild um 50 Punkte auf.', canUse: me.shieldHp < me.maxShieldHp }
+        { id: 'shield', name: 'Schildzelle', icon: '🛡️', count: me.shieldsCount || 0, desc: 'Lädt dein Schild um 50 Punkte auf.', canUse: me.shieldHp < me.maxShieldHp },
+        { id: 'grenade', name: 'Handgranate', icon: '💣', count: me.grenadeCount || 0, desc: 'Wirf sie mit Taste G. Flächenschaden am Zielpunkt.', canUse: true },
       ];
 
       let itemsOwned = 0;

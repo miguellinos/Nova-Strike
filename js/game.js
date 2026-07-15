@@ -280,6 +280,7 @@ class Game {
     else if (kind === 'shield') p.shieldsCount++;
     else if (kind === 'bread') p.breadCount++;
     else if (kind === 'novacola') p.novacolaCount++;
+    else if (kind === 'grenade') p.grenadeCount++;
   }
 
   leaveShop() {
@@ -384,6 +385,7 @@ class Game {
     else if (kind === 'novacola') success = me.useNovacola(this);
     else if (kind === 'medkit') success = me.useMedkit(this);
     else if (kind === 'shield') success = me.useShield(this);
+    else if (kind === 'grenade') success = me.throwGrenade(this);
 
     if (success) {
       if (this.mode === 'guest') {
@@ -477,6 +479,7 @@ class Game {
       else if (msg.kind === 'novacola') this.player2.useNovacola(this);
       else if (msg.kind === 'medkit') this.player2.useMedkit(this);
       else if (msg.kind === 'shield') this.player2.useShield(this);
+      else if (msg.kind === 'grenade') this.player2.throwGrenade(this);
     }
   }
 
@@ -756,6 +759,7 @@ class Game {
         shieldsCount: p.shieldsCount || 0,
         breadCount: p.breadCount || 0,
         novacolaCount: p.novacolaCount || 0,
+        grenadeCount: p.grenadeCount || 0,
         charId: p.charId,
         scanTimer: p.scanTimer || 0,
         scanTargetX: p.scanTarget ? p.scanTarget.x : null,
@@ -861,6 +865,7 @@ class Game {
         this.player2.shieldsCount = d.shieldsCount || 0;
         this.player2.breadCount = d.breadCount || 0;
         this.player2.novacolaCount = d.novacolaCount || 0;
+        this.player2.grenadeCount = d.grenadeCount || 0;
         this.player2.charId = d.charId;
         this.player2.meleeSwing = d.meleeSwing || 0;
         this.player2.meleeArc = d.meleeArc || 0;
@@ -900,6 +905,7 @@ class Game {
           this.player2.shieldsCount = d.shieldsCount || 0;
           this.player2.breadCount = d.breadCount || 0;
           this.player2.novacolaCount = d.novacolaCount || 0;
+          this.player2.grenadeCount = d.grenadeCount || 0;
         } else {
           assign(this.player2, d);
           if (!this.player2.mods) this.player2.mods = {};
