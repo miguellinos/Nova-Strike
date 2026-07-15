@@ -29,8 +29,13 @@ class Game {
   get localPlayer() { return this.mode === 'guest' ? this.player2 : this.player; }
 
   nearestPlayer(x, y) {
-    let best = this.player, bestD = Infinity;
-    for (const p of this.players) {
+    // enemies should target whoever can still fight back — a downed, spectating
+    // teammate shouldn't act as an aggro magnet (or a free target once revived
+    // near the fight). Only fall back to a dead player if everyone is down.
+    const alive = this.players.filter((p) => p.hp > 0);
+    const pool = alive.length > 0 ? alive : this.players;
+    let best = pool[0], bestD = Infinity;
+    for (const p of pool) {
       const d = Utils.dist(x, y, p.x, p.y);
       if (d < bestD) { bestD = d; best = p; }
     }
@@ -141,8 +146,13 @@ class Game {
     this.shields.push(new ShieldPickup(x + Utils.rand(-16, 16), y + Utils.rand(-16, 16)));
   }
   onPlayerDeath() {
-    // co-op: only end the run once both players are down
-    if (this.players.some((p) => p.hp > 0)) return;
+    // co-op: only end the run once both players are down — a downed teammate
+    // gets revived automatically if the squad clears the current wave (see
+    // endWave()); until then they just spectate the survivor.
+    if (this.players.some((p) => p.hp > 0)) {
+      this.ui.showBanner('MITSPIELER GEFALLEN — Wiederbelebung bei Wellen-Ende');
+      return;
+    }
     this.state = 'gameover';
     this.ui.showHUD(false);
     const mins = Math.floor(this.playTime / 60), secs = Math.floor(this.playTime % 60);
@@ -165,7 +175,18 @@ class Game {
     this.medkits = [];
     this.shields = [];
     this.boss = null;
-    
+
+    // revive any downed squadmate now that the wave has been cleared without them
+    for (const p of this.players) {
+      if (p.hp <= 0) {
+        p.hp = Math.round(p.maxHp * 0.5);
+        p.invuln = 2;
+        p.shieldHp = 0;
+        this.particles.spawn(p.x, p.y, '#4af626', { count: 24, minSpeed: 40, maxSpeed: 170, life: 0.6, size: 4 });
+        Audio2.heal();
+      }
+    }
+
     // Pick a fresh random map between waves (any of the layouts, not just the first two)
     let mapIndex = Utils.randInt(0, MAP_LAYOUTS.length - 1);
     if (MAP_LAYOUTS.length > 1) {
@@ -1064,7 +1085,12 @@ class Game {
 
   updateCamera(dt) {
     if (!this.world) return;
-    const target = this.localPlayer || this.player;
+    let target = this.localPlayer || this.player;
+    // spectate the surviving teammate while downed, instead of freezing on the death spot
+    if (target && target.hp <= 0) {
+      const alive = this.players.find((p) => p !== target && p.hp > 0);
+      if (alive) target = alive;
+    }
     if (!target) return;
     const tx = target.x - this.cam.w / 2;
     const ty = target.y - this.cam.h / 2;

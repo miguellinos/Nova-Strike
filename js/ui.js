@@ -33,6 +33,7 @@ class UI {
       upgradeWaitMsg: document.getElementById('upgrade-wait-msg'),
       upgradeScore: document.getElementById('upgrade-score'),
       interactPrompt: document.getElementById('interact-prompt'),
+      spectateBanner: document.getElementById('spectate-banner'),
       workbenchCoins: document.getElementById('workbench-coins'),
       workbenchCards: document.getElementById('workbench-cards'),
     };
@@ -86,8 +87,12 @@ class UI {
       if (this.bannerTimer <= 0) this.el.banner.classList.add('hidden');
     }
 
+    if (this.el.spectateBanner) {
+      this.el.spectateBanner.classList.toggle('hidden', !(p.hp <= 0 && game.players.length > 1));
+    }
+
     if (this.el.interactPrompt) {
-      const showPrompt = game.state === 'playing' && !game.workbenchOpenLocal && !game.shopOpenLocal && !game.trainingOpenLocal;
+      const showPrompt = game.state === 'playing' && p.hp > 0 && !game.workbenchOpenLocal && !game.shopOpenLocal && !game.trainingOpenLocal;
       if (showPrompt && game.nearWorkbench) {
         this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für die Werkbank';
         this.el.interactPrompt.classList.remove('hidden');

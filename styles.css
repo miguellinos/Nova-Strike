@@ -133,6 +133,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   box-shadow: 0 0 22px rgba(255,204,51,0.25); animation: coopPulse 1.4s ease-in-out infinite; }
 #interact-prompt b { color: var(--gold); }
 
+#spectate-banner { position: absolute; top: 90px; left: 50%; transform: translateX(-50%);
+  background: rgba(30,5,10,0.85); border: 1px solid rgba(255,59,82,0.55); border-radius: 10px;
+  padding: 12px 26px; font-size: 17px; font-weight: 700; color: #ffb3bd; text-align: center;
+  letter-spacing: 0.5px; box-shadow: 0 0 26px rgba(255,59,82,0.25); animation: coopPulse 1.6s ease-in-out infinite; }
+#spectate-banner span { display: block; font-size: 12px; font-weight: 500; color: #ff8fa0; margin-top: 4px; letter-spacing: 0.3px; }
+
 /* ---------- Active Inventory & Shields ---------- */
 .shield-bar-bg { width: 240px; height: 14px; background: rgba(10,25,60,0.6); border: 1px solid rgba(40,140,255,0.4);
   border-radius: 7px; overflow: hidden; }
