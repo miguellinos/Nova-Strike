@@ -86,9 +86,20 @@
           <button class="btn btn-primary" data-action="start-horror" style="background: linear-gradient(135deg, #441a1a, #260a0a); border-color: #ff3b52; color: #ffcccc;" title="Spiele im Dunkeln mit einer Taschenlampe">Horror-Modus 🔦</button>
         </div>
         <button class="btn" style="margin-top: 8px;" data-action="coop-menu">Koop (LAN)</button>
+        <button class="btn" data-action="character-menu">Charakter wechseln</button>
         <button class="btn" data-action="settings">Einstellungen</button>
         <button class="btn" data-action="controls">Steuerung</button>
         <button class="btn" data-action="quit">Spiel beenden</button>
+      </div>
+    </div>
+
+    <!-- Character selection -->
+    <div id="character-menu" class="overlay hidden">
+      <div class="menu-panel wide">
+        <h2 class="panel-title">CHARAKTER WÄHLEN</h2>
+        <p class="subtitle">Tarnfarbe &amp; Visier deines Agenten.</p>
+        <div id="character-cards" class="shop-cards-container"></div>
+        <button class="btn btn-primary" data-action="character-back">Zurück</button>
       </div>
     </div>
 
@@ -285,6 +296,7 @@
   <!-- Systems (classic scripts, load-order matters) -->
   <script src="js/utils.js"></script>
   <script src="js/settings.js"></script>
+  <script src="js/characters.js"></script>
   <script src="js/input.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/particles.js"></script>

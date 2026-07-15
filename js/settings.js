@@ -1,6 +1,6 @@
 // ---------- settings.js : persisted options ----------
 const Settings = {
-  data: { master: 70, music: 50, sfx: 80, quality: 'high', fullscreen: false },
+  data: { master: 70, music: 50, sfx: 80, quality: 'high', fullscreen: false, character: 'woodland' },
   load() {
     try {
       const s = JSON.parse(localStorage.getItem('novastrike_settings'));

@@ -41,8 +41,9 @@ class Game {
   newGame(mode, gameMode, mapIndex) {
     this.mode = mode || 'solo';
     this.gameMode = gameMode || 'standard';
-    // Always start with Map 0 (Hangar) for wave 1!
-    this.world = new World(mapIndex !== undefined ? mapIndex : 0);
+    // Random map for wave 1 (host/solo pick; guests get the synced index) — every
+    // layout, including the newer themed ones, should be able to come up.
+    this.world = new World(mapIndex);
     this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
     this.nearWorkbench = false;
     this.workbenchOpenLocal = false;
@@ -156,10 +157,14 @@ class Game {
     this.shields = [];
     this.boss = null;
     
-    // Switch map alternates between waves
-    const mapIndex = (this.waves.wave) % 2; // (current wave is about to increment)
+    // Pick a fresh random map between waves (any of the layouts, not just the first two)
+    let mapIndex = Utils.randInt(0, MAP_LAYOUTS.length - 1);
+    if (MAP_LAYOUTS.length > 1) {
+      while (mapIndex === this.world.layoutIndex) mapIndex = Utils.randInt(0, MAP_LAYOUTS.length - 1);
+    }
     if (this.world.layoutIndex !== mapIndex) {
       this.world = new World(mapIndex);
+      this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
       // Reset players to spawning location to prevent getting stuck in walls
       const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
       if (this.player) {
@@ -478,6 +483,7 @@ class Game {
           this.openWorkbench();
         }
         this.nearShop = this.shopTable && Utils.dist(this.player2.x, this.player2.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
+<<<<<<< HEAD
         if (this.nearShop && !this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('e')) {
           this.openShopFromWorld();
           Input.pressed['e'] = false;
@@ -486,6 +492,14 @@ class Game {
         if (this.nearTrainingRange && !this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('e')) {
           this.openTrainingRange();
           Input.pressed['e'] = false;
+=======
+        this.nearTrainingRange = this.trainingRange && Utils.dist(this.player2.x, this.player2.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
+        if (!this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('f')) {
+          if (this.nearWorkbench) this.openWorkbench();
+          else if (this.nearShop) this.openShopFromWorld();
+          else if (this.nearTrainingRange) this.openTrainingRange();
+          Input.pressed['f'] = false;
+>>>>>>> 263cb870e767fb184578095b1021a0199dde0884
         }
         if (Input.wasPressed('i')) {
           if (this.inventoryOpenLocal) this.closeInventory(); else this.openInventory();
@@ -520,9 +534,9 @@ class Game {
     }
 
     if (this.state !== 'playing') {
-      if (this.trainingOpenLocal && (Input.wasPressed('e') || Input.wasPressed('escape'))) {
+      if (this.trainingOpenLocal && (Input.wasPressed('f') || Input.wasPressed('escape'))) {
         this.closeTrainingRange();
-        Input.pressed['e'] = false;
+        Input.pressed['f'] = false;
         Input.pressed['escape'] = false;
       }
       // still keep the guest in sync while we're in the shop/upgrade/gameover screens,
@@ -538,18 +552,15 @@ class Game {
     Input.mouse.worldX = this.cam.x + Input.mouse.x;
     Input.mouse.worldY = this.cam.y + Input.mouse.y;
 
-    // workbench + shop interact ("press F")
+    // workbench + shop + training range interact ("press F")
     this.nearWorkbench = this.workbench && Utils.dist(this.player.x, this.player.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
     this.nearShop = this.shopTable && Utils.dist(this.player.x, this.player.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
-    if (!this.workbenchOpenLocal && !this.shopOpenLocal && Input.wasPressed('f')) {
+    this.nearTrainingRange = this.trainingRange && Utils.dist(this.player.x, this.player.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
+    if (!this.workbenchOpenLocal && !this.shopOpenLocal && !this.trainingOpenLocal && Input.wasPressed('f')) {
       if (this.nearWorkbench) this.openWorkbench();
       else if (this.nearShop) this.openShopFromWorld();
+      else if (this.nearTrainingRange) this.openTrainingRange();
       Input.pressed['f'] = false;
-    }
-    this.nearTrainingRange = this.trainingRange && Utils.dist(this.player.x, this.player.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
-    if (this.nearTrainingRange && !this.trainingOpenLocal && Input.wasPressed('e')) {
-      this.openTrainingRange();
-      Input.pressed['e'] = false;
     }
 
     this.world.update(dt);
@@ -619,6 +630,7 @@ class Game {
         shieldsCount: p.shieldsCount || 0,
         breadCount: p.breadCount || 0,
         novacolaCount: p.novacolaCount || 0,
+        charId: p.charId,
       })),
       enemies: this.enemies.map((e) => ({ x: e.x, y: e.y, radius: e.radius, color: e.color, hp: e.hp, maxHp: e.maxHp, type: e.type, hitFlash: e.hitFlash })),
       boss: this.boss && !this.boss.dead ? {
@@ -642,6 +654,7 @@ class Game {
     if (this.waves) this.waves.wave = s.wave;
     if (s.layoutIndex !== undefined && this.world && this.world.layoutIndex !== s.layoutIndex) {
       this.world = new World(s.layoutIndex);
+      this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
     }
     // reconstruct the (identical) upgrade options the host rolled, so our menu matches
     if (s.shopUpgradeIds) {
