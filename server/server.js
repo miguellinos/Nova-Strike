@@ -54,6 +54,11 @@ function send(ws, msg) {
 
 wss.on('connection', (ws, req) => {
   ws.role = null;
+  // Disable Nagle's algorithm: without this, small frequent packets (60Hz input,
+  // 30Hz snapshots) can sit buffered for up to ~40ms waiting to be coalesced with
+  // more data before the OS sends them — pure added latency for a game where every
+  // packet is time-sensitive and none of them benefit from batching.
+  req.socket.setNoDelay(true);
   console.log(`[connect] neue Verbindung von ${req.socket.remoteAddress}`);
 
   ws.on('message', (raw) => {
@@ -87,9 +92,16 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    // relay everything else (ready, input, snapshot, start) to the other side
+    // relay everything else (ready, input, snapshot, start) to the other side —
+    // forward the original raw bytes instead of JSON.stringify(msg) again: the
+    // server only needed the parse above to read msg.type, the payload itself is
+    // opaque to it and re-serializing it is wasted CPU on every single message
+    // (60Hz input + 30Hz snapshots is the bulk of all traffic through this relay).
     const target = ws.role === 'host' ? room.guest : ws.role === 'guest' ? room.host : null;
-    send(target, msg);
+    // .toString() so this always goes out as a text frame — ws.send() on a raw
+    // Buffer defaults to a BINARY frame, which the client's `JSON.parse(ev.data)`
+    // can't handle (ev.data would be a Blob/ArrayBuffer, not a string).
+    if (target && target.readyState === target.OPEN) target.send(raw.toString());
   });
 
   ws.on('close', () => {

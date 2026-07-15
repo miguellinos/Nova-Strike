@@ -156,8 +156,7 @@ class Player {
     // move + collide
     this.x += mx * speed * dt;
     this.y += my * speed * dt;
-    const collidableRects = world.rects.filter(r => r.kind !== 'enemy-barrier');
-    const res = resolveCircleRects(this.x, this.y, this.radius, collidableRects);
+    const res = resolveCircleRects(this.x, this.y, this.radius, world.playerCollidableRects);
     this.x = Utils.clamp(res.x, -300 + this.radius, world.w - this.radius);
     this.y = Utils.clamp(res.y, this.radius, world.h - this.radius);
 

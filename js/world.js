@@ -157,6 +157,10 @@ class World {
     const layoutDef = MAP_LAYOUTS[this.layoutIndex] || MAP_LAYOUTS[0];
     this.theme = THEMES[layoutDef.theme] || THEMES.military;
     this.build();
+    // Precomputed once instead of `world.rects.filter(...)` running fresh every
+    // single frame inside Player.update() (60x/sec per player, so 120x/sec in co-op)
+    // — rects are static after build(), filtering them repeatedly is pure waste.
+    this.playerCollidableRects = this.rects.filter((r) => r.kind !== 'enemy-barrier');
   }
 
   // pushes a hangar's perimeter walls (with a gate gap) + its interior partition
