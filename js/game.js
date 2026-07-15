@@ -240,14 +240,14 @@ class Game {
   }
 
   leaveShop() {
-    if (this.mode === 'solo') {
-      this.closeShop();
-    } else {
-      this.hostShopDone = true;
-      this.ui.showShopWaiting();
-      this.maybeStartNextWaveCoop();
-      Net.sendShopDone();
-    }
+    // Shop/Werkbank/Trainingsplatz sind rein optionale Besuche pro Spieler —
+    // Wellen starten unabhängig davon automatisch per Timer (siehe endWave()).
+    // Kein Warten auf den anderen Spieler nötig.
+    Menus.hideAll();
+    this.shopOpenLocal = false;
+    this.midWaveShop = false;
+    this.ui.showHUD(true);
+    if (this.mode === 'solo') this.state = 'playing';
   }
 
   openShopFromWorld() {
@@ -622,6 +622,7 @@ class Game {
       boss: this.boss && !this.boss.dead ? {
         x: this.boss.x, y: this.boss.y, radius: this.boss.radius, hp: this.boss.hp, maxHp: this.boss.maxHp,
         name: this.boss.name, phase2: this.boss.phase2, spin: this.boss.spin, hitFlash: this.boss.hitFlash,
+        bossType: this.boss.bossType, legPhase: this.boss.legPhase, shielded: this.boss.shielded,
       } : null,
       projectiles: this.projectiles.map((pr) => ({ x: pr.x, y: pr.y, radius: pr.radius, color: pr.color, angle: pr.angle, aoe: pr.aoe })),
       enemyProjectiles: this.enemyProjectiles.map((ep) => ({ x: ep.x, y: ep.y, radius: ep.radius, color: ep.color })),
