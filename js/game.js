@@ -775,7 +775,7 @@ class Game {
       // them forward once per snapshot (they cover 25-50px between snapshots, which
       // reads as heavy stutter).
       projectiles: this.projectiles.map((pr) => ({ x: r(pr.x), y: r(pr.y), vx: r(pr.vx), vy: r(pr.vy), radius: pr.radius, color: pr.color, angle: pr.angle, aoe: pr.aoe })),
-      enemyProjectiles: this.enemyProjectiles.map((ep) => ({ x: r(ep.x), y: r(ep.y), vx: r(ep.vx), vy: r(ep.vy), radius: ep.radius, color: ep.color })),
+      enemyProjectiles: this.enemyProjectiles.map((ep) => ({ x: r(ep.x), y: r(ep.y), vx: r(ep.vx), vy: r(ep.vy), radius: ep.radius, color: ep.color, isHoming: ep.isHoming })),
       coins: this.coins.map((c) => ({ x: r(c.x), y: r(c.y) })),
       medkits: this.medkits.map((m) => ({ x: r(m.x), y: r(m.y), life: m.life })),
       shakeAmt: this.shakeAmt,
@@ -1088,6 +1088,32 @@ class Game {
 
   updateEnemyProjectiles(dt) {
     for (const ep of this.enemyProjectiles) {
+      if (ep.isHoming) {
+        const target = this.nearestPlayer(ep.x, ep.y);
+        if (target && target.hp > 0) {
+          const targetAngle = Math.atan2(target.y - ep.y, target.x - ep.x);
+          const currentAngle = Math.atan2(ep.vy, ep.vx);
+          
+          let angleDiff = targetAngle - currentAngle;
+          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+          while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+          
+          const maxTurn = 2.4 * dt; // turn speed
+          const turn = Utils.clamp(angleDiff, -maxTurn, maxTurn);
+          const newAngle = currentAngle + turn;
+          
+          const speed = Math.hypot(ep.vx, ep.vy);
+          ep.vx = Math.cos(newAngle) * speed;
+          ep.vy = Math.sin(newAngle) * speed;
+        }
+
+        // Spawn trailer smoke particles
+        if (Math.random() < dt * 25) {
+          this.particles.spawn(ep.x, ep.y, '#ff4400', { count: 1, minSpeed: 10, maxSpeed: 30, life: 0.25, size: 2 });
+          this.particles.spawn(ep.x, ep.y, '#555555', { count: 1, minSpeed: 5, maxSpeed: 15, life: 0.4, size: 2.5 });
+        }
+      }
+
       ep.x += ep.vx * dt; ep.y += ep.vy * dt;
       ep.life -= dt;
       const hitWall = pointInRects(ep.x, ep.y, this.world.rects, ep.radius);
@@ -1200,8 +1226,33 @@ class Game {
 
     // 3. Draw glowing elements on top of the dark overlay (projectiles, sparks, explosions)
     for (const ep of this.enemyProjectiles) {
-      ctx.shadowBlur = 10; ctx.shadowColor = ep.color; ctx.fillStyle = ep.color;
-      ctx.beginPath(); ctx.arc(ep.x, ep.y, ep.radius, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.save();
+      ctx.translate(ep.x, ep.y);
+      const angle = Math.atan2(ep.vy, ep.vx);
+      ctx.rotate(angle);
+      
+      if (ep.isHoming) {
+        ctx.shadowBlur = 12; ctx.shadowColor = '#ff2b00';
+        // Tail wings
+        ctx.fillStyle = '#4c525a';
+        ctx.fillRect(-10, -5, 4, 10);
+        // Rocket body
+        ctx.fillStyle = '#a6b0c2';
+        ctx.fillRect(-7, -3, 11, 6);
+        // Red tip cone
+        ctx.fillStyle = '#ff2b00';
+        ctx.beginPath();
+        ctx.moveTo(4, -3);
+        ctx.lineTo(10, 0);
+        ctx.lineTo(4, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.shadowBlur = 10; ctx.shadowColor = ep.color; ctx.fillStyle = ep.color;
+        ctx.beginPath(); ctx.arc(0, 0, ep.radius, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+      }
+      ctx.restore();
     }
     for (const pr of this.projectiles) pr.draw(ctx);
 
