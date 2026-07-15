@@ -45,6 +45,42 @@ const MAP_LAYOUTS = [
       [600, 1250, 80, 80, 'crate'], [1100, 1250, 80, 80, 'crate'], [1600, 1250, 80, 80, 'crate'],
     ],
   },
+  // Map 2: "Wüsten-Kreuzung" — 3 hangars in a row along the south edge (not 2 in
+  // corners), huge open desert to the north with only scattered standalone cover.
+  {
+    name: 'Wüsten-Kreuzung',
+    hangars: [
+      { x: 200, y: 1400, w: 380, h: 280, gateSide: 'north', name: 'Außenposten West' },
+      { x: 1010, y: 1400, w: 380, h: 280, gateSide: 'north', name: 'Außenposten Mitte' },
+      { x: 1820, y: 1400, w: 380, h: 280, gateSide: 'north', name: 'Außenposten Ost' },
+    ],
+    obs: [
+      [300, 300, 90, 90, 'crate'], [1155, 250, 90, 90, 'crate'], [2010, 300, 90, 90, 'crate'],
+      [900, 750, 200, 100, 'machine'],
+      [700, 600, 30, 300, 'wall'], [1670, 600, 30, 300, 'wall'],
+      [500, 950, 90, 90, 'crate'], [1810, 950, 90, 90, 'crate'], [1155, 1050, 90, 90, 'crate'],
+    ],
+  },
+  // Map 3: "Bunker-Ring" — only 1 hangar (north-center), everything else is a huge
+  // open field wrapped around a ring-shaped central fortress. Very different shape.
+  {
+    name: 'Bunker-Ring',
+    hangars: [
+      { x: 990, y: 100, w: 420, h: 280, gateSide: 'south', name: 'Zentralkommando' },
+    ],
+    obs: [
+      // ring fortress around the map center, with a gap on each side to enter
+      [950, 650, 200, 30, 'wall'], [1250, 650, 200, 30, 'wall'],
+      [950, 1120, 200, 30, 'wall'], [1250, 1120, 200, 30, 'wall'],
+      [950, 650, 30, 200, 'wall'], [950, 950, 30, 200, 'wall'],
+      [1420, 650, 30, 200, 'wall'], [1420, 950, 30, 200, 'wall'],
+      [1100, 850, 200, 100, 'machine'],
+      // scattered cover in the big open field outside the ring
+      [400, 300, 90, 90, 'crate'], [2000, 300, 90, 90, 'crate'],
+      [400, 1500, 90, 90, 'crate'], [2000, 1500, 90, 90, 'crate'],
+      [300, 900, 90, 90, 'crate'], [2100, 900, 90, 90, 'crate'],
+    ],
+  },
 ];
 
 class World {

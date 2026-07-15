@@ -7,8 +7,11 @@ class Coin {
     this.dead = false;
     this.phase = Utils.rand(0, 6.28);
     this.collecting = false;
+    this.life = 45; // despawns if left uncollected
   }
   update(dt, game) {
+    this.life -= dt;
+    if (this.life <= 0) { this.dead = true; return; }
     const p = game.nearestPlayer(this.x, this.y);
     const d = Utils.dist(this.x, this.y, p.x, p.y);
     // magnet
@@ -30,6 +33,8 @@ class Coin {
     game.particles.spawn(this.x, this.y, '#ffcc33', { count: 6, minSpeed: 40, maxSpeed: 130, life: 0.4, size: 3 });
   }
   draw(ctx, time) {
+    const blink = this.life < 5 && Math.floor(this.life * 6) % 2 === 0;
+    if (blink) return;
     const pulse = 0.7 + 0.3 * Math.sin(time * 6 + this.phase);
     ctx.shadowBlur = 12; ctx.shadowColor = '#ffcc33';
     ctx.fillStyle = '#ffcc33';
