@@ -251,16 +251,6 @@ class World {
       });
     }
 
-    this.groundCraters = [];
-    for (let i = 0; i < 18; i++) {
-      this.groundCraters.push({
-        x: Utils.rand(120, this.w - 120),
-        y: Utils.rand(120, this.h - 120),
-        r: Utils.rand(30, 75),
-        cracks: Utils.randInt(5, 9)
-      });
-    }
-
     this.mudPuddles = [];
     for (let i = 0; i < 15; i++) {
       this.mudPuddles.push({
@@ -283,13 +273,31 @@ class World {
       });
     }
 
-    // decor: barbed wire & rubble (non-solid obstacles)
-    for (let i = 0; i < 28; i++) {
+    // Generate decor (barbed wire, barrels, tires, bushes, toolboxes, server decks, cardboard boxes)
+    this.decor = [];
+    for (let i = 0; i < 60; i++) {
+      const dx = Utils.rand(60, this.w - 60);
+      const dy = Utils.rand(60, this.h - 60);
+      
+      // Clean safe haven camp
+      if (dx < 20) continue;
+      
+      const building = this.getBuildingAt(dx, dy);
+      let type;
+      if (building) {
+        // Indoor types suitable for hangars and outposts
+        type = Utils.pick(['barrel', 'tires', 'toolbox', 'carton', 'ammo-crate', 'console', 'rubble']);
+      } else {
+        // Outdoor types
+        type = Utils.pick(['bush', 'bush', 'barbwire', 'rubble', 'barrel', 'tires']);
+      }
+      
       this.decor.push({
-        x: Utils.rand(60, this.w - 60), y: Utils.rand(60, this.h - 60),
+        x: dx, y: dy,
         r: Utils.rand(14, 24),
-        type: Utils.pick(['barbwire', 'barbwire', 'rubble', 'rubble']),
-        rot: Utils.rand(0, 6.28),
+        type,
+        rot: Utils.rand(0, Math.PI * 2),
+        color: type === 'barrel' ? Utils.pick(['#2b4a70', '#b54124', '#c98a28', '#38573c']) : null
       });
     }
 
@@ -468,33 +476,6 @@ class World {
       ctx.restore();
     }
 
-    // 3. Draw ground craters
-    ctx.strokeStyle = theme.craterStroke;
-    ctx.lineWidth = 3;
-    for (const c of this.groundCraters) {
-      if (c.x < cam.x - c.r || c.x > cam.x + cam.w + c.r || c.y < cam.y - c.r || c.y > cam.y + cam.h + c.r) continue;
-      ctx.fillStyle = theme.crater;
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // inner dark center
-      ctx.fillStyle = theme.craterInner;
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, c.r * 0.65, 0, Math.PI * 2);
-      ctx.fill();
-
-      // crater crack rays
-      ctx.beginPath();
-      for (let i = 0; i < c.cracks; i++) {
-        const a = (i / c.cracks) * Math.PI * 2;
-        ctx.moveTo(c.x + Math.cos(a) * c.r, c.y + Math.sin(a) * c.r);
-        ctx.lineTo(c.x + Math.cos(a) * (c.r * 1.4), c.y + Math.sin(a) * (c.r * 1.4));
-      }
-      ctx.stroke();
-    }
-
     // 4. Draw grass / foliage patches
     for (const g of this.grassPatches) {
       if (g.x < cam.x - g.size || g.x > cam.x + cam.w + g.size || g.y < cam.y - g.size || g.y > cam.y + cam.h + g.size) continue;
@@ -520,7 +501,7 @@ class World {
     }
     ctx.globalAlpha = 1;
 
-    // 6. Draw decor barbwire and debris rubble
+    // 6. Draw decor barbwire, rubble, barrels, tires, bushes, toolboxes, cartons, ammo chests, and consoles
     for (const d of this.decor) {
       if (d.x < cam.x - 40 || d.x > cam.x + cam.w + 40 || d.y < cam.y - 40 || d.y > cam.y + cam.h + 40) continue;
       ctx.save();
@@ -531,11 +512,9 @@ class World {
         ctx.strokeStyle = '#484d4b'; // rusty dark metal
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        // double spiral rings
         ctx.arc(0, 0, d.r * 0.5, 0, Math.PI * 2);
         ctx.arc(0, 0, d.r * 0.9, 0, Math.PI * 2);
         ctx.stroke();
-        // spike bars
         ctx.lineWidth = 1;
         ctx.beginPath();
         for (let k = 0; k < 6; k++) {
@@ -546,8 +525,7 @@ class World {
           ctx.moveTo(sx + 3, sy - 3); ctx.lineTo(sx - 3, sy + 3);
         }
         ctx.stroke();
-      } else {
-        // stone/brick/metal battlefield rubble
+      } else if (d.type === 'rubble') {
         ctx.fillStyle = '#3a3835';
         ctx.strokeStyle = '#232220';
         ctx.lineWidth = 1.5;
@@ -559,6 +537,107 @@ class World {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+      } else if (d.type === 'barrel') {
+        const barrelColor = d.color || '#2b4a70';
+        ctx.fillStyle = barrelColor;
+        ctx.strokeStyle = '#161d24';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, d.r * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // Inner rim
+        ctx.beginPath();
+        ctx.arc(0, 0, d.r * 0.75, 0, Math.PI * 2);
+        ctx.stroke();
+        // Cap
+        ctx.fillStyle = '#10141a';
+        ctx.beginPath();
+        ctx.arc(d.r * 0.3, -d.r * 0.2, d.r * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (d.type === 'tires') {
+        ctx.fillStyle = '#1c1c1f';
+        ctx.strokeStyle = '#0c0c0d';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, d.r * 0.95, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // treads
+        ctx.strokeStyle = '#2b2b30';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let k = 0; k < 12; k++) {
+          const a = (k / 12) * Math.PI * 2;
+          ctx.moveTo(Math.cos(a) * d.r * 0.8, Math.sin(a) * d.r * 0.8);
+          ctx.lineTo(Math.cos(a) * d.r * 0.95, Math.sin(a) * d.r * 0.95);
+        }
+        ctx.stroke();
+        // Center hole
+        ctx.fillStyle = theme.ground;
+        ctx.beginPath();
+        ctx.arc(0, 0, d.r * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (d.type === 'bush') {
+        const bushColor = theme.grass || '#285e2b';
+        ctx.fillStyle = bushColor;
+        ctx.strokeStyle = '#183c1b';
+        ctx.lineWidth = 1.5;
+        // Draw organic overlapping leaf cluster
+        ctx.beginPath();
+        ctx.arc(-d.r * 0.2, -d.r * 0.2, d.r * 0.65, 0, Math.PI * 2);
+        ctx.arc(d.r * 0.3, -d.r * 0.1, d.r * 0.6, 0, Math.PI * 2);
+        ctx.arc(-d.r * 0.1, d.r * 0.3, d.r * 0.62, 0, Math.PI * 2);
+        ctx.arc(d.r * 0.2, d.r * 0.2, d.r * 0.58, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (d.type === 'toolbox') {
+        ctx.fillStyle = '#b82d23'; // toolbox red
+        ctx.strokeStyle = '#1c0807';
+        ctx.lineWidth = 2;
+        const w = d.r * 1.5, h = d.r * 0.85;
+        ctx.fillRect(-w/2, -h/2, w, h);
+        ctx.strokeRect(-w/2, -h/2, w, h);
+        // silver latch handle
+        ctx.strokeStyle = '#cccccc';
+        ctx.beginPath();
+        ctx.moveTo(-w/4, 0); ctx.lineTo(w/4, 0);
+        ctx.stroke();
+      } else if (d.type === 'carton') {
+        ctx.fillStyle = '#9c7347'; // cardboard tan
+        ctx.strokeStyle = '#4f3b25';
+        ctx.lineWidth = 2;
+        const w = d.r * 1.25, h = d.r * 1.25;
+        ctx.fillRect(-w/2, -h/2, w, h);
+        ctx.strokeRect(-w/2, -h/2, w, h);
+        // carton fold tape
+        ctx.strokeStyle = '#c49e78';
+        ctx.beginPath();
+        ctx.moveTo(-w/2, 0); ctx.lineTo(w/2, 0);
+        ctx.stroke();
+      } else if (d.type === 'ammo-crate') {
+        ctx.fillStyle = '#3f4f38'; // olive military chest
+        ctx.strokeStyle = '#181f16';
+        ctx.lineWidth = 2.5;
+        const w = d.r * 1.7, h = d.r * 0.85;
+        ctx.fillRect(-w/2, -h/2, w, h);
+        ctx.strokeRect(-w/2, -h/2, w, h);
+        // tactical markings
+        ctx.fillStyle = '#d1bf90';
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('AM-8', 0, 0);
+      } else if (d.type === 'console') {
+        ctx.fillStyle = '#2b2d30'; // steel mainframe console
+        ctx.strokeStyle = '#16171a';
+        ctx.lineWidth = 2.5;
+        const w = d.r * 1.5, h = d.r * 1.0;
+        ctx.fillRect(-w/2, -h/2, w, h);
+        ctx.strokeRect(-w/2, -h/2, w, h);
+        // glowing green monitor grid
+        ctx.fillStyle = '#1bff54';
+        ctx.fillRect(-w/3.2, -h/3.2, w/2.8, h/2.5);
       }
       ctx.restore();
     }
