@@ -57,3 +57,20 @@ const WEAPON_DEFS = {
   },
 };
 const WEAPON_ORDER = ['plasma', 'rifle', 'shotgun', 'sniper', 'cannon', 'smg', 'flamethrower', 'tesla', 'cryo'];
+
+// Per-weapon workbench upgrades (bought individually per gun, separate from the
+// wave-end free upgrades which apply globally across all weapons).
+const WEAPON_UPGRADE_MAX = 3;
+const WEAPON_UPGRADE_PRICES = [80, 160, 280]; // cost of level 1, 2, 3
+
+// Shop metadata (price/icon/description) for weapons purchasable at the workbench.
+const WEAPON_SHOP_ITEMS = [
+  { key: 'rifle', price: 120, icon: '🔫', desc: 'Mittelstrecken-Automatikgewehr.' },
+  { key: 'shotgun', price: 180, icon: '💥', desc: 'Verursacht massiven Nahbereichschaden.' },
+  { key: 'sniper', price: 250, icon: '🎯', desc: 'Hoher Einzelschaden, durchdringt Feinde.' },
+  { key: 'cannon', price: 400, icon: '🚀', desc: 'Verschießt explosive Raketen mit Flächenschaden.' },
+  { key: 'smg', price: 200, icon: '💨', desc: 'Extrem hohe Feuerrate, ideal gegen Schwärme.' },
+  { key: 'flamethrower', price: 320, icon: '🔥', desc: 'Kurze Reichweite, setzt Gegner in Brand (Schaden über Zeit).' },
+  { key: 'tesla', price: 360, icon: '⚡', desc: 'Blitze springen auf nahe Gegner über.' },
+  { key: 'cryo', price: 300, icon: '❄️', desc: 'Verlangsamt getroffene Gegner deutlich.' },
+];

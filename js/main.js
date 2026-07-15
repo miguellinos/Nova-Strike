@@ -1,7 +1,7 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
   overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'upgrade-menu',
-             'coop-menu', 'coop-host-menu', 'coop-join-menu'],
+             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
   show(id) { this.hideAll(); document.getElementById(id).classList.remove('hidden'); },
@@ -61,8 +61,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (Net.hostReady && Net.guestReady && Net.role === 'host') {
       const modeSelect = document.getElementById('coop-game-mode');
       const gameMode = modeSelect ? modeSelect.value : 'standard';
-      Net.sendStart(gameMode);
-      game.newGame('host', gameMode);
+      game.newGame('host', gameMode); // picks the random map layout
+      Net.sendStart(gameMode, game.world.layoutIndex); // tell the guest which one, so both see the same map
       Menus.hideAll();
     }
   }
@@ -89,12 +89,13 @@ window.addEventListener('DOMContentLoaded', () => {
     maybeStartMatch();
   });
   Net.on('start', (msg) => {
-    if (Net.role === 'guest') { game.newGame('guest', msg.gameMode); Menus.hideAll(); }
+    if (Net.role === 'guest') { game.newGame('guest', msg.gameMode, msg.mapIndex); Menus.hideAll(); }
   });
   Net.on('snapshot', (data) => { if (game.mode === 'guest') game.applySnapshot(data); });
   Net.on('input', (data) => { if (game.player2 && game.player2.isRemote) game.player2.input.applyPacket(data); });
   Net.on('shop-action', (data) => { game.onGuestShopAction(data); });
   Net.on('shop-done', () => { game.onGuestShopDone(); });
+  Net.on('workbench-action', (data) => { game.onGuestWorkbenchAction(data); });
   Net.on('peer-left', () => {
     if (game.state === 'playing' || game.state === 'shop') {
       alert('Verbindung zum Mitspieler verloren.');
@@ -121,6 +122,7 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'restart': Net.reset(); game.newGame('solo', game.gameMode); Menus.hideAll(); break;
       case 'menu': game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu'); break;
       case 'shop-close': game.leaveShop(); break;
+      case 'workbench-close': game.closeWorkbench(); break;
       case 'open-shop':
         if (game.mode === 'solo') {
           if (game.state === 'playing') { game.midWaveShop = true; game.openTacticalShop(); }

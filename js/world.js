@@ -1,13 +1,86 @@
 // ---------- world.js : the tactical battlefield map ----------
+// Two completely distinct map layouts — different hangar counts/positions AND
+// different obstacle density/shape, not just rearranged furniture in the same shell.
+// Picked randomly per match (the index is synced host->guest so both see the same map).
+const MAP_LAYOUTS = [
+  // Map 0: "Festung Nord" — 2 hangars along the north edge, huge open south,
+  // sparse cover. Wide sightlines, very different feel from a maze map.
+  {
+    name: 'Festung Nord',
+    hangars: [
+      { x: 300, y: 100, w: 420, h: 300, gateSide: 'south', name: 'Nordbasis West' },
+      { x: 1680, y: 100, w: 420, h: 300, gateSide: 'south', name: 'Nordbasis Ost' },
+    ],
+    obs: [
+      [1100, 900, 200, 120, 'machine'],
+      [1100, 500, 200, 35, 'wall'],
+      [1100, 1550, 200, 35, 'wall'],
+      [500, 700, 100, 100, 'crate'],
+      [1800, 700, 100, 100, 'crate'],
+      [500, 1300, 100, 100, 'crate'],
+      [1800, 1300, 100, 100, 'crate'],
+      [900, 1150, 90, 90, 'crate'],
+      [1410, 1150, 90, 90, 'crate'],
+    ],
+  },
+  // Map 1: "Kreuzfeuer-Ruinen" — 2 hangars in opposite corners (NW / SE), a dense
+  // zigzag maze of ruined walls fills the rest — tight, claustrophobic, very different.
+  {
+    name: 'Kreuzfeuer-Ruinen',
+    hangars: [
+      { x: 120, y: 120, w: 420, h: 300, gateSide: 'south', name: 'Ruinen-Bunker Nord' },
+      { x: 1860, y: 1380, w: 420, h: 300, gateSide: 'north', name: 'Ruinen-Bunker Süd' },
+    ],
+    obs: [
+      [700, 250, 300, 30, 'wall'], [1200, 250, 300, 30, 'wall'], [1700, 250, 300, 30, 'wall'],
+      [850, 280, 30, 220, 'wall'], [1350, 280, 30, 220, 'wall'],
+      [300, 650, 300, 30, 'wall'], [800, 650, 300, 30, 'wall'], [1300, 650, 300, 30, 'wall'], [1800, 650, 300, 30, 'wall'],
+      [450, 680, 30, 220, 'wall'], [950, 680, 30, 220, 'wall'], [1450, 680, 30, 220, 'wall'], [1950, 680, 30, 220, 'wall'],
+      [300, 1050, 300, 30, 'wall'], [800, 1050, 300, 30, 'wall'], [1300, 1050, 300, 30, 'wall'], [1800, 1050, 300, 30, 'wall'],
+      [450, 1080, 30, 220, 'wall'], [950, 1080, 30, 220, 'wall'], [1450, 1080, 30, 220, 'wall'],
+      [300, 1470, 300, 30, 'wall'], [800, 1470, 300, 30, 'wall'], [1300, 1470, 300, 30, 'wall'],
+      [1100, 850, 200, 120, 'machine'],
+      [600, 400, 80, 80, 'crate'], [1100, 400, 80, 80, 'crate'], [1600, 420, 80, 80, 'crate'],
+      [600, 850, 80, 80, 'crate'], [1600, 850, 80, 80, 'crate'],
+      [600, 1250, 80, 80, 'crate'], [1100, 1250, 80, 80, 'crate'], [1600, 1250, 80, 80, 'crate'],
+    ],
+  },
+];
+
 class World {
-  constructor() {
+  constructor(layoutIndex) {
     this.w = 2400;
     this.h = 1800;
     this.rects = [];      // solid collision rects (walls, crates, obstacles)
+    this.hangars = [];
     this.decor = [];      // barbwire, rubble, rocks
     this.energyDots = []; // blowing dust particles
+    this.layoutIndex = (layoutIndex !== undefined && layoutIndex !== null)
+      ? layoutIndex
+      : Utils.randInt(0, MAP_LAYOUTS.length - 1);
     this.build();
   }
+
+  // pushes a hangar's perimeter walls (with a gate gap) + its interior partition
+  buildHangar(hx, hy, hw, hh, gateSide, name) {
+    this.hangars.push({ x: hx, y: hy, w: hw, h: hh, name });
+    const gate = 140; // width of each gate-side wall segment (gap = hw - 2*gate)
+    if (gateSide === 'south') {
+      this.rects.push({ x: hx, y: hy, w: hw, h: 25, kind: 'hangar-wall' }); // top
+      this.rects.push({ x: hx, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // left
+      this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // right
+      this.rects.push({ x: hx, y: hy + hh - 25, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'right' });
+      this.rects.push({ x: hx + hw - gate, y: hy + hh - 25, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'left' });
+    } else {
+      this.rects.push({ x: hx, y: hy + hh - 25, w: hw, h: 25, kind: 'hangar-wall' }); // bottom
+      this.rects.push({ x: hx, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // left
+      this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // right
+      this.rects.push({ x: hx, y: hy, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'right' });
+      this.rects.push({ x: hx + hw - gate, y: hy, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'left' });
+    }
+    this.addHangarInterior(hx, hy, hw, hh, gateSide);
+  }
+
   build() {
     const t = 40; // border thickness
     // outer walls
@@ -16,96 +89,17 @@ class World {
     this.rects.push({ x: 0, y: 0, w: t, h: this.h, kind: 'wall' });
     this.rects.push({ x: this.w - t, y: 0, w: t, h: this.h, kind: 'wall' });
 
-    // Define military hangars
-    this.hangars = [
-      { x: 120, y: 120, w: 420, h: 300, name: 'Hangar A' },
-      { x: 1860, y: 120, w: 420, h: 300, name: 'Hangar B' },
-      { x: 120, y: 1380, w: 420, h: 300, name: 'Hangar C' },
-      { x: 1860, y: 1380, w: 420, h: 300, name: 'Hangar D' }
+    const layout = MAP_LAYOUTS[this.layoutIndex] || MAP_LAYOUTS[0];
+    for (const h of layout.hangars) this.buildHangar(h.x, h.y, h.w, h.h, h.gateSide, h.name);
+    for (const o of layout.obs) this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4] });
+
+    // workbench: pick the first clear candidate spot near the map center (layout-safe)
+    const wbCandidates = [
+      { x: this.w / 2, y: this.h / 2 + 260 }, { x: this.w / 2, y: this.h / 2 - 260 },
+      { x: this.w / 2 - 260, y: this.h / 2 }, { x: this.w / 2 + 260, y: this.h / 2 },
+      { x: this.w / 2, y: this.h / 2 },
     ];
-
-    // Dynamic hangar walls creation
-    // Hangar A (Top-Left): gate on South wall
-    this.rects.push({ x: 120, y: 120, w: 420, h: 25, kind: 'hangar-wall' }); // top
-    this.rects.push({ x: 120, y: 120, w: 25, h: 300, kind: 'hangar-wall' }); // left
-    this.rects.push({ x: 515, y: 120, w: 25, h: 300, kind: 'hangar-wall' }); // right
-    this.rects.push({ x: 120, y: 395, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'right' }); // bottom left
-    this.rects.push({ x: 400, y: 395, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'left' }); // bottom right
-
-    // Hangar B (Top-Right): gate on South wall
-    this.rects.push({ x: 1860, y: 120, w: 420, h: 25, kind: 'hangar-wall' }); // top
-    this.rects.push({ x: 1860, y: 120, w: 25, h: 300, kind: 'hangar-wall' }); // left
-    this.rects.push({ x: 2255, y: 120, w: 25, h: 300, kind: 'hangar-wall' }); // right
-    this.rects.push({ x: 1860, y: 395, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'right' }); // bottom left
-    this.rects.push({ x: 2140, y: 395, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'left' }); // bottom right
-
-    // Hangar C (Bottom-Left): gate on North wall
-    this.rects.push({ x: 120, y: 1655, w: 420, h: 25, kind: 'hangar-wall' }); // bottom
-    this.rects.push({ x: 120, y: 1380, w: 25, h: 300, kind: 'hangar-wall' }); // left
-    this.rects.push({ x: 515, y: 1380, w: 25, h: 300, kind: 'hangar-wall' }); // right
-    this.rects.push({ x: 120, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'right' }); // top left
-    this.rects.push({ x: 400, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'left' }); // top right
-
-    // Hangar D (Bottom-Right): gate on North wall
-    this.rects.push({ x: 1860, y: 1655, w: 420, h: 25, kind: 'hangar-wall' }); // bottom
-    this.rects.push({ x: 1860, y: 1380, w: 25, h: 300, kind: 'hangar-wall' }); // left
-    this.rects.push({ x: 2255, y: 1380, w: 25, h: 300, kind: 'hangar-wall' }); // right
-    this.rects.push({ x: 1860, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'right' }); // top left
-    this.rects.push({ x: 2140, y: 1380, w: 140, h: 25, kind: 'hangar-wall', gateSide: 'left' }); // top right
-
-    // Add interior hangar walls to split them into 4 tactical rooms
-    this.addHangarInterior(120, 120, 420, 300, 'south');   // Hangar A
-    this.addHangarInterior(1860, 120, 420, 300, 'south');  // Hangar B
-    this.addHangarInterior(120, 1380, 420, 300, 'north');  // Hangar C
-    this.addHangarInterior(1860, 1380, 420, 300, 'north'); // Hangar D
-
-    // interior obstacles forming a tactical labyrinth
-    const obs = [
-      // Central bunker
-      [1100, 850, 200, 100, 'machine'],
-      // Crates next to central bunker
-      [980, 860, 80, 80, 'crate'],
-      [1340, 860, 80, 80, 'crate'],
-      
-      // Left main tactical divider at x = 700 (three parts with gaps for flow)
-      [700, 40, 35, 480, 'wall'],
-      [700, 640, 35, 520, 'wall'],
-      [700, 1280, 35, 480, 'wall'],
-      
-      // Right main tactical divider at x = 1665 (three parts with gaps)
-      [1665, 40, 35, 480, 'wall'],
-      [1665, 640, 35, 520, 'wall'],
-      [1665, 1280, 35, 480, 'wall'],
-      
-      // Central area horizontal dividers
-      [700, 640, 320, 35, 'wall'],
-      [1380, 640, 320, 35, 'wall'],
-      [700, 1125, 320, 35, 'wall'],
-      [1380, 1125, 320, 35, 'wall'],
-      
-      // North / South center dividers
-      [1020, 40, 35, 420, 'wall'],
-      [1345, 40, 35, 420, 'wall'],
-      [1020, 1340, 35, 420, 'wall'],
-      [1345, 1340, 35, 420, 'wall'],
-      
-      // Side crates in the outer lanes
-      [330, 600, 90, 90, 'crate'],
-      [330, 1110, 90, 90, 'crate'],
-      [1980, 600, 90, 90, 'crate'],
-      [1980, 1110, 90, 90, 'crate'],
-      
-      // Side crates in the inner pockets
-      [840, 280, 80, 80, 'crate'],
-      [1480, 280, 80, 80, 'crate'],
-      [840, 1440, 80, 80, 'crate'],
-      [1480, 1440, 80, 80, 'crate'],
-      
-      // Barriers near central bunker
-      [850, 885, 100, 35, 'wall'],
-      [1450, 885, 100, 35, 'wall']
-    ];
-    for (const o of obs) this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4] });
+    this.workbenchPos = wbCandidates.find((p) => !pointInRects(p.x, p.y, this.rects, 40)) || wbCandidates[0];
 
     // generate static terrain features
     this.grassPatches = [];

@@ -31,6 +31,9 @@ class UI {
       invShieldCount: document.getElementById('inv-shield-val'),
       upgradeCards: document.getElementById('upgrade-cards'),
       upgradeWaitMsg: document.getElementById('upgrade-wait-msg'),
+      interactPrompt: document.getElementById('interact-prompt'),
+      workbenchCoins: document.getElementById('workbench-coins'),
+      workbenchCards: document.getElementById('workbench-cards'),
     };
     this.bannerTimer = 0;
   }
@@ -81,6 +84,10 @@ class UI {
       this.el.banner.style.opacity = Utils.clamp(this.bannerTimer, 0, 1);
       if (this.bannerTimer <= 0) this.el.banner.classList.add('hidden');
     }
+
+    if (this.el.interactPrompt) {
+      this.el.interactPrompt.classList.toggle('hidden', !(game.nearWorkbench && !game.workbenchOpenLocal && game.state === 'playing'));
+    }
   }
 
   showBanner(text) {
@@ -130,34 +137,8 @@ class UI {
     const waitMsg = document.getElementById('shop-wait-msg');
     if (waitMsg) waitMsg.classList.add('hidden');
 
-    // 1. Weapon Purchase Items
-    const weaponItems = [
-      { key: 'rifle', price: 120, name: 'M4A1 Sturmgewehr', icon: '🔫', desc: 'Mittelstrecken-Automatikgewehr.' },
-      { key: 'shotgun', price: 180, name: 'Remington 870 Schrotflinte', icon: '💥', desc: 'Verursacht massiven Nahbereichschaden.' },
-      { key: 'sniper', price: 250, name: 'Barrett .50 Cal Scharfschütze', icon: '🎯', desc: 'Hoher Einzelschaden, durchdringt Feinde.' },
-      { key: 'cannon', price: 400, name: 'RPG-7 Raketenwerfer', icon: '🚀', desc: 'Verschießt explosive Raketen mit Flächenschaden.' },
-      { key: 'smg', price: 200, name: 'MP7 Maschinenpistole', icon: '💨', desc: 'Extrem hohe Feuerrate, ideal gegen Schwärme.' },
-      { key: 'flamethrower', price: 320, name: 'M9 Flammenwerfer', icon: '🔥', desc: 'Kurze Reichweite, setzt Gegner in Brand (Schaden über Zeit).' },
-      { key: 'tesla', price: 360, name: 'Tesla-Blitzgewehr', icon: '⚡', desc: 'Blitze springen auf nahe Gegner über.' },
-      { key: 'cryo', price: 300, name: 'CR-6 Frostwerfer', icon: '❄️', desc: 'Verlangsamt getroffene Gegner deutlich.' }
-    ];
-
-    weaponItems.forEach((w) => {
-      const isUnlocked = me.weapons[w.key] && me.weapons[w.key].unlocked;
-      const card = document.createElement('div');
-      card.className = 'shop-card';
-      card.innerHTML =
-        '<div class="icon">' + w.icon + '</div>' +
-        '<div class="name">' + w.name + '</div>' +
-        '<div class="desc">' + w.desc + '</div>' +
-        '<button class="buy">' + (isUnlocked ? 'AUSGERÜSTET' : '🪙 ' + w.price) + '</button>';
-      const btn = card.querySelector('.buy');
-      btn.disabled = isUnlocked || me.coins < w.price;
-      btn.addEventListener('click', () => {
-        if (game.purchase('weapon', w.key, w.price)) this.showTacticalShop(game); // refresh
-      });
-      this.el.shopCards.appendChild(card);
-    });
+    // Waffen gibt es nur noch an der Werkbank (Taste E in der Nähe) — hier nur
+    // Verbrauchsgüter: Munition, Medkits, Schilde.
 
     // 2. Ammo refill
     const ammoPrice = 30;
@@ -206,6 +187,54 @@ class UI {
       if (game.purchase('shield', null, shieldPrice)) this.showTacticalShop(game); // refresh
     });
     this.el.shopCards.appendChild(shieldCard);
+  }
+
+  // ----- workbench: buy new weapons + upgrade owned weapons (per player, "press E") -----
+  showWorkbench(game) {
+    const me = game.localPlayer || game.player;
+    if (this.el.workbenchCoins) this.el.workbenchCoins.textContent = me.coins;
+    if (!this.el.workbenchCards) return;
+    this.el.workbenchCards.innerHTML = '';
+
+    WEAPON_SHOP_ITEMS.forEach((w) => {
+      const owned = me.weapons[w.key] && me.weapons[w.key].unlocked;
+      const def = WEAPON_DEFS[w.key];
+      const card = document.createElement('div');
+      card.className = 'shop-card';
+      card.innerHTML =
+        '<div class="icon">' + w.icon + '</div>' +
+        '<div class="name">' + def.name + '</div>' +
+        '<div class="desc">' + w.desc + '</div>' +
+        '<button class="buy">' + (owned ? 'AUSGERÜSTET' : '🪙 ' + w.price) + '</button>';
+      const btn = card.querySelector('.buy');
+      btn.disabled = owned || me.coins < w.price;
+      btn.addEventListener('click', () => {
+        if (game.buyWeaponAtWorkbench(w.key, w.price)) this.showWorkbench(game); // refresh
+      });
+      this.el.workbenchCards.appendChild(card);
+    });
+
+    // per-weapon upgrade cards — only for weapons the player already owns
+    WEAPON_ORDER.forEach((key) => {
+      if (!me.weapons[key] || !me.weapons[key].unlocked) return;
+      const def = WEAPON_DEFS[key];
+      const lvl = me.weaponLevels[key] || 0;
+      const maxed = lvl >= WEAPON_UPGRADE_MAX;
+      const price = WEAPON_UPGRADE_PRICES[lvl] || 0;
+      const card = document.createElement('div');
+      card.className = 'shop-card';
+      card.innerHTML =
+        '<div class="icon">🛠️</div>' +
+        '<div class="name">' + def.name + ' Upgrade</div>' +
+        '<div class="desc">Level ' + lvl + ' / ' + WEAPON_UPGRADE_MAX + ' — mehr Schaden, Feuerrate &amp; Magazin.</div>' +
+        '<button class="buy">' + (maxed ? 'MAX. LEVEL' : '🪙 ' + price) + '</button>';
+      const btn = card.querySelector('.buy');
+      btn.disabled = maxed || me.coins < price;
+      btn.addEventListener('click', () => {
+        if (game.upgradeWeaponAtWorkbench(key, price)) this.showWorkbench(game); // refresh
+      });
+      this.el.workbenchCards.appendChild(card);
+    });
   }
 
   showGameOver(stats) {

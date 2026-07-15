@@ -38,10 +38,13 @@ class Game {
   }
 
   // mode: 'solo' (default) | 'host' | 'guest' — coop games always run 2 player slots
-  newGame(mode, gameMode) {
+  newGame(mode, gameMode, mapIndex) {
     this.mode = mode || 'solo';
     this.gameMode = gameMode || 'standard';
-    this.world = new World();
+    this.world = new World(mapIndex);
+    this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
+    this.nearWorkbench = false;
+    this.workbenchOpenLocal = false;
     const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
     this.player = new Player(spawn.x - 20, spawn.y);
     this.player2 = this.mode !== 'solo' ? new Player(spawn.x + 20, spawn.y, this.mode === 'host') : null;
@@ -202,6 +205,54 @@ class Game {
     else if (kind === 'shield') p.shieldsCount++;
   }
 
+  // ----- workbench (in-world weapon shop + per-weapon upgrades, "press E") -----
+  openWorkbench() {
+    this.workbenchOpenLocal = true;
+    this.ui.showHUD(false);
+    this.ui.showWorkbench(this);
+    Menus.show('workbench-menu');
+  }
+
+  closeWorkbench() {
+    this.workbenchOpenLocal = false;
+    Menus.hideAll();
+    this.ui.showHUD(true);
+  }
+
+  buyWeaponAtWorkbench(key, price) {
+    const me = this.localPlayer;
+    if (me.coins < price || (me.weapons[key] && me.weapons[key].unlocked)) return false;
+    me.coins -= price;
+    me.unlock(key);
+    if (this.mode === 'guest') Net.sendWorkbenchAction({ action: 'buy-weapon', key, price });
+    Audio2.buy();
+    return true;
+  }
+
+  upgradeWeaponAtWorkbench(key, price) {
+    const me = this.localPlayer;
+    if (me.coins < price) return false;
+    if (!me.upgradeWeapon(key)) return false;
+    me.coins -= price;
+    if (this.mode === 'guest') Net.sendWorkbenchAction({ action: 'upgrade-weapon', key, price });
+    Audio2.buy();
+    return true;
+  }
+
+  // host receives a guest workbench action and applies it to the guest's authoritative player
+  onGuestWorkbenchAction(msg) {
+    if (this.mode !== 'host' || !this.player2) return;
+    if (this.player2.coins < msg.price) return;
+    if (msg.action === 'buy-weapon') {
+      if (this.player2.weapons[msg.key] && this.player2.weapons[msg.key].unlocked) return;
+      this.player2.coins -= msg.price;
+      this.player2.unlock(msg.key);
+    } else if (msg.action === 'upgrade-weapon') {
+      if (!this.player2.upgradeWeapon(msg.key)) return;
+      this.player2.coins -= msg.price;
+    }
+  }
+
   // the "Nächste Welle ▶" / close button
   leaveShop() {
     if (this.mode === 'solo') { this.closeShop(); return; }
@@ -290,8 +341,14 @@ class Game {
       if (this.state === 'playing' && this.player2) {
         Input.mouse.worldX = this.cam.x + Input.mouse.x;
         Input.mouse.worldY = this.cam.y + Input.mouse.y;
-        if (this.shopOpenLocal) {
-          // shop overlay open: stand still, don't fire — send a neutral packet
+        // cosmetic proximity check (map layout is synced, so this matches the host's)
+        this.nearWorkbench = this.workbench && Utils.dist(this.player2.x, this.player2.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
+        if (this.nearWorkbench && !this.shopOpenLocal && !this.workbenchOpenLocal && Input.wasPressed('e')) {
+          this.openWorkbench();
+          Input.pressed['e'] = false;
+        }
+        if (this.shopOpenLocal || this.workbenchOpenLocal) {
+          // menu open: stand still, don't fire — send a neutral packet
           Net.sendInput({ keys: {}, justPressed: [], mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: false, rightDown: false, rightPressed: false });
         } else {
           Net.sendInput({
@@ -321,6 +378,14 @@ class Game {
     // convert mouse to world
     Input.mouse.worldX = this.cam.x + Input.mouse.x;
     Input.mouse.worldY = this.cam.y + Input.mouse.y;
+
+    // workbench interact ("press E") — consume the keypress here so it doesn't
+    // also trigger the local player's shield activation this frame.
+    this.nearWorkbench = this.workbench && Utils.dist(this.player.x, this.player.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
+    if (this.nearWorkbench && !this.workbenchOpenLocal && Input.wasPressed('e')) {
+      this.openWorkbench();
+      Input.pressed['e'] = false;
+    }
 
     this.world.update(dt);
     for (const p of this.players) if (p.hp > 0) p.update(dt, this);
@@ -596,6 +661,7 @@ class Game {
 
     // 1. Draw elements that are hidden in the dark
     this.world.draw(ctx, this.cam, this.time);
+    if (this.workbench) this.workbench.draw(ctx, this.time, this.nearWorkbench);
     for (const c of this.coins) c.draw(ctx, this.time);
     for (const m of this.medkits) m.draw(ctx, this.time);
     for (const s of this.shields) s.draw(ctx, this.time);

@@ -31,9 +31,11 @@ class Player {
     // weapons: player owns all, but only plasma at first? Spec says start with plasma,
     // and weapons are "added". We give access to all via number keys for playability.
     this.weapons = {};
+    this.weaponLevels = {};
     for (const k of WEAPON_ORDER) {
       const d = WEAPON_DEFS[k];
       this.weapons[k] = { ammo: Math.round(d.mag), unlocked: k === 'plasma' };
+      this.weaponLevels[k] = 0;
     }
     this.currentWeapon = 'plasma';
     this.fireCooldown = 0;
@@ -57,7 +59,24 @@ class Player {
     this.meleeArc = Math.PI * 0.6; // ~108° swing cone
   }
 
-  weaponDef() { return WEAPON_DEFS[this.currentWeapon]; }
+  // effective def for the equipped weapon, including per-weapon workbench upgrades
+  weaponDef() {
+    const base = WEAPON_DEFS[this.currentWeapon];
+    const lvl = (this.weaponLevels && this.weaponLevels[this.currentWeapon]) || 0;
+    if (lvl <= 0) return base;
+    return {
+      ...base,
+      damage: base.damage * (1 + lvl * 0.12),
+      fireRate: base.fireRate * (1 + lvl * 0.08),
+      mag: Math.round(base.mag * (1 + lvl * 0.2)),
+    };
+  }
+  upgradeWeapon(key) {
+    const lvl = this.weaponLevels[key] || 0;
+    if (lvl >= WEAPON_UPGRADE_MAX) return false;
+    this.weaponLevels[key] = lvl + 1;
+    return true;
+  }
   magSize() {
     if (this.magCapacity !== undefined) return this.magCapacity;
     return Math.round(this.weaponDef().mag * this.mods.mag);

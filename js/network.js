@@ -73,9 +73,10 @@ const Net = {
 
   sendInput(data) { this.send({ type: 'input', data }); },
   sendSnapshot(data) { this.send({ type: 'snapshot', data }); },
-  sendStart(gameMode) { this.send({ type: 'start', gameMode }); },
+  sendStart(gameMode, mapIndex) { this.send({ type: 'start', gameMode, mapIndex }); },
   sendShopAction(data) { this.send({ type: 'shop-action', data }); },
   sendShopDone() { this.send({ type: 'shop-done' }); },
+  sendWorkbenchAction(data) { this.send({ type: 'workbench-action', data }); },
 
   handleMessage(msg) {
     switch (msg.type) {
@@ -112,6 +113,9 @@ const Net = {
         break;
       case 'shop-done':
         this.emit('shop-done', msg);
+        break;
+      case 'workbench-action':
+        this.emit('workbench-action', msg.data);
         break;
       case 'host-left':
       case 'guest-left':
