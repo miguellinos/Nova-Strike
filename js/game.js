@@ -566,6 +566,16 @@ class Game {
         this.updateCamera(dt);
         Input.mouse.worldX = this.cam.x + Input.mouse.x / this.zoom;
         Input.mouse.worldY = this.cam.y + Input.mouse.y / this.zoom;
+
+        // Client-side prediction for aim: applySnapshot() only updates aimAngle once
+        // a round trip after the mouse actually moved (input -> host -> next
+        // simulated frame -> snapshot -> back to us), so the weapon visibly lagged
+        // behind the cursor and only "caught up" once a fresh snapshot landed. The
+        // host still fires using ITS OWN aimAngle computed from our input packet, so
+        // this is purely a render fix — recompute our own aim instantly every frame
+        // from where we already know we are.
+        this.player2.aimAngle = Utils.angle(this.player2.x, this.player2.y, Input.mouse.worldX, Input.mouse.worldY);
+
         this.nearWorkbench = this.workbench && Utils.dist(this.player2.x, this.player2.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
         this.nearShop = this.shopTable && Utils.dist(this.player2.x, this.player2.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
         this.nearTrainingRange = this.trainingRange && Utils.dist(this.player2.x, this.player2.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
