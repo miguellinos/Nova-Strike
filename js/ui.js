@@ -95,7 +95,7 @@ class UI {
         this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für den Shop';
         this.el.interactPrompt.classList.remove('hidden');
       } else if (showPrompt && game.nearTrainingRange) {
-        this.el.interactPrompt.innerHTML = 'Drücke <b>E</b> für Trainingsrange';
+        this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für Trainingsrange';
         this.el.interactPrompt.classList.remove('hidden');
       } else {
         this.el.interactPrompt.classList.add('hidden');
