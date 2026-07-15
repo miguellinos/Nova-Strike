@@ -1231,6 +1231,10 @@ class Game {
 
     ctx.restore();
 
+    // co-op: arrow pointing at your teammate whenever they're off-screen, so you
+    // always know which way to go to regroup
+    if (this.mode !== 'solo' && this.state === 'playing') this.drawTeammateIndicator(ctx);
+
     // damage vignette
     if (this.damageVignette > 0) {
       const g = ctx.createRadialGradient(this.canvas.width / 2, this.canvas.height / 2, this.canvas.height * 0.3,
@@ -1244,6 +1248,60 @@ class Game {
     if (this.inventoryOpenLocal) {
       this.ui.drawInventoryPreview(this);
     }
+  }
+
+  drawTeammateIndicator(ctx) {
+    const me = this.localPlayer;
+    const mate = this.players.find((p) => p !== me);
+    if (!me || !mate) return;
+
+    // still inside the camera view (with a margin so the arrow appears a beat
+    // before they'd actually be cut off) — nothing to point at
+    const margin = 60;
+    const onScreen = mate.x > this.cam.x + margin && mate.x < this.cam.x + this.cam.w - margin &&
+      mate.y > this.cam.y + margin && mate.y < this.cam.y + this.cam.h - margin;
+    if (onScreen) return;
+
+    const dx = mate.x - me.x, dy = mate.y - me.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1) return;
+    const angle = Math.atan2(dy, dx);
+
+    // clamp the arrow to just inside the screen edge, along the direction to the teammate
+    const cx = this.canvas.width / 2, cy = this.canvas.height / 2;
+    const pad = 50;
+    const halfW = cx - pad, halfH = cy - pad;
+    const scale = Math.min(Math.abs(halfW / (dx || 0.0001)), Math.abs(halfH / (dy || 0.0001)));
+    const ex = cx + dx * scale, ey = cy + dy * scale;
+
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.rotate(angle);
+    const color = mate.hp <= 0 ? '#ff8a5b' : '#4af626'; // amber if they're downed, green otherwise
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 10; ctx.shadowColor = color;
+    ctx.beginPath();
+    ctx.moveTo(16, 0);
+    ctx.lineTo(-9, -10);
+    ctx.lineTo(-3, 0);
+    ctx.lineTo(-9, 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(5,10,5,0.8)';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.restore();
+
+    // distance label just behind the arrow tip
+    ctx.save();
+    const lx = ex - Math.cos(angle) * 24, ly = ey - Math.sin(angle) * 24;
+    ctx.fillStyle = '#eaffea';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(dist / 20) + 'm', lx, ly);
+    ctx.restore();
   }
 
   drawFlashlightMask(ctx) {
