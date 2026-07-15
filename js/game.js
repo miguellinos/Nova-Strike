@@ -26,8 +26,11 @@ class Game {
     this.cam.h = this.canvas.height / this.zoom;
   }
 
-  // all active players (1 in solo, 2 in co-op)
-  get players() { return this.player2 ? [this.player, this.player2] : [this.player]; }
+  // all active players (1 in solo, 2 in co-op). Cached instead of allocating a new
+  // array on every access — this getter is read dozens of times per frame (update,
+  // render, buildSnapshot, nearestPlayer, projectile collision, ...), and player/
+  // player2 only ever change once, in newGame(). The cache is rebuilt there.
+  get players() { return this._playersCache || (this._playersCache = this.player2 ? [this.player, this.player2] : [this.player]); }
   // the player whose stats/HUD belong to THIS browser tab
   get localPlayer() { return this.mode === 'guest' ? this.player2 : this.player; }
 
@@ -35,10 +38,14 @@ class Game {
     // enemies should target whoever can still fight back — a downed, spectating
     // teammate shouldn't act as an aggro magnet (or a free target once revived
     // near the fight). Only fall back to a dead player if everyone is down.
-    const alive = this.players.filter((p) => p.hp > 0);
-    const pool = alive.length > 0 ? alive : this.players;
-    let best = pool[0], bestD = Infinity;
-    for (const p of pool) {
+    // Called once per enemy/coin/medkit/shield every frame, so this avoids the
+    // .filter() allocation that used to run on every single call.
+    const players = this.players;
+    let anyAlive = false;
+    for (const p of players) if (p.hp > 0) { anyAlive = true; break; }
+    let best = players[0], bestD = Infinity;
+    for (const p of players) {
+      if (anyAlive && p.hp <= 0) continue;
       const d = Utils.dist(x, y, p.x, p.y);
       if (d < bestD) { bestD = d; best = p; }
     }
@@ -68,6 +75,7 @@ class Game {
     const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
     this.player = new Player(spawn.x - 20, spawn.y);
     this.player2 = this.mode !== 'solo' ? new Player(spawn.x + 20, spawn.y, this.mode === 'host') : null;
+    this._playersCache = null; // invalidate the cached players array (see the getter above)
     this.projectiles = [];
     this.enemyProjectiles = [];
     this.enemies = [];
