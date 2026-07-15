@@ -93,6 +93,12 @@ class World {
     for (const h of layout.hangars) this.buildHangar(h.x, h.y, h.w, h.h, h.gateSide, h.name);
     for (const o of layout.obs) this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4] });
 
+    // Shop building walls in the top right
+    this.rects.push({ x: 2120, y: 40, w: 20, h: 240, kind: 'hangar-wall' }); // West wall
+    // South walls leaving a doorway from 2190 to 2270
+    this.rects.push({ x: 2120, y: 260, w: 70, h: 20, kind: 'hangar-wall' }); // South wall left
+    this.rects.push({ x: 2270, y: 260, w: 90, h: 20, kind: 'hangar-wall' }); // South wall right
+
     // workbench: pick the first clear candidate spot near the map center (layout-safe)
     const wbCandidates = [
       { x: this.w / 2, y: this.h / 2 + 260 }, { x: this.w / 2, y: this.h / 2 - 260 },
@@ -269,6 +275,35 @@ class World {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(h.name, h.x + h.w / 2, h.y + h.h / 2);
+    }
+
+    // 1c. Draw Shop Floor
+    const shopFloorX = 2140;
+    const shopFloorY = 40;
+    const shopFloorW = 220;
+    const shopFloorH = 220;
+    if (!(shopFloorX > cam.x + cam.w || shopFloorX + shopFloorW < cam.x || shopFloorY > cam.y + cam.h || shopFloorY + shopFloorH < cam.y)) {
+      ctx.fillStyle = '#1e1c24'; // sleek dark purple-ish grey
+      ctx.fillRect(shopFloorX, shopFloorY, shopFloorW, shopFloorH);
+      
+      // Draw grid/tiles
+      ctx.strokeStyle = 'rgba(0, 255, 200, 0.15)'; // glowing cyan tiles
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      for (let gx = shopFloorX + 44; gx < shopFloorX + shopFloorW; gx += 44) {
+        ctx.moveTo(gx, shopFloorY); ctx.lineTo(gx, shopFloorY + shopFloorH);
+      }
+      for (let gy = shopFloorY + 44; gy < shopFloorY + shopFloorH; gy += 44) {
+        ctx.moveTo(shopFloorX, gy); ctx.lineTo(shopFloorX + shopFloorW, gy);
+      }
+      ctx.stroke();
+
+      // Draw "SHOP" or a shopping cart logo on the floor
+      ctx.fillStyle = 'rgba(0, 255, 200, 0.2)';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🛒 TACTICAL SHOP', shopFloorX + shopFloorW / 2, shopFloorY + shopFloorH / 2);
     }
 
     // 2. Draw tire tracks

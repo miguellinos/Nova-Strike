@@ -45,6 +45,9 @@ class Game {
     this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
     this.nearWorkbench = false;
     this.workbenchOpenLocal = false;
+    this.shopTable = new ShopTable(2250, 130);
+    this.nearShop = false;
+    this.inventoryOpenLocal = false;
     const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
     this.player = new Player(spawn.x - 20, spawn.y);
     this.player2 = this.mode !== 'solo' ? new Player(spawn.x + 20, spawn.y, this.mode === 'host') : null;
@@ -204,6 +207,56 @@ class Game {
       for (const k in p.weapons) if (p.weapons[k].unlocked) p.weapons[k].ammo = Math.round(WEAPON_DEFS[k].mag * p.mods.mag);
     } else if (kind === 'medkit') p.medkitsCount++;
     else if (kind === 'shield') p.shieldsCount++;
+    else if (kind === 'bread') p.breadCount++;
+    else if (kind === 'novacola') p.novacolaCount++;
+  }
+
+  openShopFromWorld() {
+    if (this.mode === 'solo') {
+      this.midWaveShop = true;
+      this.openTacticalShop();
+    } else {
+      this.midWaveShop = true;
+      this.shopOpenLocal = true;
+      this.ui.showHUD(false);
+      this.ui.showTacticalShop(this);
+      Menus.show('shop-menu');
+    }
+  }
+
+  openInventory() {
+    this.inventoryOpenLocal = true;
+    if (this.mode === 'solo') {
+      this.state = 'inventory';
+    }
+    this.ui.showHUD(false);
+    this.ui.showInventory(this);
+    Menus.show('inventory-menu');
+  }
+
+  closeInventory() {
+    this.inventoryOpenLocal = false;
+    if (this.mode === 'solo') {
+      this.state = 'playing';
+    }
+    Menus.hideAll();
+    this.ui.showHUD(true);
+  }
+
+  useInventoryItem(kind) {
+    const me = this.localPlayer;
+    let success = false;
+    if (kind === 'bread') success = me.useBread(this);
+    else if (kind === 'novacola') success = me.useNovacola(this);
+    else if (kind === 'medkit') success = me.useMedkit(this);
+    else if (kind === 'shield') success = me.useShield(this);
+
+    if (success) {
+      if (this.mode === 'guest') {
+        Net.sendShopAction({ action: 'use-item', kind });
+      }
+      this.ui.showInventory(this); // refresh UI
+    }
   }
 
   // ----- workbench (in-world weapon shop + per-weapon upgrades, "press E") -----
@@ -299,6 +352,11 @@ class Game {
         this.player2.coins -= msg.price;
         this.applyPurchase(this.player2, msg.kind, msg.key);
       }
+    } else if (msg.action === 'use-item') {
+      if (msg.kind === 'bread') this.player2.useBread(this);
+      else if (msg.kind === 'novacola') this.player2.useNovacola(this);
+      else if (msg.kind === 'medkit') this.player2.useMedkit(this);
+      else if (msg.kind === 'shield') this.player2.useShield(this);
     }
   }
 
@@ -349,7 +407,16 @@ class Game {
           this.openWorkbench();
           Input.pressed['e'] = false;
         }
-        if (this.shopOpenLocal || this.workbenchOpenLocal) {
+        this.nearShop = this.shopTable && Utils.dist(this.player2.x, this.player2.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
+        if (this.nearShop && !this.shopOpenLocal && !this.workbenchOpenLocal && Input.wasPressed('e')) {
+          this.openShopFromWorld();
+          Input.pressed['e'] = false;
+        }
+        if (Input.wasPressed('i')) {
+          if (this.inventoryOpenLocal) this.closeInventory(); else this.openInventory();
+          Input.pressed['i'] = false;
+        }
+        if (this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal) {
           // menu open: stand still, don't fire — send a neutral packet
           Net.sendInput({ keys: {}, justPressed: [], mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: false, rightDown: false, rightPressed: false });
         } else {
@@ -365,6 +432,16 @@ class Game {
       this.ui.updateHUD(this);
       Input.clearFrame();
       return;
+    }
+
+    // Toggle inventory menu with 'I'
+    if (Input.wasPressed('i')) {
+      if (this.state === 'playing') {
+        this.openInventory();
+      } else if (this.inventoryOpenLocal) {
+        this.closeInventory();
+      }
+      Input.pressed['i'] = false;
     }
 
     if (this.state !== 'playing') {
@@ -386,6 +463,11 @@ class Game {
     this.nearWorkbench = this.workbench && Utils.dist(this.player.x, this.player.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
     if (this.nearWorkbench && !this.workbenchOpenLocal && Input.wasPressed('e')) {
       this.openWorkbench();
+      Input.pressed['e'] = false;
+    }
+    this.nearShop = this.shopTable && Utils.dist(this.player.x, this.player.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
+    if (this.nearShop && !this.shopOpenLocal && Input.wasPressed('e')) {
+      this.openShopFromWorld();
       Input.pressed['e'] = false;
     }
 
@@ -442,6 +524,11 @@ class Game {
         reloading: p.reloading, reloadTimer: p.reloadTimer, reloadTotal: p.reloadTotal,
         dashCd: p.dashCd, dashCdTotal: p.dashCooldown(), hitFlash: p.hitFlash, invuln: p.invuln, walkPhase: p.walkPhase,
         visionRange: p.mods.visionRange, meleeSwing: p.meleeSwing, meleeArc: p.meleeArc, meleeRange: p.meleeRange, shieldHp: p.shieldHp,
+        novaColaTimer: p.novaColaTimer || 0,
+        medkitsCount: p.medkitsCount || 0,
+        shieldsCount: p.shieldsCount || 0,
+        breadCount: p.breadCount || 0,
+        novacolaCount: p.novacolaCount || 0,
       })),
       enemies: this.enemies.map((e) => ({ x: e.x, y: e.y, radius: e.radius, color: e.color, hp: e.hp, maxHp: e.maxHp, type: e.type, hitFlash: e.hitFlash })),
       boss: this.boss && !this.boss.dead ? {
@@ -483,6 +570,11 @@ class Game {
         this.player2.x = d.x; this.player2.y = d.y; this.player2.aimAngle = d.aimAngle;
         this.player2.hp = d.hp; this.player2.maxHp = d.maxHp; this.player2.hitFlash = d.hitFlash;
         this.player2.invuln = d.invuln; this.player2.walkPhase = d.walkPhase; this.player2.shieldHp = d.shieldHp;
+        this.player2.novaColaTimer = d.novaColaTimer || 0;
+        this.player2.medkitsCount = d.medkitsCount || 0;
+        this.player2.shieldsCount = d.shieldsCount || 0;
+        this.player2.breadCount = d.breadCount || 0;
+        this.player2.novacolaCount = d.novacolaCount || 0;
       } else {
         assign(this.player2, d);
         if (!this.player2.mods) this.player2.mods = {};
@@ -654,6 +746,7 @@ class Game {
     // 1. Draw elements that are hidden in the dark
     this.world.draw(ctx, this.cam, this.time);
     if (this.workbench) this.workbench.draw(ctx, this.time, this.nearWorkbench);
+    if (this.shopTable) this.shopTable.draw(ctx, this.time, this.nearShop);
     for (const c of this.coins) c.draw(ctx, this.time);
     for (const m of this.medkits) m.draw(ctx, this.time);
     for (const s of this.shields) s.draw(ctx, this.time);

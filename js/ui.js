@@ -86,7 +86,16 @@ class UI {
     }
 
     if (this.el.interactPrompt) {
-      this.el.interactPrompt.classList.toggle('hidden', !(game.nearWorkbench && !game.workbenchOpenLocal && game.state === 'playing'));
+      const showPrompt = game.state === 'playing' && !game.workbenchOpenLocal && !game.shopOpenLocal;
+      if (showPrompt && game.nearWorkbench) {
+        this.el.interactPrompt.innerHTML = 'Drücke <b>E</b> für die Werkbank';
+        this.el.interactPrompt.classList.remove('hidden');
+      } else if (showPrompt && game.nearShop) {
+        this.el.interactPrompt.innerHTML = 'Drücke <b>E</b> für den Shop';
+        this.el.interactPrompt.classList.remove('hidden');
+      } else {
+        this.el.interactPrompt.classList.add('hidden');
+      }
     }
   }
 
@@ -187,6 +196,38 @@ class UI {
       if (game.purchase('shield', null, shieldPrice)) this.showTacticalShop(game); // refresh
     });
     this.el.shopCards.appendChild(shieldCard);
+
+    // 5. Brot (Bread) purchase
+    const breadPrice = 10;
+    const breadCard = document.createElement('div');
+    breadCard.className = 'shop-card';
+    breadCard.innerHTML =
+      '<div class="icon">🍞</div>' +
+      '<div class="name">Frisches Brot</div>' +
+      '<div class="desc">Heilt dich sofort um 15 HP. Extrem billig!</div>' +
+      '<button class="buy">🪙 ' + breadPrice + '</button>';
+    const breadBtn = breadCard.querySelector('.buy');
+    breadBtn.disabled = me.coins < breadPrice || me.hp >= me.maxHp;
+    breadBtn.addEventListener('click', () => {
+      if (game.purchase('bread', null, breadPrice)) this.showTacticalShop(game); // refresh
+    });
+    this.el.shopCards.appendChild(breadCard);
+
+    // 6. Novacola purchase
+    const novacolaPrice = 25;
+    const novacolaCard = document.createElement('div');
+    novacolaCard.className = 'shop-card';
+    novacolaCard.innerHTML =
+      '<div class="icon">🥤</div>' +
+      '<div class="name">Novacola</div>' +
+      '<div class="desc">Gibt dir einen heftigen Speedboost für 8 Sek.</div>' +
+      '<button class="buy">🪙 ' + novacolaPrice + '</button>';
+    const novacolaBtn = novacolaCard.querySelector('.buy');
+    novacolaBtn.disabled = me.coins < novacolaPrice;
+    novacolaBtn.addEventListener('click', () => {
+      if (game.purchase('novacola', null, novacolaPrice)) this.showTacticalShop(game); // refresh
+    });
+    this.el.shopCards.appendChild(novacolaCard);
   }
 
   // ----- workbench: buy new weapons + upgrade owned weapons (per player, "press E") -----
@@ -234,6 +275,76 @@ class UI {
         if (game.upgradeWeaponAtWorkbench(key, price)) this.showWorkbench(game); // refresh
       });
       this.el.workbenchCards.appendChild(card);
+    });
+  }
+
+  showInventory(game) {
+    const me = game.localPlayer || game.player;
+    const container = document.getElementById('inventory-items');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const items = [
+      {
+        id: 'bread',
+        name: 'Frisches Brot',
+        icon: '🍞',
+        desc: 'Heilt dich sofort um 15 HP.',
+        count: me.breadCount || 0,
+        canUse: me.hp < me.maxHp && (me.breadCount || 0) > 0,
+      },
+      {
+        id: 'novacola',
+        name: 'Novacola',
+        icon: '🥤',
+        desc: 'Gibt dir einen Speedboost für 8 Sek.',
+        count: me.novacolaCount || 0,
+        canUse: (me.novacolaCount || 0) > 0,
+      },
+      {
+        id: 'medkit',
+        name: 'Tragbares Medkit',
+        icon: '🎒',
+        desc: 'Heilt dich sofort um 40 HP.',
+        count: me.medkitsCount || 0,
+        canUse: me.hp < me.maxHp && (me.medkitsCount || 0) > 0,
+      },
+      {
+        id: 'shield',
+        name: 'Schildzelle',
+        icon: '🛡️',
+        desc: 'Lädt dein Schild um 50 Punkte auf.',
+        count: me.shieldsCount || 0,
+        canUse: me.shieldHp < me.maxShieldHp && (me.shieldsCount || 0) > 0,
+      }
+    ];
+
+    items.forEach((item) => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.justifyContent = 'space-between';
+      row.style.background = 'rgba(25, 35, 25, 0.7)';
+      row.style.border = '1px solid rgba(74, 246, 38, 0.2)';
+      row.style.borderRadius = '8px';
+      row.style.padding = '10px 14px';
+      row.style.gap = '12px';
+
+      row.innerHTML = `
+        <div style="font-size: 24px;">${item.icon}</div>
+        <div style="flex: 1; text-align: left;">
+          <div style="font-weight: bold; color: var(--cyan);">${item.name} <span style="color: var(--gold); font-size: 14px;">(Besitz: ${item.count})</span></div>
+          <div style="font-size: 11px; color: #a2bca0; margin-top: 2px;">${item.desc}</div>
+        </div>
+        <button class="btn btn-use" style="width: auto; margin: 0; padding: 6px 14px; font-size: 13px;" ${!item.canUse ? 'disabled' : ''}>Benutzen</button>
+      `;
+
+      const btn = row.querySelector('.btn-use');
+      btn.addEventListener('click', () => {
+        game.useInventoryItem(item.id);
+      });
+
+      container.appendChild(row);
     });
   }
 

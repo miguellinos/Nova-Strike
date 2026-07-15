@@ -57,6 +57,9 @@ class Player {
     this.meleeDamage = 46;
     this.meleeRange = 62;
     this.meleeArc = Math.PI * 0.6; // ~108° swing cone
+    this.novaColaTimer = 0;
+    this.breadCount = 0;
+    this.novacolaCount = 0;
   }
 
   // effective def for the equipped weapon, including per-weapon workbench upgrades
@@ -117,6 +120,9 @@ class Player {
     }
 
     let speed = this.baseSpeed * this.mods.move;
+    if (this.novaColaTimer > 0) {
+      speed *= 1.45; // 45% speed boost!
+    }
     if (this.dashTime > 0) {
       this.dashTime -= dt;
       speed = 900;
@@ -137,14 +143,26 @@ class Player {
     }
     if (this.invuln > 0) this.invuln -= dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+    if (this.novaColaTimer > 0) {
+      this.novaColaTimer -= dt;
+      if (game && game.particles && Math.random() < 0.15) {
+        game.particles.spawn(this.x + Utils.rand(-10, 10), this.y + Utils.rand(-10, 10), '#00ffcc', {
+          count: 1, minSpeed: 10, maxSpeed: 40, life: 0.4, size: 2
+        });
+      }
+    }
+
+    const menusOpen = game.shopOpenLocal || game.workbenchOpenLocal || game.inventoryOpenLocal;
 
     // weapon switch by number keys
-    for (let i = 0; i < WEAPON_ORDER.length; i++) {
-      if (this.input.wasPressed(String(i + 1))) this.switchWeapon(WEAPON_ORDER[i]);
+    if (!menusOpen) {
+      for (let i = 0; i < WEAPON_ORDER.length; i++) {
+        if (this.input.wasPressed(String(i + 1))) this.switchWeapon(WEAPON_ORDER[i]);
+      }
     }
 
     // reload
-    if (this.input.wasPressed('r')) this.startReload();
+    if (!menusOpen && this.input.wasPressed('r')) this.startReload();
     if (this.reloading) {
       this.reloadTimer -= dt;
       if (this.reloadTimer <= 0) {
@@ -155,7 +173,7 @@ class Player {
 
     // shooting
     if (this.fireCooldown > 0) this.fireCooldown -= dt;
-    if (this.input.mouse.down && !this.reloading && this.fireCooldown <= 0) {
+    if (!menusOpen && this.input.mouse.down && !this.reloading && this.fireCooldown <= 0) {
       const w = this.weapons[this.currentWeapon];
       if (w.ammo > 0) this.shoot(game);
       else this.startReload();
@@ -164,11 +182,11 @@ class Player {
     // melee attack (right-click)
     if (this.meleeCd > 0) this.meleeCd -= dt;
     if (this.meleeSwing > 0) this.meleeSwing -= dt;
-    if (this.input.mouse.rightPressed && this.meleeCd <= 0) this.meleeAttack(game);
+    if (!menusOpen && this.input.mouse.rightPressed && this.meleeCd <= 0) this.meleeAttack(game);
 
     // active item activations
-    if (this.input.wasPressed('q')) this.useMedkit(game);
-    if (this.input.wasPressed('e')) this.useShield(game);
+    if (!menusOpen && this.input.wasPressed('q')) this.useMedkit(game);
+    if (!menusOpen && this.input.wasPressed('e')) this.useShield(game);
   }
 
   meleeAttack(game) {
@@ -269,6 +287,32 @@ class Player {
 
   heal(a) { this.hp = Utils.clamp(this.hp + a, 0, this.maxHp); }
 
+  useBread(game) {
+    if (this.breadCount > 0 && this.hp < this.maxHp) {
+      this.breadCount--;
+      this.heal(15);
+      Audio2.heal();
+      if (game && game.particles) {
+        game.particles.spawn(this.x, this.y, '#4af626', { count: 8, minSpeed: 30, maxSpeed: 100, life: 0.4, size: 3 });
+      }
+      return true;
+    }
+    return false;
+  }
+
+  useNovacola(game) {
+    if (this.novacolaCount > 0) {
+      this.novacolaCount--;
+      this.novaColaTimer = 8;
+      Audio2.reload();
+      if (game && game.particles) {
+        game.particles.spawn(this.x, this.y, '#00ffcc', { count: 12, minSpeed: 40, maxSpeed: 120, life: 0.4, size: 3 });
+      }
+      return true;
+    }
+    return false;
+  }
+
   useMedkit(game) {
     if (this.medkitsCount > 0 && this.hp < this.maxHp) {
       this.medkitsCount--;
@@ -299,6 +343,20 @@ class Player {
       ctx.beginPath(); ctx.arc(t.x, t.y, this.radius * 0.85, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
+
+    // speed boost aura
+    if (this.novaColaTimer > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.22 + 0.14 * Math.sin(time * 8);
+      ctx.strokeStyle = '#00ffcc'; // neon cyan glow
+      ctx.lineWidth = 3.5;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#00ffcc';
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius * 1.35, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     const bob = Math.sin(this.walkPhase) * 1.5;
     const flashing = this.hitFlash > 0 && Math.floor(this.hitFlash * 20) % 2 === 0;

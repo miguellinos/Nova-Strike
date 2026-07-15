@@ -44,7 +44,6 @@
               id="inv-medkit-val">0</b></button>
           <button class="inv-btn" id="inv-shield" title="Schild aufladen (Taste E)">🛡️ Schilde: <b
               id="inv-shield-val">0</b></button>
-          <button class="inv-btn" data-action="open-shop" style="background: linear-gradient(135deg, #7c5a1a, #553c10); border-color: #ffaa00; margin-left: 10px;" title="Taktischen Shop öffnen">🛒 Shop</button>
         </div>
       </div>
 
@@ -237,6 +236,17 @@
       </div>
     </div>
 
+    <!-- Inventar-Menü -->
+    <div id="inventory-menu" class="overlay hidden">
+      <div class="menu-panel" style="width: 500px; max-width: 92vw; padding: 24px 28px;">
+        <h2 class="panel-title">🎒 DEIN INVENTAR</h2>
+        <div id="inventory-items" style="display: flex; flex-direction: column; gap: 12px; margin: 20px 0; min-width: 320px;">
+          <!-- Items will be dynamically rendered here -->
+        </div>
+        <button class="btn btn-primary" data-action="inventory-close">Schließen (Taste I)</button>
+      </div>
+    </div>
+
     <!-- Game Over -->
     <div id="gameover-menu" class="overlay hidden">
       <div class="menu-panel">
@@ -263,6 +273,7 @@
   <script src="js/coin.js"></script>
   <script src="js/medkit.js"></script>
   <script src="js/workbench.js"></script>
+  <script src="js/shop.js"></script>
   <script src="js/network.js"></script>
   <script src="js/upgrades.js"></script>
   <script src="js/waves.js"></script>

@@ -1,7 +1,7 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
   overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'upgrade-menu',
-             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu'],
+             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
   show(id) { this.hideAll(); document.getElementById(id).classList.remove('hidden'); },
@@ -123,6 +123,7 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'menu': game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu'); break;
       case 'shop-close': game.leaveShop(); break;
       case 'workbench-close': game.closeWorkbench(); break;
+      case 'inventory-close': game.closeInventory(); break;
       case 'open-shop':
         if (game.mode === 'solo') {
           if (game.state === 'playing') { game.midWaveShop = true; game.openTacticalShop(); }
