@@ -1335,7 +1335,8 @@ class Game {
 
     // 3. Project shadows for walls to restore darkness behind them
     mCtx.globalCompositeOperation = 'source-over';
-    mCtx.fillStyle = 'rgba(7, 8, 12, 0.93)';
+    const shadowOpacity = 0.65 + 0.28 * darkT;
+    mCtx.fillStyle = 'rgba(7, 8, 12, ' + shadowOpacity + ')';
     
     for (const p of this.players) {
       if (p.hp <= 0) continue;
