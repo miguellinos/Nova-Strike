@@ -33,6 +33,8 @@ const MAP_LAYOUTS = [
     hangars: [
       { x: 350, y: 80, w: 1950, h: 740, gateSide: 'south', name: 'Alpha Hangar Nord' },
       { x: 350, y: 980, w: 1950, h: 740, gateSide: 'north', name: 'Alpha Hangar Süd' },
+      { x: 1100, y: 855, w: 200, h: 120, gateSide: 'south', name: 'Wachposten Mitte', isHouse: true },
+      { x: 2100, y: 855, w: 200, h: 120, gateSide: 'south', name: 'Wachposten Ost', isHouse: true },
     ],
     obs: [
       // format: [x, y, w, h, kind, angle]
@@ -40,7 +42,7 @@ const MAP_LAYOUTS = [
       [1470, 1330, 160, 40, 'airplane-fuselage', Math.PI],
       [800, 870, 60, 60, 'fuel-tank'],
       [860, 870, 60, 60, 'fuel-tank'],
-      [1200, 870, 80, 40, 'car', 0],
+      [1350, 870, 80, 40, 'car', 0],
       [600, 1200, 40, 80, 'car', Math.PI / 2],
       [500, 300, 80, 80, 'crate'],
       [2000, 1200, 80, 80, 'crate'],
@@ -52,13 +54,16 @@ const MAP_LAYOUTS = [
   // sandbags and fuel tank cover, completely different gameplay feel.
   {
     name: 'Sektor 4 - Schlachtfeld',
-    hangars: [], // Open field, no hangars!
+    hangars: [
+      { x: 450, y: 650, w: 220, h: 180, gateSide: 'south', name: 'Baracke West', isHouse: true },
+      { x: 1730, y: 650, w: 220, h: 180, gateSide: 'south', name: 'Baracke Ost', isHouse: true },
+    ],
     obs: [
       [1100, 900, 200, 120, 'machine'],
       [1100, 500, 200, 35, 'wall'],
       [1100, 1550, 200, 35, 'wall'],
-      [500, 700, 100, 100, 'crate'],
-      [1800, 700, 100, 100, 'crate'],
+      [500, 950, 100, 100, 'crate'],
+      [1800, 950, 100, 100, 'crate'],
       [500, 1300, 100, 100, 'crate'],
       [1800, 1300, 100, 100, 'crate'],
       [900, 1150, 90, 90, 'crate'],
@@ -75,12 +80,14 @@ const MAP_LAYOUTS = [
     name: 'Wüsten-Kreuzung',
     theme: 'desert',
     hangars: [
-      { x: 200, y: 1400, w: 380, h: 280, gateSide: 'north', name: 'Außenposten West' },
-      { x: 1010, y: 1400, w: 380, h: 280, gateSide: 'north', name: 'Außenposten Mitte' },
-      { x: 1820, y: 1400, w: 380, h: 280, gateSide: 'north', name: 'Außenposten Ost' },
+      { x: 100, y: 1350, w: 520, h: 360, gateSide: 'north', name: 'Außenposten West' },
+      { x: 940, y: 1350, w: 520, h: 360, gateSide: 'north', name: 'Außenposten Mitte' },
+      { x: 1780, y: 1350, w: 520, h: 360, gateSide: 'north', name: 'Außenposten Ost' },
+      { x: 400, y: 250, w: 220, h: 180, gateSide: 'south', name: 'Wüsten-Hütte West', isHouse: true },
+      { x: 1780, y: 250, w: 220, h: 180, gateSide: 'south', name: 'Wüsten-Hütte Ost', isHouse: true },
     ],
     obs: [
-      [300, 300, 90, 90, 'crate'], [1155, 250, 90, 90, 'crate'], [2010, 300, 90, 90, 'crate'],
+      [300, 500, 90, 90, 'crate'], [1155, 250, 90, 90, 'crate'], [1950, 500, 90, 90, 'crate'],
       [900, 750, 200, 100, 'machine'],
       [700, 600, 30, 300, 'wall'], [1670, 600, 30, 300, 'wall'],
       [500, 950, 90, 90, 'crate'], [1810, 950, 90, 90, 'crate'], [1155, 1050, 90, 90, 'crate'],
@@ -92,7 +99,9 @@ const MAP_LAYOUTS = [
     name: 'Bunker-Ring',
     theme: 'arctic',
     hangars: [
-      { x: 990, y: 100, w: 420, h: 280, gateSide: 'south', name: 'Zentralkommando' },
+      { x: 920, y: 100, w: 560, h: 360, gateSide: 'south', name: 'Zentralkommando' },
+      { x: 620, y: 800, w: 200, h: 160, gateSide: 'east', name: 'Ring-Ausguck West', isHouse: true },
+      { x: 1580, y: 800, w: 200, h: 160, gateSide: 'west', name: 'Ring-Ausguck Ost', isHouse: true },
     ],
     obs: [
       // ring fortress around the map center, with a gap on each side to enter
@@ -116,10 +125,12 @@ const MAP_LAYOUTS = [
     hangars: [
       // hangars stay at x >= 350 / x <= 2000 like every other map, so none of them
       // ever overlap the shop building that's always built in the top-left corner
-      { x: 380, y: 250, w: 360, h: 260, gateSide: 'south', name: 'Sumpf-Station Nordwest' },
-      { x: 380, y: 1290, w: 360, h: 260, gateSide: 'north', name: 'Sumpf-Station Südwest' },
-      { x: 1660, y: 250, w: 360, h: 260, gateSide: 'south', name: 'Sumpf-Station Nordost' },
-      { x: 1660, y: 1290, w: 360, h: 260, gateSide: 'north', name: 'Sumpf-Station Südost' },
+      { x: 320, y: 200, w: 480, h: 340, gateSide: 'south', name: 'Sumpf-Station Nordwest' },
+      { x: 320, y: 1260, w: 480, h: 340, gateSide: 'north', name: 'Sumpf-Station Südwest' },
+      { x: 1600, y: 200, w: 480, h: 340, gateSide: 'south', name: 'Sumpf-Station Nordost' },
+      { x: 1600, y: 1260, w: 480, h: 340, gateSide: 'north', name: 'Sumpf-Station Südost' },
+      { x: 385, y: 820, w: 200, h: 160, gateSide: 'south', name: 'Filterstation A', isHouse: true },
+      { x: 1815, y: 820, w: 200, h: 160, gateSide: 'south', name: 'Filterstation B', isHouse: true },
     ],
     obs: [
       [1100, 850, 200, 100, 'machine'],
@@ -149,24 +160,51 @@ class World {
   }
 
   // pushes a hangar's perimeter walls (with a gate gap) + its interior partition
-  buildHangar(hx, hy, hw, hh, gateSide, name) {
-    this.hangars.push({ x: hx, y: hy, w: hw, h: hh, name });
-    const gateGap = 160; // standard door gap width
-    const gate = (hw - gateGap) / 2; // calculate wall segment sizes
+  buildHangar(hx, hy, hw, hh, gateSide, name, isHouse = false) {
+    this.hangars.push({ x: hx, y: hy, w: hw, h: hh, name, isHouse });
+    const gateGap = isHouse ? 80 : 160; // standard door gap width
     if (gateSide === 'south') {
+      const gate = (hw - gateGap) / 2;
       this.rects.push({ x: hx, y: hy, w: hw, h: 25, kind: 'hangar-wall' }); // top
       this.rects.push({ x: hx, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // left
       this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // right
       this.rects.push({ x: hx, y: hy + hh - 25, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'right' });
       this.rects.push({ x: hx + hw - gate, y: hy + hh - 25, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'left' });
-    } else {
+    } else if (gateSide === 'north') {
+      const gate = (hw - gateGap) / 2;
       this.rects.push({ x: hx, y: hy + hh - 25, w: hw, h: 25, kind: 'hangar-wall' }); // bottom
       this.rects.push({ x: hx, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // left
       this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // right
       this.rects.push({ x: hx, y: hy, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'right' });
       this.rects.push({ x: hx + hw - gate, y: hy, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'left' });
+    } else if (gateSide === 'east') {
+      const gateH = (hh - gateGap) / 2;
+      this.rects.push({ x: hx, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // left
+      this.rects.push({ x: hx, y: hy, w: hw, h: 25, kind: 'hangar-wall' }); // top
+      this.rects.push({ x: hx, y: hy + hh - 25, w: hw, h: 25, kind: 'hangar-wall' }); // bottom
+      this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: gateH, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + hw - 25, y: hy + hh - gateH, w: 25, h: gateH, kind: 'hangar-wall' });
+    } else if (gateSide === 'west') {
+      const gateH = (hh - gateGap) / 2;
+      this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // right
+      this.rects.push({ x: hx, y: hy, w: hw, h: 25, kind: 'hangar-wall' }); // top
+      this.rects.push({ x: hx, y: hy + hh - 25, w: hw, h: 25, kind: 'hangar-wall' }); // bottom
+      this.rects.push({ x: hx, y: hy, w: 25, h: gateH, kind: 'hangar-wall' });
+      this.rects.push({ x: hx, y: hy + hh - gateH, w: 25, h: gateH, kind: 'hangar-wall' });
     }
-    this.addHangarInterior(hx, hy, hw, hh, gateSide);
+    if (!isHouse) {
+      this.addHangarInterior(hx, hy, hw, hh, gateSide);
+    }
+  }
+
+  getBuildingAt(x, y) {
+    if (!this.hangars) return null;
+    for (const h of this.hangars) {
+      if (x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h) {
+        return h;
+      }
+    }
+    return null;
   }
 
   build() {
@@ -191,7 +229,7 @@ class World {
     this.rects.push({ x: 0, y: 200, w: t, h: 600, kind: 'enemy-barrier' });
 
     const layout = MAP_LAYOUTS[this.layoutIndex] || MAP_LAYOUTS[0];
-    for (const h of layout.hangars) this.buildHangar(h.x, h.y, h.w, h.h, h.gateSide, h.name);
+    for (const h of layout.hangars) this.buildHangar(h.x, h.y, h.w, h.h, h.gateSide, h.name, h.isHouse);
     for (const o of layout.obs) {
       this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4], angle: o[5] || 0 });
     }
@@ -301,16 +339,21 @@ class World {
       }
     }
   }
-  // a spawn point on the outer ring but not inside a wall
+  // a spawn point on the outer ring but not inside a wall or building
   randomSpawnPoint() {
-    for (let i = 0; i < 30; i++) {
+    if (this.hangars && this.hangars.length > 0 && Utils.chance(0.75)) {
+      return this.randomHangarSpawnPoint();
+    }
+    for (let i = 0; i < 40; i++) {
       const edge = Utils.randInt(0, 3);
       let x, y;
       if (edge === 0) { x = Utils.rand(80, this.w - 80); y = 90; }
       else if (edge === 1) { x = Utils.rand(80, this.w - 80); y = this.h - 90; }
       else if (edge === 2) { x = 90; y = Utils.rand(80, this.h - 80); }
       else { x = this.w - 90; y = Utils.rand(80, this.h - 80); }
-      if (!pointInRects(x, y, this.rects, 30)) return { x, y };
+      if (!pointInRects(x, y, this.rects, 30) && this.getBuildingAt(x, y) === null) {
+        return { x, y };
+      }
     }
     return { x: this.w / 2, y: 90 };
   }

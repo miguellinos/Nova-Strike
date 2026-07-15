@@ -1121,10 +1121,33 @@ class Game {
     if (this.boss && !this.boss.dead) this.boss.draw(ctx, this.time);
     for (const p of this.players) if (p.hp > 0) p.draw(ctx, this.time);
 
-    // 2. Apply Flashlight Mask (overlay in screen coordinates) if in Horror mode
-    if (this.gameMode === 'horror') {
+    // Draw building dark covers (fog of war / roofs) for buildings the local player is NOT inside
+    const localPlayer = this.localPlayer;
+    if (localPlayer) {
+      const activeBuilding = this.world.getBuildingAt(localPlayer.x, localPlayer.y);
+      for (const h of this.world.hangars) {
+        if (h !== activeBuilding) {
+          // Draw metallic dark cover over building interior
+          ctx.fillStyle = '#06070a';
+          ctx.fillRect(h.x + 20, h.y + 20, h.w - 40, h.h - 40);
+
+          // Draw metallic panels panel-grid overlay
+          ctx.strokeStyle = '#14161c';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(h.x + 20, h.y + 20, h.w - 40, h.h - 40);
+          ctx.beginPath();
+          ctx.moveTo(h.x + 20, h.y + 20); ctx.lineTo(h.x + h.w - 20, h.y + h.h - 20);
+          ctx.moveTo(h.x + h.w - 20, h.y + 20); ctx.lineTo(h.x + 20, h.y + h.h - 20);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 2. Apply Flashlight Mask (overlay in screen coordinates) if in Horror mode OR inside a building
+    const insideBuilding = localPlayer && this.world.getBuildingAt(localPlayer.x, localPlayer.y) !== null;
+    if (this.gameMode === 'horror' || (this.gameMode === 'standard' && insideBuilding)) {
       ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(this.zoom, 0, 0, this.zoom, 0, 0);
       this.drawFlashlightMask(ctx);
       ctx.restore();
     }
@@ -1218,9 +1241,11 @@ class Game {
       this.maskCanvas = document.createElement('canvas');
       this.maskCtx = this.maskCanvas.getContext('2d');
     }
-    if (this.maskCanvas.width !== this.canvas.width || this.maskCanvas.height !== this.canvas.height) {
-      this.maskCanvas.width = this.canvas.width;
-      this.maskCanvas.height = this.canvas.height;
+    const targetW = Math.ceil(this.canvas.width / this.zoom);
+    const targetH = Math.ceil(this.canvas.height / this.zoom);
+    if (this.maskCanvas.width !== targetW || this.maskCanvas.height !== targetH) {
+      this.maskCanvas.width = targetW;
+      this.maskCanvas.height = targetH;
     }
 
     const mCtx = this.maskCtx;
