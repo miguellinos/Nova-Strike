@@ -1,5 +1,5 @@
 // ---------- boss.js : boss with phases & attacks ----------
-const BOSS_TYPES = ['tank', 'spider', 'artillery'];
+const BOSS_TYPES = ['tank', 'spider', 'artillery', 'swarm'];
 
 class Boss {
   constructor(x, y, waveNum, forcedType) {
@@ -18,10 +18,22 @@ class Boss {
     this.legPhase = 0;
     this.mortarTimer = 0;
     this.shielded = 0;
+    this.blinkTimer = 0;
+    this.blinkFlash = 0;
     this.burnT = 0; this.burnDps = 0; this.burnBy = null;
     this.slowT = 0;
 
-    if (this.bossType === 'spider') {
+    if (this.bossType === 'swarm') {
+      this.radius = 50;
+      this.maxHp = 1700 + tier * 1050;
+      this.dmg = 18 + tier * 4;
+      this.speed = 110;
+      this.color = '#4ad9ff';
+      this.name = 'BEFEHLSHABER "SCHWARM"';
+      this.coins = [55, 105];
+      this.score = 1150;
+      this.blinkTimer = Utils.rand(4, 6);
+    } else if (this.bossType === 'spider') {
       this.radius = 44;
       this.maxHp = 1500 + tier * 950;
       this.dmg = 22 + tier * 5;
@@ -86,6 +98,24 @@ class Boss {
     const rate = this.phase2 ? 0.6 : 1;
     this.legPhase += dt * (this.bossType === 'spider' ? 10 : 4);
 
+    // swarm: periodically teleport-blinks near the player instead of walking there
+    if (this.bossType === 'swarm') {
+      this.blinkTimer -= dt;
+      if (this.blinkFlash > 0) this.blinkFlash -= dt;
+      if (this.blinkTimer <= 0) {
+        this.blinkTimer = this.phase2 ? Utils.rand(2, 3.2) : Utils.rand(3.5, 5);
+        game.particles.burst(this.x, this.y, this.color, 20, 240);
+        const a = Utils.rand(0, Math.PI * 2);
+        this.x = Utils.clamp(this.x + Math.cos(a) * Utils.rand(150, 260), this.radius, game.world.w - this.radius);
+        this.y = Utils.clamp(this.y + Math.sin(a) * Utils.rand(150, 260), this.radius, game.world.h - this.radius);
+        const res = resolveCircleRects(this.x, this.y, this.radius, game.world.rects);
+        this.x = res.x; this.y = res.y;
+        this.blinkFlash = 0.25;
+        game.particles.burst(this.x, this.y, this.color, 20, 240);
+        Audio2.dash();
+      }
+    }
+
     // movement — artillery keeps distance and kites instead of closing in
     let mx, my, spd = this.speed;
     if (this.bossType === 'artillery') {
@@ -125,7 +155,7 @@ class Boss {
     // attack cycle
     this.attackTimer -= dt;
     if (this.attackTimer <= 0) {
-      const cycleLen = this.bossType === 'spider' ? 3 : 4;
+      const cycleLen = this.bossType === 'spider' ? 3 : this.bossType === 'swarm' ? 3 : 4;
       this.attackIndex = (this.attackIndex + 1) % cycleLen;
       this.attackTimer = (2.4 * rate);
       this.doAttack(this.attackIndex, game, ang);
@@ -146,6 +176,7 @@ class Boss {
   doAttack(i, game, ang) {
     if (this.bossType === 'spider') { this.doSpiderAttack(i, game, ang); return; }
     if (this.bossType === 'artillery') { this.doArtilleryAttack(i, game, ang); return; }
+    if (this.bossType === 'swarm') { this.doSwarmAttack(i, game, ang); return; }
     if (i === 0) {
       // radial artillery burst
       const n = this.phase2 ? 24 : 16;
@@ -227,6 +258,33 @@ class Boss {
     }
   }
 
+  doSwarmAttack(i, game, ang) {
+    if (i === 0) {
+      // ring of fast shock bolts
+      const n = this.phase2 ? 16 : 10;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2;
+        game.enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(a) * 340, vy: Math.sin(a) * 340,
+          radius: 7, dmg: this.dmg * 0.55, color: '#4ad9ff', dead: false, life: 3 });
+      }
+      Audio2.shoot('plasma');
+    } else if (i === 1) {
+      // mass drone swarm — its signature move
+      for (let k = 0; k < (this.phase2 ? 6 : 4); k++) {
+        game.enemies.push(new Enemy('drone', this.x + Utils.rand(-90, 90), this.y + Utils.rand(-90, 90), game.hpMult, game.dmgMult));
+      }
+      Audio2.enemyDie();
+    } else {
+      // aimed triple bolt volley
+      for (let k = -1; k <= 1; k++) {
+        const a = ang + k * 0.22;
+        game.enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420,
+          radius: 8, dmg: this.dmg * 0.9, color: '#bfefff', dead: false, life: 2.4 });
+      }
+      Audio2.shoot('sniper');
+    }
+  }
+
   takeDamage(dmg, game) {
     if (this.shielded > 0) {
       game.particles.spawn(this.x, this.y, '#ffaa00', { count: 3, minSpeed: 40, maxSpeed: 100, size: 3 });
@@ -251,6 +309,7 @@ class Boss {
 
     if (this.bossType === 'spider') { this.drawSpider(ctx, time, flash); ctx.restore(); return; }
     if (this.bossType === 'artillery') { this.drawArtillery(ctx, time, flash); ctx.restore(); return; }
+    if (this.bossType === 'swarm') { this.drawSwarm(ctx, time, flash); ctx.restore(); return; }
 
     // 1. Draw double tank tracks (huge, left and right)
     ctx.fillStyle = '#181818';
@@ -397,5 +456,34 @@ class Boss {
       ctx.fillStyle = `rgba(255, 200, 0, ${pulse})`;
       ctx.beginPath(); ctx.arc(-r * 0.3, 0, 7, 0, Math.PI * 2); ctx.fill();
     }
+  }
+
+  drawSwarm(ctx, time, flash) {
+    const r = this.radius;
+    // afterimage flash right after a blink
+    if (this.blinkFlash > 0) {
+      ctx.globalAlpha = this.blinkFlash / 0.25 * 0.5;
+      ctx.fillStyle = this.color;
+      ctx.beginPath(); ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    // orbiting drone shards
+    for (let i = 0; i < 4; i++) {
+      const a = time * 3 + (i / 4) * Math.PI * 2;
+      const ox = Math.cos(a) * r * 1.3, oy = Math.sin(a) * r * 1.3;
+      ctx.fillStyle = 'rgba(74, 217, 255, 0.7)';
+      ctx.beginPath(); ctx.arc(ox, oy, 5, 0, Math.PI * 2); ctx.fill();
+    }
+    // crystalline core body
+    ctx.fillStyle = flash ? '#ffffff' : this.color;
+    ctx.beginPath();
+    ctx.moveTo(0, -r); ctx.lineTo(r * 0.7, 0); ctx.lineTo(0, r); ctx.lineTo(-r * 0.7, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#0e3a4a'; ctx.lineWidth = 3; ctx.stroke();
+
+    const pulse = 0.5 + 0.5 * Math.sin(time * 12);
+    ctx.fillStyle = `rgba(191, 239, 255, ${pulse})`;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2); ctx.fill();
   }
 }

@@ -683,6 +683,7 @@ class Game {
         x: this.boss.x, y: this.boss.y, radius: this.boss.radius, hp: this.boss.hp, maxHp: this.boss.maxHp,
         name: this.boss.name, phase2: this.boss.phase2, spin: this.boss.spin, hitFlash: this.boss.hitFlash,
         bossType: this.boss.bossType, legPhase: this.boss.legPhase, shielded: this.boss.shielded,
+        blinkFlash: this.boss.blinkFlash,
       } : null,
       projectiles: this.projectiles.map((pr) => ({ x: pr.x, y: pr.y, radius: pr.radius, color: pr.color, angle: pr.angle, aoe: pr.aoe })),
       enemyProjectiles: this.enemyProjectiles.map((ep) => ({ x: ep.x, y: ep.y, radius: ep.radius, color: ep.color })),

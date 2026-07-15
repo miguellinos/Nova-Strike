@@ -56,6 +56,8 @@ class WaveManager {
     if (n >= 2) add('striker', 2 + Math.floor(n * 0.9));
     if (n >= 3) add('shooter', 1 + Math.floor(n * 0.5));
     if (n >= 4) add('tank', Math.floor(n / 4));
+    if (n >= 3) add('bomber', 1 + Math.floor(n * 0.4));
+    if (n >= 5) add('marksman', Math.floor(n / 3));
     if (n >= 6 && n % 2 === 0) add('novabeast', Math.floor(n / 6));
     // shuffle
     for (let i = q.length - 1; i > 0; i--) {

@@ -28,6 +28,7 @@ class Player {
       pierce: 0, crit: 0, dashCd: 1, lifesteal: 0, coinRange: 120, coinMult: 1,
       visionRange: 1,
     };
+    this.applyCharacterPerk();
 
     // weapons: player owns all, but only plasma at first? Spec says start with plasma,
     // and weapons are "added". We give access to all via number keys for playability.
@@ -63,6 +64,19 @@ class Player {
     this.novacolaCount = 0;
     this.scanTimer = 0;
     this.scanTarget = null;
+  }
+
+  // small, subtle per-character passive (see js/characters.js perkDesc for the
+  // player-facing text) — deliberately minor so picking a skin stays a flavor
+  // choice rather than a build decision.
+  applyCharacterPerk() {
+    switch (this.charId) {
+      case 'woodland': this.mods.move *= 1.06; break;
+      case 'desert': this.mods.coinRange += 40; break;
+      case 'arctic': this.mods.dashCd *= 0.85; break;
+      case 'urban': this.mods.crit += 0.08; break;
+      case 'crimson': this.mods.lifesteal += 0.05; break;
+    }
   }
 
   // effective def for the equipped weapon, including per-weapon workbench upgrades
@@ -519,6 +533,21 @@ class Player {
       ctx.fillRect(9, 5, 6, 2.5);
       ctx.fillStyle = '#222';
       ctx.fillRect(18, 3, 7, 2); // barrel
+    } else if (wDef.key === 'revolver') {
+      // Colt Python: short barrel, chunky cylinder
+      ctx.fillRect(5, 2.5, 7, 3);
+      ctx.fillStyle = '#333';
+      ctx.beginPath(); ctx.arc(9, 4, 3, 0, Math.PI * 2); ctx.fill(); // cylinder
+      ctx.fillStyle = '#111';
+      ctx.fillRect(3.5, 5.5, 2, 3); // grip
+    } else if (wDef.key === 'mac10') {
+      // MAC-10: stubby body, folded stock, long stick mag
+      ctx.fillRect(4, 2, 9, 3.5); // receiver
+      ctx.fillStyle = '#222';
+      ctx.fillRect(7, 5.5, 2, 6); // long stick magazine
+      ctx.fillStyle = '#111';
+      ctx.fillRect(-2, 3, 6, 1.5); // folded stock
+      ctx.fillRect(13, 3, 5, 1.8); // short barrel
     } else {
       // M4A1 Sturmgewehr (rifle)
       ctx.fillRect(3, 2, 14, 4); // receiver

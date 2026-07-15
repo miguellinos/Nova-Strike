@@ -225,6 +225,7 @@ window.addEventListener('DOMContentLoaded', () => {
         '<div class="icon">' + c.icon + '</div>' +
         '<div class="name">' + c.name + '</div>' +
         '<div style="width:36px;height:14px;border-radius:4px;margin:4px 0 8px;background:' + c.camo + ';border:1px solid ' + c.camoStroke + ';"></div>' +
+        '<div class="desc">' + (c.perkDesc || '') + '</div>' +
         '<button class="buy" data-action="pick-character" data-char="' + c.id + '">' + (selected ? 'AUSGEWÄHLT' : 'AUSWÄHLEN') + '</button>';
       card.querySelector('.buy').disabled = selected;
       container.appendChild(card);

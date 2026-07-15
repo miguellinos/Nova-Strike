@@ -55,8 +55,26 @@ const WEAPON_DEFS = {
     speed: 900, pellets: 1, spread: 0.03, pierce: 1, radius: 6, color: '#9fe8ff',
     aoe: 0, slow: 1.6,     // slows hit enemies for N seconds
   },
+  // two very cheap early-game sidearms — meant as a first affordable upgrade off
+  // the starting plasma pistol, well before rifle/shotgun become affordable.
+  revolver: {
+    key: 'revolver', name: 'Colt Python Revolver', sound: 'sniper',
+    damage: 26, fireRate: 2.2, range: 520, mag: 6, reload: 1.1,
+    speed: 820, pellets: 1, spread: 0.02, pierce: 1, radius: 5, color: '#ffd27a',
+    aoe: 0,
+  },
+  mac10: {
+    key: 'mac10', name: 'MAC-10 Kompakt-SMG', sound: 'rifle',
+    damage: 7, fireRate: 9, range: 380, mag: 22, reload: 1.1,
+    speed: 780, pellets: 1, spread: 0.12, pierce: 0, radius: 3, color: '#c9ff8a',
+    aoe: 0,
+  },
 };
-const WEAPON_ORDER = ['plasma', 'rifle', 'shotgun', 'sniper', 'cannon', 'smg', 'flamethrower', 'tesla', 'cryo'];
+// Number-key hotbar only covers keys 1-9, so the first 9 entries keep their existing
+// bindings unchanged (no muscle-memory regression); the 2 cheap sidearms are appended
+// at the end and reachable via mouse wheel cycling or the workbench, same as before
+// this list had exactly 9 entries fitting the keyboard 1-for-1.
+const WEAPON_ORDER = ['plasma', 'rifle', 'shotgun', 'sniper', 'cannon', 'smg', 'flamethrower', 'tesla', 'cryo', 'revolver', 'mac10'];
 
 // Per-weapon workbench upgrades (bought individually per gun, separate from the
 // wave-end free upgrades which apply globally across all weapons).
@@ -73,4 +91,8 @@ const WEAPON_SHOP_ITEMS = [
   { key: 'flamethrower', price: 288, icon: '🔥', desc: 'Kurze Reichweite, setzt Gegner in Brand (Schaden über Zeit).' },
   { key: 'tesla', price: 324, icon: '⚡', desc: 'Blitze springen auf nahe Gegner über.' },
   { key: 'cryo', price: 270, icon: '❄️', desc: 'Verlangsamt getroffene Gegner deutlich.' },
+  // cheap early-game options — affordable right after the first wave or two,
+  // long before rifle/shotgun money is realistic.
+  { key: 'revolver', price: 40, icon: '🔫', desc: 'Günstiger Zweitschlag mit ordentlich Einzelschaden. Perfekt für den frühen Kampf.' },
+  { key: 'mac10', price: 55, icon: '💨', desc: 'Billige Kompakt-MP mit hoher Feuerrate für die ersten Wellen.' },
 ];

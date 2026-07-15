@@ -5,6 +5,8 @@ const ENEMY_DEFS = {
   tank:    { name: 'Kampfpanzer',       hp: 350, speed: 65,  dmg: 28, radius: 28, color: '#3f4f34', coins: [5, 10], score: 45,  ranged: true,  touchCd: 0.9, vision: 580, shootCd: 2.8, projSpeed: 250, projColor: '#ff5500' },
   shooter: { name: 'Militär-Humvee',     hp: 60,  speed: 110, dmg: 10, radius: 18, color: '#c2b280', coins: [3, 5],  score: 30,  ranged: true,  touchCd: 0.7, shootCd: 1.5, keepDist: 300, projSpeed: 380, projColor: '#ffcc00', vision: 640 },
   novabeast:{name: 'aw Panzerträger',hp: 1200, speed: 90,  dmg: 40, radius: 36, color: '#4f5d65', coins: [10, 20],score: 200, ranged: false, touchCd: 0.8, elite: true, vision: 680 },
+  marksman:{ name: 'Scharfschütze',      hp: 45,  speed: 85,  dmg: 24, radius: 14, color: '#5a5342', coins: [3, 6],  score: 35,  ranged: true,  touchCd: 0.7, shootCd: 2.4, keepDist: 520, projSpeed: 700, projColor: '#ffe680', vision: 720 },
+  bomber:  { name: 'Sprengstoff-Läufer', hp: 22,  speed: 235, dmg: 55, radius: 14, color: '#8a3a1e', coins: [2, 4],  score: 25,  ranged: false, touchCd: 1, vision: 460, blastRadius: 90 },
 };
 
 // steer a movement direction around nearby walls instead of walking straight
@@ -211,6 +213,46 @@ class Enemy {
           this.charging = 0.6;
           this.chargeDir = { x: Math.cos(angleToP), y: Math.sin(angleToP) };
           this.chargeCd = Utils.rand(3, 5);
+        }
+      }
+      else if (this.type === 'marksman') {
+        // stays at long range, only closes in if the player gets too close
+        if (distToP < this.def.keepDist * 0.6) {
+          mx = -mx; my = -my; spd = this.speed * 1.1;
+        } else if (distToP > this.def.keepDist) {
+          // approach to get within range
+        } else {
+          mx = 0; my = 0; spd = 0; // hold position and line up the shot
+        }
+
+        this.shootTimer -= dt;
+        if (this.shootTimer <= 0 && distToP < this.def.keepDist + 150 && p.hp > 0) {
+          if (checkLineOfSight(this.x, this.y, p.x, p.y, game.world.rects)) {
+            this.shootTimer = this.def.shootCd;
+            game.enemyProjectiles.push({
+              x: this.x, y: this.y,
+              vx: Math.cos(angleToP) * this.def.projSpeed,
+              vy: Math.sin(angleToP) * this.def.projSpeed,
+              radius: 5, dmg: this.dmg, color: this.def.projColor, dead: false, life: 2.2,
+            });
+            Audio2.shoot('sniper');
+            game.particles.spawn(this.x, this.y, '#ffe680', { count: 4, angle: angleToP, spread: 0.15, minSpeed: 100, maxSpeed: 200, life: 0.15 });
+          } else {
+            this.shootTimer = 0.3; // no clean shot — retry soon instead of waiting the full cooldown
+          }
+        }
+      }
+      else if (this.type === 'bomber') {
+        // sprints straight at the player and self-detonates on contact
+        spd = this.speed;
+        if (distToP < this.radius + p.radius + 20) {
+          this.hp = 0;
+          this.dead = true;
+          // explodeEnemyProj (not explode!) is the variant that damages players —
+          // explode() only hurts other enemies/bosses, which isn't what a suicide unit wants.
+          game.explodeEnemyProj(this.x, this.y, this.def.blastRadius, this.dmg);
+          game.onEnemyKilled(this);
+          return;
         }
       }
     }
@@ -482,6 +524,59 @@ class Enemy {
       ctx.fillRect(-this.radius * 0.05, -this.radius * 0.33, 3, 5);
       ctx.fillRect(-this.radius * 0.05, this.radius * 0.27, 3, 5);
       ctx.fillRect(-this.radius * 0.05, this.radius * 0.37, 3, 5);
+    }
+    else if (this.type === 'marksman') {
+      // Prone-styled sniper: long thin silhouette + rifle + laser dot
+      ctx.fillStyle = '#3d3a2e';
+      ctx.beginPath();
+      ctx.ellipse(-1, 0, this.radius * 0.6, this.radius * 0.95, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#1e1c14';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+
+      ctx.fillStyle = flash ? '#ffffff' : '#5a5342';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // long rifle barrel + scope
+      ctx.fillStyle = '#111';
+      ctx.fillRect(this.radius * 0.2, this.radius * 0.3, this.radius * 1.6, 3);
+      ctx.fillStyle = '#222';
+      ctx.fillRect(this.radius * 0.4, -this.radius * 0.15, this.radius * 0.4, 2.5);
+
+      // faint laser dot telegraph
+      ctx.fillStyle = 'rgba(255, 230, 128, 0.6)';
+      ctx.beginPath();
+      ctx.arc(this.radius * 1.8, this.radius * 0.3, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    else if (this.type === 'bomber') {
+      // Twitchy sprinting suicide unit, red pulsing core telegraphing the detonation
+      const pulse = 0.5 + 0.5 * Math.sin(time * 14);
+      ctx.fillStyle = '#241410';
+      ctx.beginPath();
+      ctx.ellipse(-1, 0, this.radius * 0.6, this.radius * 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = flash ? '#ffffff' : '#8a3a1e';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#3a1c0e';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      ctx.fillStyle = `rgba(255, 90, 30, ${pulse})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // strapped charges on the back
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(-this.radius * 0.9, -this.radius * 0.3, this.radius * 0.4, this.radius * 0.6);
     }
 
     ctx.restore();
