@@ -1331,7 +1331,7 @@ class Game {
     const darkT = this.gameMode === 'horror' ? 1 : this.interiorT;
 
     // 1. Fill mask with default ambient darkness
-    mCtx.fillStyle = 'rgba(7, 8, 12, ' + (0.80 * darkT) + ')';
+    mCtx.fillStyle = 'rgba(7, 8, 12, ' + (0.58 * darkT) + ')';
     mCtx.fillRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
 
     // 2. Draw building dark covers (fog of war / roofs) ON the mask canvas
@@ -1386,40 +1386,42 @@ class Game {
     };
 
     // 3. Project shadows for walls to restore darkness behind them on main mask canvas
-    mCtx.globalCompositeOperation = 'source-over';
-    const shadowOpacity = 0.65 + 0.28 * darkT;
-    mCtx.fillStyle = 'rgba(7, 8, 12, ' + shadowOpacity + ')';
-    
-    for (const p of this.players) {
-      if (p.hp <= 0) continue;
+    if (darkT > 0.01) {
+      mCtx.globalCompositeOperation = 'source-over';
+      const shadowOpacity = 0.50 + 0.30 * darkT;
+      mCtx.fillStyle = 'rgba(7, 8, 12, ' + shadowOpacity + ')';
+      
+      for (const p of this.players) {
+        if (p.hp <= 0) continue;
 
-      const screenX = p.x - this.cam.x;
-      const screenY = p.y - this.cam.y;
-      const visionMult = p.mods.visionRange || 1;
-      const range = 540 * visionMult;
-      const maxShadowDist = range + 150;
+        const screenX = p.x - this.cam.x;
+        const screenY = p.y - this.cam.y;
+        const visionMult = p.mods.visionRange || 1;
+        const range = 540 * visionMult;
+        const maxShadowDist = range + 150;
 
-      for (const rect of this.world.rects) {
-        if (rect.kind === 'enemy-barrier') continue;
+        for (const rect of this.world.rects) {
+          if (rect.kind === 'enemy-barrier') continue;
 
-        // Culling: check if rect is close to player
-        const cx = rect.x + rect.w / 2;
-        const cy = rect.y + rect.h / 2;
-        if (Utils.dist(p.x, p.y, cx, cy) > maxShadowDist) continue;
+          // Culling: check if rect is close to player
+          const cx = rect.x + rect.w / 2;
+          const cy = rect.y + rect.h / 2;
+          if (Utils.dist(p.x, p.y, cx, cy) > maxShadowDist) continue;
 
-        const rx = rect.x - this.cam.x;
-        const ry = rect.y - this.cam.y;
-        const rw = rect.w;
-        const rh = rect.h;
+          const rx = rect.x - this.cam.x;
+          const ry = rect.y - this.cam.y;
+          const rw = rect.w;
+          const rh = rect.h;
 
-        // Edge 1: top
-        castShadowOnCtx(mCtx, screenX, screenY, rx, ry, rx + rw, ry);
-        // Edge 2: right
-        castShadowOnCtx(mCtx, screenX, screenY, rx + rw, ry, rx + rw, ry + rh);
-        // Edge 3: bottom
-        castShadowOnCtx(mCtx, screenX, screenY, rx + rw, ry + rh, rx, ry + rh);
-        // Edge 4: left
-        castShadowOnCtx(mCtx, screenX, screenY, rx, ry + rh, rx, ry);
+          // Edge 1: top
+          castShadowOnCtx(mCtx, screenX, screenY, rx, ry, rx + rw, ry);
+          // Edge 2: right
+          castShadowOnCtx(mCtx, screenX, screenY, rx + rw, ry, rx + rw, ry + rh);
+          // Edge 3: bottom
+          castShadowOnCtx(mCtx, screenX, screenY, rx + rw, ry + rh, rx, ry + rh);
+          // Edge 4: left
+          castShadowOnCtx(mCtx, screenX, screenY, rx, ry + rh, rx, ry);
+        }
       }
     }
 
