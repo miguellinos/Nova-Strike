@@ -96,7 +96,7 @@ class UI {
     }
 
     if (this.el.interactPrompt) {
-      const showPrompt = game.state === 'playing' && p.hp > 0 && !game.workbenchOpenLocal && !game.shopOpenLocal && !game.trainingOpenLocal;
+      const showPrompt = game.state === 'playing' && p.hp > 0 && !game.workbenchOpenLocal && !game.shopOpenLocal && !game.trainingOpenLocal && !game.atmOpenLocal;
       if (showPrompt && game.nearWorkbench) {
         this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für die Werkbank';
         this.el.interactPrompt.classList.remove('hidden');
@@ -105,6 +105,9 @@ class UI {
         this.el.interactPrompt.classList.remove('hidden');
       } else if (showPrompt && game.nearTrainingRange) {
         this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für Trainingsrange';
+        this.el.interactPrompt.classList.remove('hidden');
+      } else if (showPrompt && game.nearAtm) {
+        this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für den Geldautomaten';
         this.el.interactPrompt.classList.remove('hidden');
       } else {
         this.el.interactPrompt.classList.add('hidden');
@@ -642,6 +645,7 @@ class UI {
         { key: 'workbench', name: '🔧 Werkbank', desc: 'Steht im Hauptquartier. Ermöglicht dir das Freischalten neuer Primärwaffen und das Verbessern der Waffenwerte bis Stufe 3.', inside: 'Waffen-Upgrades' },
         { key: 'shop', name: '🛒 Shop-Tisch', desc: 'Befindet sich im Hauptquartier. Ermöglicht den Kauf von Munitionsboxen, Medkits und Schild-Akkus während der Wellen.', inside: 'Ausrüstungs-Verkauf' },
         { key: 'training', name: '🏋️ Trainingsbereich', desc: 'Hier kannst du am Ende jeder Welle deine globalen Charakterwerte mit erreichten Punkten verbessern.', inside: 'Charakter-Upgrades' },
+        { key: 'atm', name: '🏧 Geldautomat', desc: 'Steht im Hauptquartier (nur im Koop-Modus). Ermöglicht es Spielern, sich gegenseitig Münzen zu überweisen.', inside: 'Geld-Transfer' },
       ];
 
       const grid = document.createElement('div');
@@ -800,6 +804,18 @@ function drawLexiconThumbnail(ctx, cat, key, game) {
       ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = '#fff';
       ctx.stroke();
+    }
+    else if (key === 'atm') {
+      ctx.fillStyle = '#2a2d33';
+      ctx.fillRect(-20, -15, 40, 30);
+      ctx.strokeStyle = '#ffcc00';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-20, -15, 40, 30);
+      ctx.fillStyle = '#ffcc00';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏧', 0, 0);
     }
   }
   else if (cat === 'maps') {

@@ -308,6 +308,26 @@
       </div>
     </div>
 
+    <!-- Geldautomat ATM -->
+    <div id="atm-menu" class="overlay hidden">
+      <div class="menu-panel">
+        <h2 class="panel-title">🏧 GELD-TRANSFER</h2>
+        <p class="subtitle">Überweise Münzen an deinen Mitspieler.</p>
+        <div style="font-size: 16px; margin-bottom: 15px; color: #a2bca0;">
+          Deine Münzen: 🪙 <b id="atm-my-coins">0</b>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%;">
+          <input type="number" id="atm-amount" min="1" value="10" style="width: 150px; text-align: center; font-size: 20px; font-weight: 700; padding: 8px; background: #0f1a10; color: #ffbb00; border: 1px solid rgba(255, 187, 0, 0.4); border-radius: 8px;">
+          
+          <div style="display: flex; gap: 8px; width: 100%; margin-top: 5px;">
+            <button class="btn btn-primary" data-action="atm-send" style="margin: 0; flex: 1;">Senden 💸</button>
+            <button class="btn" data-action="atm-close" style="margin: 0; flex: 1;">Schließen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Inventar-Menü -->
     <div id="inventory-menu" class="overlay hidden">
       <div class="inventory-panel">

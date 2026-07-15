@@ -77,10 +77,14 @@ const Net = {
   sendShopAction(data) { this.send({ type: 'shop-action', data }); },
   sendShopDone() { this.send({ type: 'shop-done' }); },
   sendWorkbenchAction(data) { this.send({ type: 'workbench-action', data }); },
+  sendAtmAction(data) { this.send({ type: 'atm-action', data }); },
   sendCharacter(charId) { this.send({ type: 'character', charId }); },
 
   handleMessage(msg) {
     switch (msg.type) {
+      case 'atm-action':
+        this.emit('atm-action', msg.data);
+        break;
       case 'room-created':
         this.roomCode = msg.code;
         this.emit('room-created', msg);

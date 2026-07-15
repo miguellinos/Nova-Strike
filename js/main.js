@@ -1,7 +1,7 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
   overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'upgrade-menu',
-             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu', 'cheat-menu', 'lexicon-menu'],
+             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu', 'cheat-menu', 'lexicon-menu', 'atm-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
   show(id) { this.hideAll(); document.getElementById(id).classList.remove('hidden'); },
@@ -100,6 +100,7 @@ window.addEventListener('DOMContentLoaded', () => {
   Net.on('shop-action', (data) => { game.onGuestShopAction(data); });
   Net.on('shop-done', () => { game.onGuestShopDone(); });
   Net.on('workbench-action', (data) => { game.onGuestWorkbenchAction(data); });
+  Net.on('atm-action', (data) => { game.onGuestAtmAction(data); });
   Net.on('character', (msg) => { if (game.mode === 'host' && game.player2) game.player2.charId = msg.charId; });
   Net.on('peer-left', () => {
     if (game.state === 'playing' || game.state === 'shop') {
@@ -140,6 +141,12 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'workbench-close': game.closeWorkbench(); break;
       case 'inventory-close': game.closeInventory(); break;
       case 'upgrade-close': game.closeTrainingRange(); break;
+      case 'atm-close': game.closeAtm(); break;
+      case 'atm-send': {
+        const val = parseInt(document.getElementById('atm-amount').value, 10) || 0;
+        if (val > 0) game.sendCoinsFromAtm(val);
+        break;
+      }
       case 'open-shop':
         if (game.mode === 'solo') {
           if (game.state === 'playing') { game.midWaveShop = true; game.openTacticalShop(); }

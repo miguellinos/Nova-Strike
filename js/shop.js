@@ -82,3 +82,45 @@ class TrainingRange {
     ctx.restore();
   }
 }
+
+class Atm {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 20;
+    this.interactRange = 60;
+  }
+
+  draw(ctx, time, near) {
+    const pulse = 0.7 + 0.3 * Math.sin(time * 3);
+    ctx.save();
+    ctx.translate(this.x, this.y);
+
+    // ground shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(0, this.radius * 0.6, this.radius * 1.1, this.radius * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ATM cabinet
+    ctx.fillStyle = '#2a2d33';
+    ctx.fillRect(-this.radius, -this.radius * 0.4, this.radius * 2, this.radius * 0.8);
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = near ? 3 : 2;
+    ctx.strokeRect(-this.radius, -this.radius * 0.4, this.radius * 2, this.radius * 0.8);
+
+    // Glowing ATM icon
+    ctx.shadowBlur = near ? 20 : 10;
+    ctx.shadowColor = '#ffcc00';
+    ctx.fillStyle = '#ffcc00';
+    ctx.globalAlpha = pulse;
+    ctx.font = 'bold 20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🏧', 0, -this.radius * 0.85);
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+  }
+}

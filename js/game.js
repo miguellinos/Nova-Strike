@@ -65,6 +65,9 @@ class Game {
     this.workbenchOpenLocal = false;
     this.shopTable = new ShopTable(-150, 320);
     this.nearShop = false;
+    this.atm = new Atm(-230, 320);
+    this.nearAtm = false;
+    this.atmOpenLocal = false;
     this.trainingRange = new TrainingRange(-150, 680);
     this.nearTrainingRange = false;
     this.trainingOpenLocal = false;
@@ -605,10 +608,12 @@ class Game {
         this.nearWorkbench = this.workbench && Utils.dist(this.player2.x, this.player2.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
         this.nearShop = this.shopTable && Utils.dist(this.player2.x, this.player2.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
         this.nearTrainingRange = this.trainingRange && Utils.dist(this.player2.x, this.player2.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
-        if (!this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('f')) {
+        this.nearAtm = this.atm && (this.mode !== 'solo') && Utils.dist(this.player2.x, this.player2.y, this.atm.x, this.atm.y) < this.atm.interactRange;
+        if (!this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && !this.atmOpenLocal && Input.wasPressed('f')) {
           if (this.nearWorkbench) this.openWorkbench();
           else if (this.nearShop) this.openShopFromWorld();
           else if (this.nearTrainingRange) this.openTrainingRange();
+          else if (this.nearAtm) this.openAtm();
           Input.pressed['f'] = false;
         }
         if (Input.wasPressed('i')) {
@@ -619,7 +624,7 @@ class Game {
           if (this.pauseOpenLocal) this.resume(); else this.pause();
           Input.pressed['escape'] = false;
         }
-        if (this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal || this.pauseOpenLocal) {
+        if (this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal || this.pauseOpenLocal || this.atmOpenLocal) {
           // menu open: stand still, don't fire — send a neutral packet
           Net.sendInput({ keys: {}, justPressed: [], mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: false, rightDown: false, rightPressed: false });
         } else {
@@ -677,10 +682,12 @@ class Game {
     this.nearWorkbench = this.workbench && Utils.dist(this.player.x, this.player.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
     this.nearShop = this.shopTable && Utils.dist(this.player.x, this.player.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
     this.nearTrainingRange = this.trainingRange && Utils.dist(this.player.x, this.player.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
-    if (!this.workbenchOpenLocal && !this.shopOpenLocal && !this.trainingOpenLocal && Input.wasPressed('f')) {
+    this.nearAtm = this.atm && (this.mode !== 'solo') && Utils.dist(this.player.x, this.player.y, this.atm.x, this.atm.y) < this.atm.interactRange;
+    if (!this.workbenchOpenLocal && !this.shopOpenLocal && !this.trainingOpenLocal && !this.atmOpenLocal && Input.wasPressed('f')) {
       if (this.nearWorkbench) this.openWorkbench();
       else if (this.nearShop) this.openShopFromWorld();
       else if (this.nearTrainingRange) this.openTrainingRange();
+      else if (this.nearAtm) this.openAtm();
       Input.pressed['f'] = false;
     }
 
@@ -1178,6 +1185,7 @@ class Game {
     this.world.draw(ctx, this.cam, this.time);
     if (this.workbench) this.workbench.draw(ctx, this.time, this.nearWorkbench);
     if (this.shopTable) this.shopTable.draw(ctx, this.time, this.nearShop);
+    if (this.atm && (this.mode !== 'solo')) this.atm.draw(ctx, this.time, this.nearAtm);
     if (this.trainingRange) this.trainingRange.draw(ctx, this.time, this.nearTrainingRange);
     for (const c of this.coins) c.draw(ctx, this.time);
     for (const m of this.medkits) m.draw(ctx, this.time);
@@ -1622,5 +1630,61 @@ class Game {
     this.cam.y = Utils.lerp(this.cam.y, ty, 0.12);
     this.cam.x = Utils.clamp(this.cam.x, -300, Math.max(0, this.world.w - this.cam.w));
     this.cam.y = Utils.clamp(this.cam.y, 0, Math.max(0, this.world.h - this.cam.h));
+  }
+
+  openAtm() {
+    this.atmOpenLocal = true;
+    const me = this.localPlayer;
+    document.getElementById('atm-my-coins').textContent = me.coins;
+    document.getElementById('atm-amount').value = Math.min(10, me.coins);
+    document.getElementById('atm-amount').max = me.coins;
+    Menus.show('atm-menu');
+  }
+
+  closeAtm() {
+    this.atmOpenLocal = false;
+    Menus.hideAll();
+  }
+
+  sendCoinsFromAtm(amount) {
+    const me = this.localPlayer;
+    if (me.coins < amount) {
+      alert("Nicht genügend Münzen!");
+      return;
+    }
+    
+    // Deduct coins locally
+    me.coins -= amount;
+    
+    // If guest, send network action to host
+    if (this.mode === 'guest') {
+      Net.sendAtmAction({ action: 'send-coins', amount });
+    } else if (this.mode === 'host') {
+      // Host increases player 2's coins
+      if (this.player2) {
+        this.player2.coins += amount;
+      }
+    }
+    
+    this.closeAtm();
+    
+    // Spawn some success particles at the ATM
+    this.particles.burst(this.atm.x, this.atm.y, '#ffbb00', 8, 80);
+    Audio2.shoot('plasma');
+  }
+
+  onGuestAtmAction(msg) {
+    if (msg.action === 'send-coins') {
+      const amount = msg.amount;
+      // Host receives coins from guest (player 2)
+      if (this.player2 && this.player2.coins >= amount) {
+        this.player2.coins -= amount;
+        this.player.coins += amount;
+        
+        // Spawn success particles
+        this.particles.burst(this.atm.x, this.atm.y, '#ffbb00', 8, 80);
+        Audio2.shoot('plasma');
+      }
+    }
   }
 }

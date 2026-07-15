@@ -184,7 +184,7 @@ class Player {
     // own menu is open, so only ever gate the local player here.
     const menusOpen = (this === game.localPlayer) &&
       (game.shopOpenLocal || game.workbenchOpenLocal || game.inventoryOpenLocal ||
-       game.trainingOpenLocal || game.pauseOpenLocal);
+       game.trainingOpenLocal || game.pauseOpenLocal || game.atmOpenLocal);
 
     // weapon switch by number keys or mouse wheel
     if (!menusOpen) {
