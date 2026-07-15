@@ -124,6 +124,7 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'shop-close': game.leaveShop(); break;
       case 'workbench-close': game.closeWorkbench(); break;
       case 'inventory-close': game.closeInventory(); break;
+      case 'upgrade-close': game.closeTrainingRange(); break;
       case 'open-shop':
         if (game.mode === 'solo') {
           if (game.state === 'playing') { game.midWaveShop = true; game.openTacticalShop(); }

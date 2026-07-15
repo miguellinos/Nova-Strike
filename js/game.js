@@ -41,12 +41,16 @@ class Game {
   newGame(mode, gameMode, mapIndex) {
     this.mode = mode || 'solo';
     this.gameMode = gameMode || 'standard';
-    this.world = new World(mapIndex);
+    // Always start with Map 0 (Hangar) for wave 1!
+    this.world = new World(mapIndex !== undefined ? mapIndex : 0);
     this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
     this.nearWorkbench = false;
     this.workbenchOpenLocal = false;
     this.shopTable = new ShopTable(120, 300);
     this.nearShop = false;
+    this.trainingRange = new TrainingRange(120, 640);
+    this.nearTrainingRange = false;
+    this.trainingOpenLocal = false;
     this.inventoryOpenLocal = false;
     this._snapshotTimer = 0;
     const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
@@ -142,28 +146,46 @@ class Game {
 
   // ----- wave lifecycle -----
   endWave() {
+    if (!this.waves.active) return;
+    this.waves.active = false;
+
     // auto-collect remaining coins for the whole squad
     for (const c of this.coins) { this.player.coins += c.value; }
     this.coins = [];
     this.medkits = [];
     this.shields = [];
     this.boss = null;
+    
+    // Switch map alternates between waves
+    const mapIndex = (this.waves.wave) % 2; // (current wave is about to increment)
+    if (this.world.layoutIndex !== mapIndex) {
+      this.world = new World(mapIndex);
+      // Reset players to spawning location to prevent getting stuck in walls
+      const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
+      if (this.player) {
+        this.player.x = spawn.x - 20;
+        this.player.y = spawn.y;
+      }
+      if (this.player2) {
+        this.player2.x = spawn.x + 20;
+        this.player2.y = spawn.y;
+      }
+    }
+    
+    this.ui.showBanner('WELLE ERLEDIGT');
+    
+    // Roll new upgrades for the Trainingsrange terminal pool
     this.shopUpgrades = rollShopUpgrades(this.gameMode);
     this.shopUpgradeIds = this.shopUpgrades.map((u) => u.id);
-    this.midWaveShop = false;
-    if (this.mode === 'solo') {
-      this.state = 'upgrade'; // Choose free upgrade first
-      this.ui.showHUD(false);
-      this.ui.showUpgradeChoices(this);
-      Menus.show('upgrade-menu');
-    } else {
-      // co-op: one shared intermission; every client shops for itself
-      this.state = 'shop';
-      this.hostShopDone = false;
-      this.guestShopDone = false;
-      this.beginLocalIntermission();
-      // the guest starts its own intermission when it receives the 'shop' snapshot
-    }
+
+    // Briefly wait and start next wave automatically (after 4s)
+    setTimeout(() => {
+      if (this.state === 'playing' || this.state === 'upgrade' || this.state === 'shop') {
+        this.state = 'playing';
+        this.ui.showHUD(true);
+        this.waves.startWave(this.waves.wave + 1);
+      }
+    }, 4000);
   }
 
   // enter the per-client free-upgrade → shop flow (host and guest both call this)
@@ -212,6 +234,17 @@ class Game {
     else if (kind === 'novacola') p.novacolaCount++;
   }
 
+  leaveShop() {
+    if (this.mode === 'solo') {
+      this.closeShop();
+    } else {
+      this.hostShopDone = true;
+      this.ui.showShopWaiting();
+      this.maybeStartNextWaveCoop();
+      Net.sendShopDone();
+    }
+  }
+
   openShopFromWorld() {
     if (this.mode === 'solo') {
       this.midWaveShop = true;
@@ -242,6 +275,58 @@ class Game {
     }
     Menus.hideAll();
     this.ui.showHUD(true);
+  }
+
+  openTrainingRange() {
+    this.trainingOpenLocal = true;
+    if (this.mode === 'solo') {
+      this.state = 'upgrade'; // Freeze physics using existing upgrade state
+    }
+    this.ui.showHUD(false);
+    this.ui.showUpgradeChoices(this);
+    Menus.show('upgrade-menu');
+  }
+
+  closeTrainingRange() {
+    this.trainingOpenLocal = false;
+    if (this.mode === 'solo') {
+      this.state = 'playing';
+    }
+    Menus.hideAll();
+    this.ui.showHUD(true);
+  }
+
+  buyUpgradeAtTrainingRange(up, cost) {
+    const me = this.localPlayer;
+    if (me.score >= cost) {
+      me.score -= cost;
+      up.apply(me);
+      if (Audio2.upgrade) Audio2.upgrade(); else Audio2.reload();
+      
+      this.particles.spawn(me.x, me.y, '#4af626', { count: 12, minSpeed: 40, maxSpeed: 120, life: 0.5, size: 3 });
+
+      if (this.mode === 'guest') {
+        Net.sendShopAction({ action: 'upgrade', id: up.id, cost });
+      }
+
+      // Roll replacement upgrade so choices are filled
+      const idx = this.shopUpgrades.indexOf(up);
+      if (idx !== -1) {
+        let pool = UPGRADES.slice().filter((u) => u.id !== 'vision' || this.gameMode === 'horror');
+        const currentIds = this.shopUpgrades.map(su => su.id);
+        pool = pool.filter(u => !currentIds.includes(u.id));
+        if (pool.length > 0) {
+          const nextUp = Utils.pick(pool);
+          this.shopUpgrades[idx] = nextUp;
+          this.shopUpgradeIds[idx] = nextUp.id;
+        } else {
+          this.shopUpgrades.splice(idx, 1);
+          this.shopUpgradeIds.splice(idx, 1);
+        }
+      }
+      return true;
+    }
+    return false;
   }
 
   useInventoryItem(kind) {
@@ -308,24 +393,6 @@ class Game {
     }
   }
 
-  // the "Nächste Welle ▶" / close button
-  leaveShop() {
-    if (this.mode === 'solo') { this.closeShop(); return; }
-    // co-op mid-wave personal shop: just close the overlay, keep playing
-    if (this.midWaveShop) {
-      this.midWaveShop = false;
-      this.shopOpenLocal = false;
-      Menus.hideAll();
-      this.ui.showHUD(true);
-      return;
-    }
-    // co-op intermission: mark myself done and wait for my partner
-    this.shopOpenLocal = false;
-    if (this.mode === 'host') { this.hostShopDone = true; this.maybeStartNextWaveCoop(); }
-    else { Net.sendShopDone(); }
-    if (!(this.hostShopDone && this.guestShopDone)) this.showShopWaiting();
-  }
-
   showShopWaiting() {
     this.ui.showShopWaiting();
     Menus.show('shop-menu');
@@ -347,7 +414,11 @@ class Game {
     if (this.mode !== 'host' || !this.player2) return;
     if (msg.action === 'upgrade') {
       const up = UPGRADES.find((u) => u.id === msg.id);
-      if (up) up.apply(this.player2);
+      const cost = msg.cost || (up ? up.price * 10 : 0);
+      if (up && this.player2.score >= cost) {
+        this.player2.score -= cost;
+        up.apply(this.player2);
+      }
     } else if (msg.action === 'buy') {
       if (this.player2.coins >= msg.price) {
         this.player2.coins -= msg.price;
@@ -408,15 +479,20 @@ class Game {
           this.openWorkbench();
         }
         this.nearShop = this.shopTable && Utils.dist(this.player2.x, this.player2.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
-        if (this.nearShop && !this.shopOpenLocal && !this.workbenchOpenLocal && Input.wasPressed('e')) {
+        if (this.nearShop && !this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('e')) {
           this.openShopFromWorld();
+          Input.pressed['e'] = false;
+        }
+        this.nearTrainingRange = this.trainingRange && Utils.dist(this.player2.x, this.player2.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
+        if (this.nearTrainingRange && !this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('e')) {
+          this.openTrainingRange();
           Input.pressed['e'] = false;
         }
         if (Input.wasPressed('i')) {
           if (this.inventoryOpenLocal) this.closeInventory(); else this.openInventory();
           Input.pressed['i'] = false;
         }
-        if (this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal) {
+        if (this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal) {
           // menu open: stand still, don't fire — send a neutral packet
           Net.sendInput({ keys: {}, justPressed: [], mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: false, rightDown: false, rightPressed: false });
         } else {
@@ -445,6 +521,11 @@ class Game {
     }
 
     if (this.state !== 'playing') {
+      if (this.trainingOpenLocal && (Input.wasPressed('e') || Input.wasPressed('escape'))) {
+        this.closeTrainingRange();
+        Input.pressed['e'] = false;
+        Input.pressed['escape'] = false;
+      }
       // still keep the guest in sync while we're in the shop/upgrade/gameover screens,
       // otherwise they freeze on the last 'playing' snapshot forever.
       if (this.mode === 'host') this.sendSnapshotThrottled(dt);
@@ -466,6 +547,11 @@ class Game {
     this.nearShop = this.shopTable && Utils.dist(this.player.x, this.player.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
     if (this.nearShop && !this.shopOpenLocal && Input.wasPressed('e')) {
       this.openShopFromWorld();
+      Input.pressed['e'] = false;
+    }
+    this.nearTrainingRange = this.trainingRange && Utils.dist(this.player.x, this.player.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
+    if (this.nearTrainingRange && !this.trainingOpenLocal && Input.wasPressed('e')) {
+      this.openTrainingRange();
       Input.pressed['e'] = false;
     }
 
@@ -521,7 +607,7 @@ class Game {
       state: this.state,
       gameMode: this.gameMode,
       wave: this.waves ? this.waves.wave : 1,
-      enemiesLeft: this.waves ? this.waves.totalRemaining() : 0,
+      layoutIndex: this.world ? this.world.layoutIndex : 0,
       shopUpgradeIds: this.shopUpgradeIds || [],
       cam: { x: this.cam.x, y: this.cam.y },
       players: this.players.map((p) => ({
@@ -557,6 +643,9 @@ class Game {
     this.state = s.state;
     this.gameMode = s.gameMode || 'standard';
     if (this.waves) this.waves.wave = s.wave;
+    if (s.layoutIndex !== undefined && this.world && this.world.layoutIndex !== s.layoutIndex) {
+      this.world = new World(s.layoutIndex);
+    }
     // reconstruct the (identical) upgrade options the host rolled, so our menu matches
     if (s.shopUpgradeIds) {
       this.shopUpgradeIds = s.shopUpgradeIds;
@@ -754,6 +843,7 @@ class Game {
     this.world.draw(ctx, this.cam, this.time);
     if (this.workbench) this.workbench.draw(ctx, this.time, this.nearWorkbench);
     if (this.shopTable) this.shopTable.draw(ctx, this.time, this.nearShop);
+    if (this.trainingRange) this.trainingRange.draw(ctx, this.time, this.nearTrainingRange);
     for (const c of this.coins) c.draw(ctx, this.time);
     for (const m of this.medkits) m.draw(ctx, this.time);
     for (const s of this.shields) s.draw(ctx, this.time);

@@ -25,24 +25,25 @@ const MAP_LAYOUTS = [
       [2160, 200, 60, 60, 'fuel-tank'],
     ],
   },
-  // Map 1: "Hangar-Komplex Beta" — alternative layout with massive hangars
+  // Map 1: "Sektor 4 - Schlachtfeld" — open battlefield map layout, wide paths,
+  // sandbags and fuel tank cover, completely different gameplay feel.
   {
-    name: 'Hangar-Komplex Beta',
-    hangars: [
-      { x: 350, y: 80, w: 1950, h: 740, gateSide: 'south', name: 'Beta Hangar Nord' },
-      { x: 350, y: 980, w: 1950, h: 740, gateSide: 'north', name: 'Beta Hangar Süd' },
-    ],
+    name: 'Sektor 4 - Schlachtfeld',
+    hangars: [], // Open field, no hangars!
     obs: [
-      [1550, 430, 160, 40, 'airplane-fuselage', 0],
-      [950, 1330, 160, 40, 'airplane-fuselage', Math.PI],
-      [1600, 870, 60, 60, 'fuel-tank'],
-      [1660, 870, 60, 60, 'fuel-tank'],
-      [1000, 870, 80, 40, 'car', 0],
-      [1800, 300, 40, 80, 'car', Math.PI / 2],
-      [2000, 300, 80, 80, 'crate'],
-      [500, 1200, 80, 80, 'crate'],
-      [800, 200, 60, 60, 'fuel-tank'],
-      [860, 200, 60, 60, 'fuel-tank'],
+      [1100, 900, 200, 120, 'machine'],
+      [1100, 500, 200, 35, 'wall'],
+      [1100, 1550, 200, 35, 'wall'],
+      [500, 700, 100, 100, 'crate'],
+      [1800, 700, 100, 100, 'crate'],
+      [500, 1300, 100, 100, 'crate'],
+      [1800, 1300, 100, 100, 'crate'],
+      [900, 1150, 90, 90, 'crate'],
+      [1410, 1150, 90, 90, 'crate'],
+      [400, 950, 60, 60, 'fuel-tank'],
+      [460, 950, 60, 60, 'fuel-tank'],
+      [1900, 950, 60, 60, 'fuel-tank'],
+      [1960, 950, 60, 60, 'fuel-tank'],
     ],
   },
 ];
@@ -224,8 +225,12 @@ class World {
   }
 
   randomHangarSpawnPoint() {
+    if (!this.hangars || this.hangars.length === 0) {
+      return this.randomSpawnPoint();
+    }
     for (let i = 0; i < 50; i++) {
       const h = Utils.pick(this.hangars);
+      if (!h) continue;
       const m = 40; // safe margin
       const rx = Utils.rand(h.x + m, h.x + h.w - m);
       const ry = Utils.rand(h.y + m, h.y + h.h - m);
@@ -234,6 +239,7 @@ class World {
       }
     }
     const h = Utils.pick(this.hangars);
+    if (!h) return this.randomSpawnPoint();
     return { x: h.x + h.w / 2, y: h.y + h.h / 2 };
   }
   draw(ctx, cam, time) {
