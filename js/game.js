@@ -484,6 +484,35 @@ class Game {
     // whatever the host last broadcast (see applySnapshot()).
     if (this.mode === 'guest') {
       if (this.state === 'playing' && this.player2) {
+        // Lerp player positions smoothly towards targets
+        if (this.player && this.player.targetX !== undefined) {
+          this.player.x = Utils.lerp(this.player.x, this.player.targetX, 0.25);
+          this.player.y = Utils.lerp(this.player.y, this.player.targetY, 0.25);
+        }
+        if (this.player2 && this.player2.targetX !== undefined) {
+          this.player2.x = Utils.lerp(this.player2.x, this.player2.targetX, 0.25);
+          this.player2.y = Utils.lerp(this.player2.y, this.player2.targetY, 0.25);
+        }
+
+        // Lerp enemies smoothly towards targets
+        for (const e of this.enemies) {
+          if (e.targetX !== undefined) {
+            e.x = Utils.lerp(e.x, e.targetX, 0.25);
+            e.y = Utils.lerp(e.y, e.targetY, 0.25);
+          }
+        }
+
+        // Lerp boss smoothly towards target
+        if (this.boss && this.boss.targetX !== undefined) {
+          this.boss.x = Utils.lerp(this.boss.x, this.boss.targetX, 0.25);
+          this.boss.y = Utils.lerp(this.boss.y, this.boss.targetY, 0.25);
+        }
+
+        // Tick local particles, screen shakes, and damage vignettes at 60 FPS
+        this.particles.update(dt);
+        if (this.shakeAmt > 0) this.shakeAmt = Math.max(0, this.shakeAmt - dt * 40);
+        if (this.damageVignette > 0) this.damageVignette = Math.max(0, this.damageVignette - dt * 2);
+
         this.updateCamera(dt);
         Input.mouse.worldX = this.cam.x + Input.mouse.x;
         Input.mouse.worldY = this.cam.y + Input.mouse.y;
@@ -601,7 +630,7 @@ class Game {
   sendSnapshotThrottled(dt) {
     this._snapshotTimer -= dt;
     if (this._snapshotTimer > 0) return;
-    this._snapshotTimer = 1 / 20;
+    this._snapshotTimer = 1 / 45;
     Net.sendSnapshot(this.buildSnapshot());
   }
 
@@ -662,33 +691,153 @@ class Game {
 
     const assign = (p, d) => Object.assign(p, d);
     if (s.players[0]) {
-      assign(this.player, s.players[0]);
-      if (!this.player.mods) this.player.mods = {};
-      this.player.mods.visionRange = s.players[0].visionRange || 1;
+      const d = s.players[0];
+      if (this.mode === 'guest') {
+        this.player.targetX = d.x;
+        this.player.targetY = d.y;
+        if (this.player.x === undefined) { this.player.x = d.x; this.player.y = d.y; }
+        this.player.aimAngle = d.aimAngle;
+        this.player.hp = d.hp;
+        this.player.maxHp = d.maxHp;
+        this.player.coins = d.coins;
+        this.player.score = d.score;
+        this.player.kills = d.kills;
+        this.player.currentWeapon = d.currentWeapon;
+        if (!this.player.weapons[d.currentWeapon]) {
+          this.player.weapons[d.currentWeapon] = { ammo: d.ammo };
+        } else {
+          this.player.weapons[d.currentWeapon].ammo = d.ammo;
+        }
+        this.player.reloading = d.reloading;
+        this.player.reloadTimer = d.reloadTimer;
+        this.player.reloadTotal = d.reloadTotal;
+        this.player.dashCd = d.dashCd;
+        this.player.hitFlash = d.hitFlash;
+        this.player.invuln = d.invuln;
+        this.player.walkPhase = d.walkPhase;
+        this.player.shieldHp = d.shieldHp;
+        this.player.charId = d.charId;
+        if (!this.player.mods) this.player.mods = {};
+        this.player.mods.visionRange = d.visionRange || 1;
+      } else {
+        assign(this.player, d);
+      }
     }
-    // While my own shop is open I own my inventory locally — take only render/status
-    // fields from the host so my coins/weapons/upgrades don't get clobbered mid-purchase.
     if (s.players[1] && this.player2) {
       const d = s.players[1];
       const localMenuOpen = this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal;
-      if (localMenuOpen && this.localPlayer === this.player2) {
-        this.player2.x = d.x; this.player2.y = d.y; this.player2.aimAngle = d.aimAngle;
-        this.player2.hp = d.hp; this.player2.maxHp = d.maxHp; this.player2.hitFlash = d.hitFlash;
-        this.player2.invuln = d.invuln; this.player2.walkPhase = d.walkPhase; this.player2.shieldHp = d.shieldHp;
+      if (this.mode === 'guest') {
+        this.player2.targetX = d.x;
+        this.player2.targetY = d.y;
+        if (this.player2.x === undefined) { this.player2.x = d.x; this.player2.y = d.y; }
+        this.player2.aimAngle = d.aimAngle;
+        this.player2.hp = d.hp;
+        this.player2.maxHp = d.maxHp;
+        this.player2.hitFlash = d.hitFlash;
+        this.player2.invuln = d.invuln;
+        this.player2.walkPhase = d.walkPhase;
+        this.player2.shieldHp = d.shieldHp;
         this.player2.novaColaTimer = d.novaColaTimer || 0;
         this.player2.medkitsCount = d.medkitsCount || 0;
         this.player2.shieldsCount = d.shieldsCount || 0;
         this.player2.breadCount = d.breadCount || 0;
         this.player2.novacolaCount = d.novacolaCount || 0;
-      } else {
-        assign(this.player2, d);
+        this.player2.charId = d.charId;
         if (!this.player2.mods) this.player2.mods = {};
         this.player2.mods.visionRange = d.visionRange || 1;
+
+        if (!localMenuOpen || this.localPlayer !== this.player2) {
+          this.player2.coins = d.coins;
+          this.player2.score = d.score;
+          this.player2.kills = d.kills;
+          this.player2.currentWeapon = d.currentWeapon;
+          if (!this.player2.weapons[d.currentWeapon]) {
+            this.player2.weapons[d.currentWeapon] = { ammo: d.ammo };
+          } else {
+            this.player2.weapons[d.currentWeapon].ammo = d.ammo;
+          }
+          this.player2.reloading = d.reloading;
+          this.player2.reloadTimer = d.reloadTimer;
+          this.player2.reloadTotal = d.reloadTotal;
+          this.player2.dashCd = d.dashCd;
+        }
+      } else {
+        if (localMenuOpen && this.localPlayer === this.player2) {
+          this.player2.x = d.x; this.player2.y = d.y; this.player2.aimAngle = d.aimAngle;
+          this.player2.hp = d.hp; this.player2.maxHp = d.maxHp; this.player2.hitFlash = d.hitFlash;
+          this.player2.invuln = d.invuln; this.player2.walkPhase = d.walkPhase; this.player2.shieldHp = d.shieldHp;
+          this.player2.novaColaTimer = d.novaColaTimer || 0;
+          this.player2.medkitsCount = d.medkitsCount || 0;
+          this.player2.shieldsCount = d.shieldsCount || 0;
+          this.player2.breadCount = d.breadCount || 0;
+          this.player2.novacolaCount = d.novacolaCount || 0;
+        } else {
+          assign(this.player2, d);
+          if (!this.player2.mods) this.player2.mods = {};
+          this.player2.mods.visionRange = d.visionRange || 1;
+        }
       }
     }
 
-    this.enemies = s.enemies.map((d) => Object.assign(Object.create(Enemy.prototype), d, { draw: Enemy.prototype.draw, dead: false }));
-    this.boss = s.boss ? Object.assign(Object.create(Boss.prototype), s.boss, { dead: false }) : null;
+    if (this.mode === 'guest') {
+      const incomingEnemies = s.enemies || [];
+      if (this.enemies.length > incomingEnemies.length) {
+        this.enemies.length = incomingEnemies.length;
+      }
+      for (let i = 0; i < incomingEnemies.length; i++) {
+        const d = incomingEnemies[i];
+        if (this.enemies[i]) {
+          const e = this.enemies[i];
+          e.targetX = d.x;
+          e.targetY = d.y;
+          e.radius = d.radius;
+          e.color = d.color;
+          e.hp = d.hp;
+          e.maxHp = d.maxHp;
+          e.type = d.type;
+          e.hitFlash = d.hitFlash;
+        } else {
+          const e = Object.assign(Object.create(Enemy.prototype), d, { draw: Enemy.prototype.draw, dead: false });
+          e.targetX = d.x;
+          e.targetY = d.y;
+          e.x = d.x;
+          e.y = d.y;
+          this.enemies[i] = e;
+        }
+      }
+    } else {
+      this.enemies = s.enemies.map((d) => Object.assign(Object.create(Enemy.prototype), d, { draw: Enemy.prototype.draw, dead: false }));
+    }
+
+    if (s.boss) {
+      if (this.mode === 'guest') {
+        if (this.boss) {
+          this.boss.targetX = s.boss.x;
+          this.boss.targetY = s.boss.y;
+          this.boss.radius = s.boss.radius;
+          this.boss.hp = s.boss.hp;
+          this.boss.maxHp = s.boss.maxHp;
+          this.boss.name = s.boss.name;
+          this.boss.phase2 = s.boss.phase2;
+          this.boss.spin = s.boss.spin;
+          this.boss.hitFlash = s.boss.hitFlash;
+          this.boss.bossType = s.boss.bossType;
+          this.boss.legPhase = s.boss.legPhase;
+          this.boss.shielded = s.boss.shielded;
+        } else {
+          this.boss = Object.assign(Object.create(Boss.prototype), s.boss, { dead: false });
+          this.boss.targetX = s.boss.x;
+          this.boss.targetY = s.boss.y;
+          this.boss.x = s.boss.x;
+          this.boss.y = s.boss.y;
+        }
+      } else {
+        this.boss = Object.assign(Object.create(Boss.prototype), s.boss, { dead: false });
+      }
+    } else {
+      this.boss = null;
+    }
+
     this.projectiles = s.projectiles.map((d) => Object.assign(Object.create(Projectile.prototype), d, {
       trail: [], vx: Math.cos(d.angle) * 500, vy: Math.sin(d.angle) * 500,
     }));
