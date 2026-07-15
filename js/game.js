@@ -12,6 +12,7 @@ class Game {
     this.time = 0; this.dt = 0;
     this.shakeAmt = 0;
     this.damageVignette = 0;
+    this.interiorT = 0;
     this.hpMult = 1; this.dmgMult = 1;
     this.player2 = null;
     this.resize();
@@ -63,6 +64,7 @@ class Game {
     this.inventoryOpenLocal = false;
     this.pauseOpenLocal = false;
     this._snapshotTimer = 0;
+    this.interiorT = 0;
     const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
     this.player = new Player(spawn.x - 20, spawn.y);
     this.player2 = this.mode !== 'solo' ? new Player(spawn.x + 20, spawn.y, this.mode === 'host') : null;
@@ -517,6 +519,19 @@ class Game {
     this.dt = dt;
     this.time += dt;
     Audio2.updateMusic(dt);
+
+    // Update dynamic building interior transition factor
+    const localPlayer = this.localPlayer;
+    if (localPlayer && this.world) {
+      const inside = this.world.getBuildingAt(localPlayer.x, localPlayer.y) !== null;
+      if (inside) {
+        this.interiorT = Math.min(1, this.interiorT + dt * 2.2);
+      } else {
+        this.interiorT = Math.max(0, this.interiorT - dt * 2.2);
+      }
+    } else {
+      this.interiorT = 0;
+    }
 
     // guest tabs never simulate — they just forward local input and render
     // whatever the host last broadcast (see applySnapshot()).
@@ -1131,10 +1146,8 @@ class Game {
     if (this.boss && !this.boss.dead) this.boss.draw(ctx, this.time);
     for (const p of this.players) if (p.hp > 0) p.draw(ctx, this.time);
 
-    // 2. Apply Flashlight Mask (overlay in screen coordinates) if in Horror mode OR inside a building
-    const localPlayer = this.localPlayer;
-    const insideBuilding = localPlayer && this.world.getBuildingAt(localPlayer.x, localPlayer.y) !== null;
-    if (this.gameMode === 'horror' || (this.gameMode === 'standard' && insideBuilding)) {
+    // 2. Apply Flashlight Mask (overlay in screen coordinates)
+    if (this.gameMode === 'horror' || this.gameMode === 'standard') {
       ctx.save();
       ctx.setTransform(this.zoom, 0, 0, this.zoom, 0, 0);
       this.drawFlashlightMask(ctx);
@@ -1240,8 +1253,10 @@ class Game {
     const mCtx = this.maskCtx;
     mCtx.clearRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
 
-    // Tactical dark overlay color (80% opacity makes dark areas more visible)
-    mCtx.fillStyle = 'rgba(7, 8, 12, 0.80)';
+    const darkT = this.gameMode === 'horror' ? 1 : this.interiorT;
+
+    // Tactical dark overlay color (scales with interior transition factor)
+    mCtx.fillStyle = 'rgba(7, 8, 12, ' + (0.80 * darkT) + ')';
     mCtx.fillRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
 
     // Draw building dark covers (fog of war / roofs) ON the mask canvas
@@ -1249,13 +1264,15 @@ class Game {
     if (localPlayer) {
       const activeBuilding = this.world.getBuildingAt(localPlayer.x, localPlayer.y);
       for (const h of this.world.hangars) {
-        if (h !== activeBuilding) {
+        const coverOpacity = h === activeBuilding ? 0.99 * (1 - darkT) : 0.99;
+        
+        if (coverOpacity > 0.01) {
           // Draw metallic dark cover over building interior
-          mCtx.fillStyle = 'rgba(6, 7, 10, 0.99)';
+          mCtx.fillStyle = 'rgba(6, 7, 10, ' + coverOpacity + ')';
           mCtx.fillRect(h.x - this.cam.x + 20, h.y - this.cam.y + 20, h.w - 40, h.h - 40);
 
           // Draw metallic panels panel-grid overlay
-          mCtx.strokeStyle = 'rgba(20, 24, 30, 0.99)';
+          mCtx.strokeStyle = 'rgba(20, 24, 30, ' + coverOpacity + ')';
           mCtx.lineWidth = 3;
           mCtx.strokeRect(h.x - this.cam.x + 20, h.y - this.cam.y + 20, h.w - 40, h.h - 40);
           mCtx.beginPath();
