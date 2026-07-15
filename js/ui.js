@@ -137,7 +137,7 @@ class UI {
     const waitMsg = document.getElementById('shop-wait-msg');
     if (waitMsg) waitMsg.classList.add('hidden');
 
-    // Waffen gibt es nur noch an der Werkbank (Taste E in der Nähe) — hier nur
+    // Waffen gibt es nur noch an der Werkbank (Taste F in der Nähe) — hier nur
     // Verbrauchsgüter: Munition, Medkits, Schilde.
 
     // 2. Ammo refill

@@ -345,9 +345,8 @@ class Game {
         Input.mouse.worldY = this.cam.y + Input.mouse.y;
         // cosmetic proximity check (map layout is synced, so this matches the host's)
         this.nearWorkbench = this.workbench && Utils.dist(this.player2.x, this.player2.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
-        if (this.nearWorkbench && !this.shopOpenLocal && !this.workbenchOpenLocal && Input.wasPressed('e')) {
+        if (this.nearWorkbench && !this.shopOpenLocal && !this.workbenchOpenLocal && Input.wasPressed('f')) {
           this.openWorkbench();
-          Input.pressed['e'] = false;
         }
         if (this.shopOpenLocal || this.workbenchOpenLocal) {
           // menu open: stand still, don't fire — send a neutral packet
@@ -381,12 +380,10 @@ class Game {
     Input.mouse.worldX = this.cam.x + Input.mouse.x;
     Input.mouse.worldY = this.cam.y + Input.mouse.y;
 
-    // workbench interact ("press E") — consume the keypress here so it doesn't
-    // also trigger the local player's shield activation this frame.
+    // workbench interact ("press F")
     this.nearWorkbench = this.workbench && Utils.dist(this.player.x, this.player.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
-    if (this.nearWorkbench && !this.workbenchOpenLocal && Input.wasPressed('e')) {
+    if (this.nearWorkbench && !this.workbenchOpenLocal && Input.wasPressed('f')) {
       this.openWorkbench();
-      Input.pressed['e'] = false;
     }
 
     this.world.update(dt);

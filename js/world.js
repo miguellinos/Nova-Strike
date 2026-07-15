@@ -93,13 +93,17 @@ class World {
     for (const h of layout.hangars) this.buildHangar(h.x, h.y, h.w, h.h, h.gateSide, h.name);
     for (const o of layout.obs) this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4] });
 
-    // workbench: pick the first clear candidate spot near the map center (layout-safe)
+    // workbench: pick the first clear spot near the player's own spawn point (see
+    // game.js's newGame()) so it's always in the same open area the player starts in
+    // — never deep inside a maze pocket that might not actually be reachable.
+    const sx = this.w / 2, sy = this.h / 2 - 180;
     const wbCandidates = [
-      { x: this.w / 2, y: this.h / 2 + 260 }, { x: this.w / 2, y: this.h / 2 - 260 },
-      { x: this.w / 2 - 260, y: this.h / 2 }, { x: this.w / 2 + 260, y: this.h / 2 },
-      { x: this.w / 2, y: this.h / 2 },
+      { x: sx + 180, y: sy + 90 }, { x: sx - 180, y: sy + 90 },
+      { x: sx + 180, y: sy - 90 }, { x: sx - 180, y: sy - 90 },
+      { x: sx, y: sy + 150 }, { x: sx, y: sy - 150 },
+      { x: sx, y: sy }, // last resort: exact spawn point — always clear, always reachable
     ];
-    this.workbenchPos = wbCandidates.find((p) => !pointInRects(p.x, p.y, this.rects, 40)) || wbCandidates[0];
+    this.workbenchPos = wbCandidates.find((p) => !pointInRects(p.x, p.y, this.rects, 40)) || { x: sx, y: sy };
 
     // generate static terrain features
     this.grassPatches = [];
