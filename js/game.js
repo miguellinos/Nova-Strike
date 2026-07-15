@@ -475,13 +475,17 @@ class Game {
         Input.mouse.worldY = this.cam.y + Input.mouse.y;
         // cosmetic proximity check (map layout is synced, so this matches the host's)
         this.nearWorkbench = this.workbench && Utils.dist(this.player2.x, this.player2.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
-        if (this.nearWorkbench && !this.shopOpenLocal && !this.workbenchOpenLocal && Input.wasPressed('f')) {
-          this.openWorkbench();
-        }
         this.nearShop = this.shopTable && Utils.dist(this.player2.x, this.player2.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
+<<<<<<< HEAD
         if (this.nearShop && !this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('e')) {
           this.openShopFromWorld();
           Input.pressed['e'] = false;
+=======
+        if (!this.shopOpenLocal && !this.workbenchOpenLocal && Input.wasPressed('f')) {
+          if (this.nearWorkbench) this.openWorkbench();
+          else if (this.nearShop) this.openShopFromWorld();
+          Input.pressed['f'] = false;
+>>>>>>> 6209680e828056dcd23a6ea95f5c91c651a5a4e8
         }
         this.nearTrainingRange = this.trainingRange && Utils.dist(this.player2.x, this.player2.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
         if (this.nearTrainingRange && !this.shopOpenLocal && !this.workbenchOpenLocal && !this.trainingOpenLocal && Input.wasPressed('e')) {
@@ -539,15 +543,13 @@ class Game {
     Input.mouse.worldX = this.cam.x + Input.mouse.x;
     Input.mouse.worldY = this.cam.y + Input.mouse.y;
 
-    // workbench interact ("press F")
+    // workbench + shop interact ("press F")
     this.nearWorkbench = this.workbench && Utils.dist(this.player.x, this.player.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
-    if (this.nearWorkbench && !this.workbenchOpenLocal && Input.wasPressed('f')) {
-      this.openWorkbench();
-    }
     this.nearShop = this.shopTable && Utils.dist(this.player.x, this.player.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
-    if (this.nearShop && !this.shopOpenLocal && Input.wasPressed('e')) {
-      this.openShopFromWorld();
-      Input.pressed['e'] = false;
+    if (!this.workbenchOpenLocal && !this.shopOpenLocal && Input.wasPressed('f')) {
+      if (this.nearWorkbench) this.openWorkbench();
+      else if (this.nearShop) this.openShopFromWorld();
+      Input.pressed['f'] = false;
     }
     this.nearTrainingRange = this.trainingRange && Utils.dist(this.player.x, this.player.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
     if (this.nearTrainingRange && !this.trainingOpenLocal && Input.wasPressed('e')) {

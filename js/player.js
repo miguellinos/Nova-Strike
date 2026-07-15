@@ -94,6 +94,13 @@ class Player {
     this.currentWeapon = key;
     this.reloading = false; this.reloadTimer = 0; this.fireCooldown = 0;
   }
+  cycleWeapon(dir) {
+    const owned = WEAPON_ORDER.filter((k) => this.weapons[k].unlocked);
+    if (owned.length < 2) return;
+    const i = owned.indexOf(this.currentWeapon);
+    const next = owned[(i + dir + owned.length) % owned.length];
+    this.switchWeapon(next);
+  }
 
   update(dt, game) {
     const world = game.world;
@@ -154,11 +161,13 @@ class Player {
 
     const menusOpen = game.shopOpenLocal || game.workbenchOpenLocal || game.inventoryOpenLocal;
 
-    // weapon switch by number keys
+    // weapon switch by number keys or mouse wheel
     if (!menusOpen) {
       for (let i = 0; i < WEAPON_ORDER.length; i++) {
         if (this.input.wasPressed(String(i + 1))) this.switchWeapon(WEAPON_ORDER[i]);
       }
+      if (this.input.wasPressed('wheeldown')) this.cycleWeapon(1);
+      if (this.input.wasPressed('wheelup')) this.cycleWeapon(-1);
     }
 
     // reload

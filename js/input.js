@@ -32,6 +32,11 @@ const Input = {
       if (e.button === 2) this.mouse.rightDown = false;
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (e.deltaY > 0) this.pressed['wheeldown'] = true;
+      else if (e.deltaY < 0) this.pressed['wheelup'] = true;
+    }, { passive: false });
   },
   key(k) { return !!this.keys[k]; },
   wasPressed(k) { return !!this.pressed[k]; },

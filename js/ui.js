@@ -89,10 +89,10 @@ class UI {
     if (this.el.interactPrompt) {
       const showPrompt = game.state === 'playing' && !game.workbenchOpenLocal && !game.shopOpenLocal && !game.trainingOpenLocal;
       if (showPrompt && game.nearWorkbench) {
-        this.el.interactPrompt.innerHTML = 'Drücke <b>E</b> für die Werkbank';
+        this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für die Werkbank';
         this.el.interactPrompt.classList.remove('hidden');
       } else if (showPrompt && game.nearShop) {
-        this.el.interactPrompt.innerHTML = 'Drücke <b>E</b> für den Shop';
+        this.el.interactPrompt.innerHTML = 'Drücke <b>F</b> für den Shop';
         this.el.interactPrompt.classList.remove('hidden');
       } else if (showPrompt && game.nearTrainingRange) {
         this.el.interactPrompt.innerHTML = 'Drücke <b>E</b> für Trainingsrange';
@@ -164,7 +164,7 @@ class UI {
     // Verbrauchsgüter: Munition, Medkits, Schilde.
 
     // 2. Ammo refill
-    const ammoPrice = 30;
+    const ammoPrice = 27;
     const ammoCard = document.createElement('div');
     ammoCard.className = 'shop-card';
     ammoCard.innerHTML =
@@ -180,7 +180,7 @@ class UI {
     this.el.shopCards.appendChild(ammoCard);
 
     // 3. Medkit purchase
-    const medkitPrice = 40;
+    const medkitPrice = 36;
     const medkitCard = document.createElement('div');
     medkitCard.className = 'shop-card';
     medkitCard.innerHTML =
@@ -196,7 +196,7 @@ class UI {
     this.el.shopCards.appendChild(medkitCard);
 
     // 4. Shield purchase
-    const shieldPrice = 50;
+    const shieldPrice = 45;
     const shieldCard = document.createElement('div');
     shieldCard.className = 'shop-card';
     shieldCard.innerHTML =
@@ -212,7 +212,7 @@ class UI {
     this.el.shopCards.appendChild(shieldCard);
 
     // 5. Brot (Bread) purchase
-    const breadPrice = 10;
+    const breadPrice = 9;
     const breadCard = document.createElement('div');
     breadCard.className = 'shop-card';
     breadCard.innerHTML =
@@ -228,7 +228,7 @@ class UI {
     this.el.shopCards.appendChild(breadCard);
 
     // 6. Novacola purchase
-    const novacolaPrice = 25;
+    const novacolaPrice = 22;
     const novacolaCard = document.createElement('div');
     novacolaCard.className = 'shop-card';
     novacolaCard.innerHTML =

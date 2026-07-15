@@ -4,7 +4,7 @@ const ENEMY_DEFS = {
   striker: { name: 'Elite-Soldat',      hp: 70,  speed: 150, dmg: 14, radius: 15, color: '#a63a2b', coins: [2, 4],  score: 20,  ranged: false, touchCd: 0.7, vision: 520 },
   tank:    { name: 'Kampfpanzer',       hp: 350, speed: 65,  dmg: 28, radius: 28, color: '#3f4f34', coins: [5, 10], score: 45,  ranged: true,  touchCd: 0.9, vision: 580, shootCd: 2.8, projSpeed: 250, projColor: '#ff5500' },
   shooter: { name: 'Militär-Humvee',     hp: 60,  speed: 110, dmg: 10, radius: 18, color: '#c2b280', coins: [3, 5],  score: 30,  ranged: true,  touchCd: 0.7, shootCd: 1.5, keepDist: 300, projSpeed: 380, projColor: '#ffcc00', vision: 640 },
-  novabeast:{name: 'Schwerer Panzerträger',hp: 1200, speed: 90,  dmg: 40, radius: 36, color: '#4f5d65', coins: [10, 20],score: 200, ranged: false, touchCd: 0.8, elite: true, vision: 680 },
+  novabeast:{name: 'aw Panzerträger',hp: 1200, speed: 90,  dmg: 40, radius: 36, color: '#4f5d65', coins: [10, 20],score: 200, ranged: false, touchCd: 0.8, elite: true, vision: 680 },
 };
 
 function checkLineOfSight(x1, y1, x2, y2, rects) {

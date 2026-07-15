@@ -1,6 +1,29 @@
 // ---------- world.js : the tactical battlefield map ----------
-// Two completely distinct map layouts — different hangar counts/positions AND
-// different obstacle density/shape, not just rearranged furniture in the same shell.
+// Map layouts differ not just in wall/obstacle geometry but in ground "vibe" —
+// each has a color theme so not every map reads as the same brown war-torn dirt field.
+const THEMES = {
+  military: { // muddy war-zone brown (the original look)
+    ground: '#221b14', mud: '#17120d', track: '#1c1610',
+    crater: '#19130f', craterInner: '#0d0a07', craterStroke: '#120d09',
+    grass: '#2d3319', dust: '#4c3f30',
+  },
+  arctic: { // frozen tundra — pale ice blues instead of mud brown
+    ground: '#dce8ee', mud: '#a9c2cf', track: '#93b0bf',
+    crater: '#6f8fa0', craterInner: '#425c6b', craterStroke: '#3a4f5c',
+    grass: '#c3d8e0', dust: '#eef6fa',
+  },
+  toxic: { // alien/toxic swamp — sickly purples and acid green
+    ground: '#241a2e', mud: '#33224a', track: '#2a1c3d',
+    crater: '#4a2f5c', craterInner: '#170f22', craterStroke: '#5c2f5a',
+    grass: '#6fbf3f', dust: '#5fbf6f',
+  },
+  desert: { // dry sandy dunes — warm tan instead of muddy brown
+    ground: '#3a2f1e', mud: '#4a3d26', track: '#5c4c2e',
+    crater: '#4f3f24', craterInner: '#2a2113', craterStroke: '#2e2416',
+    grass: '#6b5a2e', dust: '#8a7040',
+  },
+};
+
 // Picked randomly per match (the index is synced host->guest so both see the same map).
 const MAP_LAYOUTS = [
   // Map 0: "Hangar-Komplex Alpha" — massive hangar buildings covering 80% of the map,
@@ -46,6 +69,67 @@ const MAP_LAYOUTS = [
       [1960, 950, 60, 60, 'fuel-tank'],
     ],
   },
+  // Map 2: "Wüsten-Kreuzung" — 3 hangars in a row along the south edge (not 2 in
+  // corners), huge open desert to the north with only scattered standalone cover.
+  {
+    name: 'Wüsten-Kreuzung',
+    theme: 'desert',
+    hangars: [
+      { x: 200, y: 1400, w: 380, h: 280, gateSide: 'north', name: 'Außenposten West' },
+      { x: 1010, y: 1400, w: 380, h: 280, gateSide: 'north', name: 'Außenposten Mitte' },
+      { x: 1820, y: 1400, w: 380, h: 280, gateSide: 'north', name: 'Außenposten Ost' },
+    ],
+    obs: [
+      [300, 300, 90, 90, 'crate'], [1155, 250, 90, 90, 'crate'], [2010, 300, 90, 90, 'crate'],
+      [900, 750, 200, 100, 'machine'],
+      [700, 600, 30, 300, 'wall'], [1670, 600, 30, 300, 'wall'],
+      [500, 950, 90, 90, 'crate'], [1810, 950, 90, 90, 'crate'], [1155, 1050, 90, 90, 'crate'],
+    ],
+  },
+  // Map 3: "Bunker-Ring" — only 1 hangar (north-center), everything else is a huge
+  // open field wrapped around a ring-shaped central fortress. Very different shape.
+  {
+    name: 'Bunker-Ring',
+    theme: 'arctic',
+    hangars: [
+      { x: 990, y: 100, w: 420, h: 280, gateSide: 'south', name: 'Zentralkommando' },
+    ],
+    obs: [
+      // ring fortress around the map center, with a gap on each side to enter
+      [950, 650, 200, 30, 'wall'], [1250, 650, 200, 30, 'wall'],
+      [950, 1120, 200, 30, 'wall'], [1250, 1120, 200, 30, 'wall'],
+      [950, 650, 30, 200, 'wall'], [950, 950, 30, 200, 'wall'],
+      [1420, 650, 30, 200, 'wall'], [1420, 950, 30, 200, 'wall'],
+      [1100, 850, 200, 100, 'machine'],
+      // scattered cover in the big open field outside the ring
+      [400, 300, 90, 90, 'crate'], [2000, 300, 90, 90, 'crate'],
+      [400, 1500, 90, 90, 'crate'], [2000, 1500, 90, 90, 'crate'],
+      [300, 900, 90, 90, 'crate'], [2100, 900, 90, 90, 'crate'],
+    ],
+  },
+  // Map 4: "Giftsumpf-Anlage" — 4 small hangars spread along BOTH the east and west
+  // edges (not north/south like every other map), diagonal cover lines through a
+  // toxic swamp center. Different geometry AND a completely different color vibe.
+  {
+    name: 'Giftsumpf-Anlage',
+    theme: 'toxic',
+    hangars: [
+      // hangars stay at x >= 350 / x <= 2000 like every other map, so none of them
+      // ever overlap the shop building that's always built in the top-left corner
+      { x: 380, y: 250, w: 360, h: 260, gateSide: 'south', name: 'Sumpf-Station Nordwest' },
+      { x: 380, y: 1290, w: 360, h: 260, gateSide: 'north', name: 'Sumpf-Station Südwest' },
+      { x: 1660, y: 250, w: 360, h: 260, gateSide: 'south', name: 'Sumpf-Station Nordost' },
+      { x: 1660, y: 1290, w: 360, h: 260, gateSide: 'north', name: 'Sumpf-Station Südost' },
+    ],
+    obs: [
+      [1100, 850, 200, 100, 'machine'],
+      [800, 500, 30, 260, 'wall'], [1600, 500, 30, 260, 'wall'],
+      [800, 1040, 30, 260, 'wall'], [1600, 1040, 30, 260, 'wall'],
+      [900, 620, 90, 90, 'crate'], [1410, 620, 90, 90, 'crate'],
+      [900, 1090, 90, 90, 'crate'], [1410, 1090, 90, 90, 'crate'],
+      [1155, 350, 90, 90, 'crate'], [1155, 1360, 90, 90, 'crate'],
+    ],
+  },
 ];
 
 class World {
@@ -59,6 +143,8 @@ class World {
     this.layoutIndex = (layoutIndex !== undefined && layoutIndex !== null)
       ? layoutIndex
       : Utils.randInt(0, MAP_LAYOUTS.length - 1);
+    const layoutDef = MAP_LAYOUTS[this.layoutIndex] || MAP_LAYOUTS[0];
+    this.theme = THEMES[layoutDef.theme] || THEMES.military;
     this.build();
   }
 
@@ -243,12 +329,13 @@ class World {
     return { x: h.x + h.w / 2, y: h.y + h.h / 2 };
   }
   draw(ctx, cam, time) {
-    // ground base (muddy military brown)
-    ctx.fillStyle = '#221b14';
+    const theme = this.theme;
+    // ground base (per-map color theme)
+    ctx.fillStyle = theme.ground;
     ctx.fillRect(cam.x, cam.y, cam.w, cam.h);
 
     // 1. Draw mud puddles
-    ctx.fillStyle = '#17120d'; // darker wet mud
+    ctx.fillStyle = theme.mud;
     for (const p of this.mudPuddles) {
       if (p.x < cam.x - p.rx || p.x > cam.x + cam.w + p.rx || p.y < cam.y - p.ry || p.y > cam.y + cam.h + p.ry) continue;
       ctx.save();
@@ -313,7 +400,7 @@ class World {
     }
 
     // 2. Draw tire tracks
-    ctx.fillStyle = '#1c1610'; // darker compressed mud
+    ctx.fillStyle = theme.track;
     for (const t of this.tireTracks) {
       if (t.x < cam.x - 300 || t.x > cam.x + cam.w + 300 || t.y < cam.y - 300 || t.y > cam.y + cam.h + 300) continue;
       ctx.save();
@@ -330,22 +417,22 @@ class World {
     }
 
     // 3. Draw ground craters
-    ctx.strokeStyle = '#120d09';
+    ctx.strokeStyle = theme.craterStroke;
     ctx.lineWidth = 3;
     for (const c of this.groundCraters) {
       if (c.x < cam.x - c.r || c.x > cam.x + cam.w + c.r || c.y < cam.y - c.r || c.y > cam.y + cam.h + c.r) continue;
-      ctx.fillStyle = '#19130f';
+      ctx.fillStyle = theme.crater;
       ctx.beginPath();
       ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      
+
       // inner dark center
-      ctx.fillStyle = '#0d0a07';
+      ctx.fillStyle = theme.craterInner;
       ctx.beginPath();
       ctx.arc(c.x, c.y, c.r * 0.65, 0, Math.PI * 2);
       ctx.fill();
-      
+
       // crater crack rays
       ctx.beginPath();
       for (let i = 0; i < c.cracks; i++) {
@@ -359,7 +446,7 @@ class World {
     // 4. Draw grass / foliage patches
     for (const g of this.grassPatches) {
       if (g.x < cam.x - g.size || g.x > cam.x + cam.w + g.size || g.y < cam.y - g.size || g.y > cam.y + cam.h + g.size) continue;
-      ctx.strokeStyle = '#2d3319'; // muddy olive-green grass
+      ctx.strokeStyle = theme.grass;
       ctx.lineWidth = 2;
       ctx.beginPath();
       for (let i = 0; i < g.blades; i++) {
@@ -371,7 +458,7 @@ class World {
     }
 
     // 5. Draw blowing dust clouds (behind assets)
-    ctx.fillStyle = '#4c3f30';
+    ctx.fillStyle = theme.dust;
     for (const d of this.energyDots) {
       if (d.x < cam.x - d.r || d.x > cam.x + cam.w + d.r || d.y < cam.y - d.r || d.y > cam.y + cam.h + d.r) continue;
       ctx.globalAlpha = d.a;
