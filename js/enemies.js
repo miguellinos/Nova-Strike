@@ -7,6 +7,22 @@ const ENEMY_DEFS = {
   novabeast:{name: 'aw Panzerträger',hp: 1200, speed: 90,  dmg: 40, radius: 36, color: '#4f5d65', coins: [10, 20],score: 200, ranged: false, touchCd: 0.8, elite: true, vision: 680 },
 };
 
+// steer a movement direction around nearby walls instead of walking straight
+// into them and getting stuck — tries small deflections left/right, picks the
+// first clear one closest to the original heading.
+function steerAroundObstacles(x, y, dirX, dirY, rects, lookahead) {
+  const angles = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1, 1.6, -1.6];
+  const baseAngle = Math.atan2(dirY, dirX);
+  for (const off of angles) {
+    const a = baseAngle + off;
+    const dx = Math.cos(a), dy = Math.sin(a);
+    if (!pointInRects(x + dx * lookahead, y + dy * lookahead, rects, 14)) {
+      return { x: dx, y: dy, blocked: off !== 0 };
+    }
+  }
+  return { x: 0, y: 0, blocked: true }; // fully boxed in — stand still rather than vibrate on a wall
+}
+
 function checkLineOfSight(x1, y1, x2, y2, rects) {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -131,7 +147,9 @@ class Enemy {
         my = Math.sin(flankAngle);
       }
       else if (this.type === 'tank') {
-        if (distToP < 240) {
+        if (this.hp < this.maxHp * 0.25) {
+          mx = -mx; my = -my; spd = this.speed * 1.4; // badly damaged: disengage
+        } else if (distToP < 240) {
           mx = -mx * 0.3; my = -my * 0.3; // reverse/reposition
         } else {
           spd = this.speed * 0.75;
@@ -159,7 +177,10 @@ class Enemy {
         }
       }
       else if (this.type === 'shooter') {
-        if (distToP < this.def.keepDist) {
+        if (this.hp < this.maxHp * 0.3) {
+          // low HP: panic-retreat instead of standing and dying
+          mx = -mx; my = -my; spd = this.speed * 1.25;
+        } else if (distToP < this.def.keepDist) {
           mx = -mx; my = -my;
         } else if (distToP > this.def.keepDist + 80) {
           // approach
@@ -191,6 +212,36 @@ class Enemy {
           this.chargeCd = Utils.rand(3, 5);
         }
       }
+    }
+
+    // squad separation: nudge apart from very close allies so they don't stack
+    // into a single blob — makes group pushes read as a loose formation instead.
+    if (this.state === 'alerted' && this.charging <= 0) {
+      let sepX = 0, sepY = 0;
+      for (const e of game.enemies) {
+        if (e === this || e.dead) continue;
+        const d = Utils.dist(this.x, this.y, e.x, e.y);
+        const minD = this.radius + e.radius + 10;
+        if (d > 0 && d < minD) {
+          const push = (minD - d) / minD;
+          sepX += (this.x - e.x) / d * push;
+          sepY += (this.y - e.y) / d * push;
+        }
+      }
+      if (sepX !== 0 || sepY !== 0) {
+        mx += sepX * 0.6; my += sepY * 0.6;
+        const len = Math.hypot(mx, my);
+        if (len > 0) { mx /= len; my /= len; }
+      }
+    }
+
+    // steer around walls instead of getting stuck on them — skip while charging
+    // (novabeast/tank barrel through cover on purpose) or standing still/idle-drifting
+    if (this.state === 'alerted' && this.charging <= 0 && spd > 0) {
+      const look = this.radius + 34;
+      const steered = steerAroundObstacles(this.x, this.y, mx, my, game.world.rects, look);
+      mx = steered.x; my = steered.y;
+      if (steered.blocked) spd *= 0.8; // slightly slower while sidestepping
     }
 
     this.x += mx * spd * slowFactor * dt;
