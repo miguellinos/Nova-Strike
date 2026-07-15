@@ -48,6 +48,7 @@ class Game {
     this.shopTable = new ShopTable(2250, 130);
     this.nearShop = false;
     this.inventoryOpenLocal = false;
+    this._snapshotTimer = 0;
     const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
     this.player = new Player(spawn.x - 20, spawn.y);
     this.player2 = this.mode !== 'solo' ? new Player(spawn.x + 20, spawn.y, this.mode === 'host') : null;
@@ -435,10 +436,10 @@ class Game {
 
     // Toggle inventory menu with 'I'
     if (Input.wasPressed('i')) {
-      if (this.state === 'playing') {
-        this.openInventory();
-      } else if (this.inventoryOpenLocal) {
+      if (this.inventoryOpenLocal) {
         this.closeInventory();
+      } else if (this.state === 'playing') {
+        this.openInventory();
       }
       Input.pressed['i'] = false;
     }
@@ -446,7 +447,7 @@ class Game {
     if (this.state !== 'playing') {
       // still keep the guest in sync while we're in the shop/upgrade/gameover screens,
       // otherwise they freeze on the last 'playing' snapshot forever.
-      if (this.mode === 'host') Net.sendSnapshot(this.buildSnapshot());
+      if (this.mode === 'host') this.sendSnapshotThrottled(dt);
       Input.clearFrame();
       return;
     }
@@ -503,7 +504,16 @@ class Game {
     Input.clearFrame();
     if (this.player2 && this.player2.isRemote) this.player2.input.clearFrame();
 
-    if (this.mode === 'host') Net.sendSnapshot(this.buildSnapshot());
+    if (this.mode === 'host') this.sendSnapshotThrottled(dt);
+  }
+
+  // broadcasting a full snapshot every single frame (60/s) needlessly saturates
+  // both the host's and guest's CPU with JSON (de)serialization; ~20/s is still smooth.
+  sendSnapshotThrottled(dt) {
+    this._snapshotTimer -= dt;
+    if (this._snapshotTimer > 0) return;
+    this._snapshotTimer = 1 / 20;
+    Net.sendSnapshot(this.buildSnapshot());
   }
 
   buildSnapshot() {

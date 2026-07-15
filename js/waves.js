@@ -41,12 +41,10 @@ class WaveManager {
         this.game.enemies.push(new Enemy('striker', sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
       }
     } else {
+      // fill the queue but let update() trickle-spawn it over time (see below) —
+      // dumping dozens of enemies at once on higher waves tanks the framerate,
+      // especially in co-op where every one of them also has to be networked.
       this.buildQueue(n);
-      while (this.spawnQueue.length > 0) {
-        const type = this.spawnQueue.shift();
-        const sp = this.game.world.randomHangarSpawnPoint();
-        this.game.enemies.push(new Enemy(type, sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
-      }
     }
     this.spawnTimer = 0;
   }
