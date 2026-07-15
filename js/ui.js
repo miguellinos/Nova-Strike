@@ -256,10 +256,22 @@ class UI {
       const def = WEAPON_DEFS[w.key];
       const card = document.createElement('div');
       card.className = 'shop-card';
+      
+      const stats = getStatsAtLevel(def, 0);
+      const statsHtml = `
+        <div class="weapon-stats">
+          <span>💥 ${stats.damage}</span>
+          <span>⏱️ ${stats.fireRate}/s</span>
+          <span>🔄 ${stats.reload}s</span>
+          <span>🔋 ${stats.mag}</span>
+        </div>
+      `;
+
       card.innerHTML =
-        '<div class="icon">' + w.icon + '</div>' +
+        '<div class="icon">' + getWeaponIconSvg(w.key) + '</div>' +
         '<div class="name">' + def.name + '</div>' +
         '<div class="desc">' + w.desc + '</div>' +
+        statsHtml +
         '<button class="buy">' + (owned ? 'AUSGERÜSTET' : '🪙 ' + w.price) + '</button>';
       const btn = card.querySelector('.buy');
       btn.disabled = owned || me.coins < w.price;
@@ -278,10 +290,30 @@ class UI {
       const price = WEAPON_UPGRADE_PRICES[lvl] || 0;
       const card = document.createElement('div');
       card.className = 'shop-card';
+
+      const curr = getStatsAtLevel(def, lvl);
+      const next = getStatsAtLevel(def, lvl + 1);
+      
+      const statsHtml = maxed ? `
+        <div class="weapon-stats">
+          <span>💥 ${curr.damage}</span>
+          <span>⏱️ ${curr.fireRate}/s</span>
+          <span>🔄 ${curr.reload}s</span>
+          <span>🔋 ${curr.mag}</span>
+        </div>
+      ` : `
+        <div class="weapon-stats">
+          <span>💥 ${curr.damage} ➜ <b style="color:#00ffcc;">${next.damage}</b></span>
+          <span>⏱️ ${curr.fireRate} ➜ <b style="color:#00ffcc;">${next.fireRate}</b></span>
+          <span>🔋 ${curr.mag} ➜ <b style="color:#00ffcc;">${next.mag}</b></span>
+        </div>
+      `;
+
       card.innerHTML =
-        '<div class="icon">🛠️</div>' +
+        '<div class="icon">' + getUpgradeIconSvg() + '</div>' +
         '<div class="name">' + def.name + ' Upgrade</div>' +
-        '<div class="desc">Level ' + lvl + ' / ' + WEAPON_UPGRADE_MAX + ' — mehr Schaden, Feuerrate &amp; Magazin.</div>' +
+        '<div class="desc">Level ' + lvl + ' / ' + WEAPON_UPGRADE_MAX + '</div>' +
+        statsHtml +
         '<button class="buy">' + (maxed ? 'MAX. LEVEL' : '🪙 ' + price) + '</button>';
       const btn = card.querySelector('.buy');
       btn.disabled = maxed || me.coins < price;
@@ -307,18 +339,13 @@ class UI {
           const row = document.createElement('div');
           row.className = 'weapon-slot-row';
           
-          let icon = '🔫';
-          if (key === 'plasma') icon = '🔫';
-          else {
-            const shopItem = WEAPON_SHOP_ITEMS.find((w) => w.key === key);
-            if (shopItem) icon = shopItem.icon;
-          }
+          const iconSvg = getWeaponIconSvg(key);
           
           const maxAmmo = Math.round(def.mag * me.mods.mag);
           const currentAmmo = me.weapons[key].ammo;
 
           row.innerHTML = `
-            <span class="weapon-icon">${icon}</span>
+            <span class="weapon-icon" style="display:inline-block; width:54px; text-align:center;">${iconSvg}</span>
             <span class="weapon-name">${def.name}</span>
             <span class="weapon-ammo">${currentAmmo} / ${maxAmmo}</span>
           `;
@@ -426,4 +453,138 @@ class UI {
       '<div>Gesammelte Münzen: <b>' + stats.coins + '</b></div>' +
       '<div>Spielzeit: <b>' + stats.time + '</b></div>';
   }
+}
+
+function getStatsAtLevel(def, lvl) {
+  return {
+    damage: Math.round(def.damage * (1 + lvl * 0.12) * 10) / 10,
+    fireRate: Math.round(def.fireRate * (1 + lvl * 0.08) * 10) / 10,
+    mag: Math.round(def.mag * (1 + lvl * 0.2)),
+    reload: def.reload
+  };
+}
+
+function getWeaponIconSvg(key) {
+  switch (key) {
+    case 'plasma':
+      return `<svg width="36" height="36" viewBox="0 0 16 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="5" y="8" width="2" height="5" fill="#333"/>
+        <rect x="4" y="11" width="2" height="2" fill="#222"/>
+        <rect x="4" y="6" width="8" height="3" fill="#444"/>
+        <rect x="3" y="6" width="1" height="2" fill="#222"/>
+        <rect x="5" y="5" width="8" height="1.5" fill="#555"/>
+        <rect x="9" y="8" width="2" height="1" fill="#ffa500"/>
+        <rect x="11" y="8" width="1" height="1" fill="#ff4500"/>
+        <rect x="7" y="9" width="1" height="1" fill="#555"/>
+      </svg>`;
+    
+    case 'rifle':
+      return `<svg width="48" height="36" viewBox="0 0 20 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="1" y="6" width="3" height="3" fill="#4a3b32"/>
+        <rect x="2" y="7" width="2" height="4" fill="#3d3027"/>
+        <rect x="4" y="6" width="6" height="3.5" fill="#333"/>
+        <rect x="5" y="9.5" width="1.5" height="3.5" fill="#222"/>
+        <rect x="7.5" y="9.5" width="2" height="4" fill="#111"/>
+        <rect x="10" y="6.5" width="5" height="2.5" fill="#5c483a"/>
+        <rect x="15" y="7" width="4" height="1.5" fill="#444"/>
+        <rect x="6" y="4.5" width="3" height="1.5" fill="#222"/>
+      </svg>`;
+
+    case 'shotgun':
+      return `<svg width="48" height="36" viewBox="0 0 20 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="1" y="7" width="4" height="2" fill="#5c3c24"/>
+        <rect x="2" y="8" width="4" height="3.5" fill="#472e1c"/>
+        <rect x="6" y="6.5" width="5" height="3" fill="#3a4042"/>
+        <rect x="11" y="6.5" width="8" height="1.5" fill="#606668"/>
+        <rect x="11" y="8" width="4" height="2" fill="#5c3c24"/>
+        <rect x="15" y="8" width="3" height="1" fill="#444"/>
+      </svg>`;
+
+    case 'sniper':
+      return `<svg width="54" height="36" viewBox="0 0 24 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="1" y="7" width="3" height="2" fill="#2d382b"/>
+        <rect x="2" y="8" width="2" height="4" fill="#1b241a"/>
+        <rect x="4" y="6.5" width="7" height="3.5" fill="#364035"/>
+        <rect x="5" y="10" width="1.5" height="3" fill="#111"/>
+        <rect x="8" y="10" width="2.5" height="4.5" fill="#222"/>
+        <rect x="5.5" y="4" width="4.5" height="1.5" fill="#111"/>
+        <rect x="5" y="3.5" width="1" height="2.5" fill="#2d382b"/>
+        <rect x="9.5" y="3.5" width="1" height="2.5" fill="#2d382b"/>
+        <rect x="11" y="7" width="10" height="1.5" fill="#222"/>
+        <rect x="21" y="6" width="2" height="3.5" fill="#444"/>
+        <rect x="14" y="8.5" width="1" height="5" fill="#111"/>
+      </svg>`;
+
+    case 'cannon':
+      return `<svg width="48" height="36" viewBox="0 0 20 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="3" y="6" width="9" height="4.5" fill="#6b4c31"/>
+        <rect x="4" y="6.5" width="7" height="3.5" fill="#523924"/>
+        <rect x="0" y="6.5" width="3" height="3" fill="#3a4042"/>
+        <rect x="1" y="6" width="1.5" height="4" fill="#222"/>
+        <rect x="12" y="6.5" width="4" height="3.5" fill="#3a4042"/>
+        <rect x="5" y="10.5" width="1.5" height="3" fill="#222"/>
+        <rect x="10" y="10.5" width="1.5" height="2.5" fill="#222"/>
+        <rect x="16" y="6" width="1.5" height="4" fill="#495738"/>
+        <path d="M 17.5 6.5 L 19.5 8 L 17.5 9.5 Z" fill="#3d492f"/>
+      </svg>`;
+
+    case 'smg':
+      return `<svg width="36" height="36" viewBox="0 0 16 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="2" y="5" width="10" height="4.5" fill="#2a2f32"/>
+        <rect x="0" y="6" width="2" height="1.5" fill="#444"/>
+        <rect x="4" y="9.5" width="1.8" height="4" fill="#1b1d1e"/>
+        <rect x="4.4" y="13.5" width="1.2" height="2" fill="#000"/>
+        <rect x="9.5" y="9.5" width="1.5" height="3" fill="#1b1d1e"/>
+        <rect x="12" y="6.5" width="2" height="1.5" fill="#555"/>
+        <rect x="6" y="3.8" width="3.5" height="1.2" fill="#ffa500" opacity="0.8"/>
+      </svg>`;
+
+    case 'flamethrower':
+      return `<svg width="48" height="36" viewBox="0 0 20 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="2" y="6" width="10" height="3.5" fill="#3a3a3a"/>
+        <rect x="3" y="9.5" width="1.5" height="3" fill="#1a1a1a"/>
+        <rect x="8" y="9.5" width="1.5" height="2.5" fill="#1a1a1a"/>
+        <rect x="5.5" y="9.5" width="4.5" height="4.5" fill="#b82525"/>
+        <rect x="6" y="10" width="3.5" height="3.5" fill="#8f1b1b"/>
+        <rect x="12" y="6.5" width="5" height="2" fill="#555"/>
+        <rect x="17" y="6" width="1" height="3" fill="#111"/>
+        <circle cx="18.5" cy="7.5" r="1" fill="#ffa500"/>
+      </svg>`;
+
+    case 'tesla':
+      return `<svg width="48" height="36" viewBox="0 0 20 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="2" y="5.5" width="7" height="5" fill="#2d3338"/>
+        <rect x="9" y="6" width="1.5" height="4" fill="#d16b28"/>
+        <rect x="11.5" y="6" width="1.5" height="4" fill="#d16b28"/>
+        <rect x="14" y="6" width="1.5" height="4" fill="#d16b28"/>
+        <rect x="9" y="7" width="6.5" height="2" fill="#b05214"/>
+        <path d="M 15.5 5.5 L 18 4.5 L 17 6.5 Z" fill="#69767f"/>
+        <path d="M 15.5 10.5 L 18 11.5 L 17 9.5 Z" fill="#69767f"/>
+        <circle cx="18" cy="8" r="1.5" fill="#2df0ff" opacity="0.9"/>
+      </svg>`;
+
+    case 'cryo':
+      return `<svg width="48" height="36" viewBox="0 0 20 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="2" y="5.5" width="9" height="4.5" fill="#e3edf2"/>
+        <rect x="3" y="6" width="7.5" height="3.5" fill="#afc5cf"/>
+        <rect x="4" y="7" width="5.5" height="1.5" fill="#00e5ff"/>
+        <rect x="3" y="10" width="1.5" height="3" fill="#1b2022"/>
+        <rect x="8.5" y="10" width="1.5" height="2.5" fill="#1b2022"/>
+        <rect x="11" y="6.5" width="6" height="2.5" fill="#7593a1"/>
+        <rect x="17" y="6" width="1" height="3.5" fill="#00e5ff"/>
+      </svg>`;
+
+    default:
+      return `<svg width="36" height="36" viewBox="0 0 16 16">
+        <rect x="4" y="6" width="8" height="4" fill="#888"/>
+      </svg>`;
+  }
+}
+
+function getUpgradeIconSvg() {
+  return `<svg width="36" height="36" viewBox="0 0 16 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+    <path d="M 2 14 L 9 7 L 11 9 L 4 16 Z" fill="#889297"/>
+    <path d="M 8 6 C 8 3.8 9.8 2 12 2 C 14.2 2 16 3.8 16 6 C 16 7.5 15.2 8.8 14 9.5 L 12 7.5 L 10.5 9 C 9.3 8.3 8.3 7.3 8 6 Z" fill="#b0bac0"/>
+    <circle cx="12" cy="6" r="1.2" fill="#111"/>
+  </svg>`;
 }
