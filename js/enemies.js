@@ -6,6 +6,7 @@ const ENEMY_DEFS = {
   shooter: { name: 'Militär-Humvee',     hp: 60,  speed: 110, dmg: 10, radius: 18, color: '#c2b280', coins: [3, 5],  score: 30,  ranged: true,  touchCd: 0.7, shootCd: 1.5, keepDist: 300, projSpeed: 380, projColor: '#ffcc00', vision: 640 },
   novabeast:{name: 'aw Panzerträger',hp: 1200, speed: 90,  dmg: 40, radius: 36, color: '#4f5d65', coins: [10, 20],score: 200, ranged: false, touchCd: 0.8, elite: true, vision: 680 },
   marksman:{ name: 'Scharfschütze',      hp: 45,  speed: 85,  dmg: 24, radius: 14, color: '#5a5342', coins: [3, 6],  score: 35,  ranged: true,  touchCd: 0.7, shootCd: 2.4, keepDist: 520, projSpeed: 700, projColor: '#ffe680', vision: 720 },
+  bomber:  { name: 'Sprengstoff-Läufer', hp: 22,  speed: 235, dmg: 55, radius: 14, color: '#8a3a1e', coins: [2, 4],  score: 25,  ranged: false, touchCd: 1, vision: 460, blastRadius: 90 },
   medic:   { name: 'Feldsanitäter',      hp: 40,  speed: 155, dmg: 0,  radius: 13, color: '#e8e4d8', coins: [3, 6],  score: 30,  ranged: false, touchCd: 1, vision: 500, healAmount: 12, healCd: 2.2, healRange: 200 },
   grenadier:{name: 'Granatwerfer',       hp: 65,  speed: 115, dmg: 30, radius: 16, color: '#5c5a3a', coins: [3, 6],  score: 32,  ranged: true,  touchCd: 0.8, shootCd: 3, keepDist: 260, vision: 560, blastRadius: 75 },
   shieldtrooper:{name: 'Schildträger',   hp: 90,  speed: 95,  dmg: 16, radius: 17, color: '#3a4a5a', coins: [4, 8],  score: 38,  ranged: false, touchCd: 0.8, vision: 480, shieldHp: 90 },
