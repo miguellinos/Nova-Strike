@@ -36,13 +36,15 @@ class Coin {
     const blink = this.life < 5 && Math.floor(this.life * 6) % 2 === 0;
     if (blink) return;
     const pulse = 0.7 + 0.3 * Math.sin(time * 6 + this.phase);
-    ctx.shadowBlur = 12; ctx.shadowColor = '#ffcc33';
+    // No shadowBlur here: it's a real blur pass per coin per frame, and coins pile up
+    // by the dozen until the wave ends. A cheap translucent halo ring reads the same.
+    ctx.globalAlpha = pulse * 0.25;
     ctx.fillStyle = '#ffcc33';
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 1.7, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = pulse;
     ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#fff6cc';
     ctx.beginPath(); ctx.arc(this.x - 1.5, this.y - 1.5, this.radius * 0.4, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
   }
 }

@@ -41,9 +41,17 @@ function checkLineOfSight(x1, y1, x2, y2, rects) {
   return true;
 }
 
+// Every enemy carries a stable id so the co-op guest can match a snapshot entry to
+// the enemy it already has. Matching by array index breaks the moment an enemy in
+// the middle dies: the host filters it out, every later enemy shifts down one slot,
+// and the guest then interpolates each survivor towards a *different* enemy's
+// position — which looks exactly like lag/warping.
+let _enemyIdCounter = 1;
+
 class Enemy {
   constructor(type, x, y, hpMult, dmgMult) {
     const d = ENEMY_DEFS[type];
+    this.id = _enemyIdCounter++;
     this.type = type; this.def = d;
     this.x = x; this.y = y;
     this.radius = d.radius;

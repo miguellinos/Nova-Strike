@@ -505,28 +505,30 @@ class Game {
     // whatever the host last broadcast (see applySnapshot()).
     if (this.mode === 'guest') {
       if (this.state === 'playing' && this.player2) {
-        // Lerp player positions smoothly towards targets
-        if (this.player && this.player.targetX !== undefined) {
-          this.player.x = Utils.lerp(this.player.x, this.player.targetX, 0.25);
-          this.player.y = Utils.lerp(this.player.y, this.player.targetY, 0.25);
-        }
-        if (this.player2 && this.player2.targetX !== undefined) {
-          this.player2.x = Utils.lerp(this.player2.x, this.player2.targetX, 0.25);
-          this.player2.y = Utils.lerp(this.player2.y, this.player2.targetY, 0.25);
-        }
-
-        // Lerp enemies smoothly towards targets
-        for (const e of this.enemies) {
-          if (e.targetX !== undefined) {
-            e.x = Utils.lerp(e.x, e.targetX, 0.25);
-            e.y = Utils.lerp(e.y, e.targetY, 0.25);
+        // Smoothing factor is derived from dt instead of being a flat per-frame 0.25:
+        // a fixed factor chases the target at whatever the current framerate happens
+        // to be, so entities lag further behind the worse the frames get — exactly
+        // when it hurts most. This converges at the same real-time rate regardless.
+        const k = 1 - Math.pow(0.001, dt); // ~99.9% of the way to the target in 1s
+        const lerpTo = (o) => {
+          if (o && o.targetX !== undefined) {
+            o.x = Utils.lerp(o.x, o.targetX, k);
+            o.y = Utils.lerp(o.y, o.targetY, k);
           }
-        }
+        };
+        lerpTo(this.player);
+        lerpTo(this.player2);
+        for (const e of this.enemies) lerpTo(e);
+        lerpTo(this.boss);
 
-        // Lerp boss smoothly towards target
-        if (this.boss && this.boss.targetX !== undefined) {
-          this.boss.x = Utils.lerp(this.boss.x, this.boss.targetX, 0.25);
-          this.boss.y = Utils.lerp(this.boss.y, this.boss.targetY, 0.25);
+        // Bullets fly straight at a constant speed, so the guest can advance them
+        // itself every frame; without this they only move when a snapshot lands and
+        // visibly jump tens of pixels at a time.
+        for (const pr of this.projectiles) {
+          if (pr.vx !== undefined) { pr.x += pr.vx * dt; pr.y += pr.vy * dt; }
+        }
+        for (const ep of this.enemyProjectiles) {
+          if (ep.vx !== undefined) { ep.x += ep.vx * dt; ep.y += ep.vy * dt; }
         }
 
         // Tick local particles, screen shakes, and damage vignettes at 60 FPS
@@ -659,11 +661,20 @@ class Game {
   sendSnapshotThrottled(dt) {
     this._snapshotTimer -= dt;
     if (this._snapshotTimer > 0) return;
-    this._snapshotTimer = 1 / 60;
+    // Rate matters a lot: a snapshot is a full JSON dump of every player, enemy,
+    // projectile and coin, so sending one per frame (60/s) buries both the host
+    // (stringify) and the guest (parse + GC) in work. The guest interpolates
+    // between snapshots, so 30/s renders just as smoothly for half the cost.
+    this._snapshotTimer = 1 / 30;
     Net.sendSnapshot(this.buildSnapshot());
   }
 
   buildSnapshot() {
+    // Positions are rounded to whole pixels before they go on the wire: raw floats
+    // serialize as ~18 characters each ("1234.5678901234567"), which dwarfs every
+    // other field and makes the payload several times larger for sub-pixel accuracy
+    // nobody can see.
+    const r = Math.round;
     return {
       state: this.state,
       gameMode: this.gameMode,
@@ -673,7 +684,7 @@ class Game {
       shopUpgradeIds: this.shopUpgradeIds || [],
       cam: { x: this.cam.x, y: this.cam.y },
       players: this.players.map((p) => ({
-        x: p.x, y: p.y, aimAngle: p.aimAngle, hp: p.hp, maxHp: p.maxHp,
+        x: r(p.x), y: r(p.y), aimAngle: p.aimAngle, hp: r(p.hp), maxHp: p.maxHp,
         coins: p.coins, score: p.score, kills: p.kills,
         currentWeapon: p.currentWeapon, ammo: p.weapons[p.currentWeapon].ammo, magCapacity: p.magSize(),
         reloading: p.reloading, reloadTimer: p.reloadTimer, reloadTotal: p.reloadTotal,
@@ -689,17 +700,23 @@ class Game {
         scanTargetX: p.scanTarget ? p.scanTarget.x : null,
         scanTargetY: p.scanTarget ? p.scanTarget.y : null,
       })),
-      enemies: this.enemies.map((e) => ({ x: e.x, y: e.y, radius: e.radius, color: e.color, hp: e.hp, maxHp: e.maxHp, type: e.type, hitFlash: e.hitFlash })),
+      // id lets the guest match this to the enemy it already has (see applySnapshot);
+      // radius/color are omitted because they're derivable from `type` via ENEMY_DEFS.
+      enemies: this.enemies.map((e) => ({ id: e.id, x: r(e.x), y: r(e.y), hp: r(e.hp), maxHp: r(e.maxHp), type: e.type, hitFlash: e.hitFlash })),
       boss: this.boss && !this.boss.dead ? {
         x: this.boss.x, y: this.boss.y, radius: this.boss.radius, hp: this.boss.hp, maxHp: this.boss.maxHp,
         name: this.boss.name, phase2: this.boss.phase2, spin: this.boss.spin, hitFlash: this.boss.hitFlash,
         bossType: this.boss.bossType, legPhase: this.boss.legPhase, shielded: this.boss.shielded,
         blinkFlash: this.boss.blinkFlash,
       } : null,
-      projectiles: this.projectiles.map((pr) => ({ x: pr.x, y: pr.y, radius: pr.radius, color: pr.color, angle: pr.angle, aoe: pr.aoe })),
-      enemyProjectiles: this.enemyProjectiles.map((ep) => ({ x: ep.x, y: ep.y, radius: ep.radius, color: ep.color })),
-      coins: this.coins.map((c) => ({ x: c.x, y: c.y })),
-      medkits: this.medkits.map((m) => ({ x: m.x, y: m.y, life: m.life })),
+      // Bullets travel in a straight line at constant speed, so shipping their real
+      // velocity lets the guest advance them itself every frame instead of teleporting
+      // them forward once per snapshot (they cover 25-50px between snapshots, which
+      // reads as heavy stutter).
+      projectiles: this.projectiles.map((pr) => ({ x: r(pr.x), y: r(pr.y), vx: r(pr.vx), vy: r(pr.vy), radius: pr.radius, color: pr.color, angle: pr.angle, aoe: pr.aoe })),
+      enemyProjectiles: this.enemyProjectiles.map((ep) => ({ x: r(ep.x), y: r(ep.y), vx: r(ep.vx), vy: r(ep.vy), radius: ep.radius, color: ep.color })),
+      coins: this.coins.map((c) => ({ x: r(c.x), y: r(c.y) })),
+      medkits: this.medkits.map((m) => ({ x: r(m.x), y: r(m.y), life: m.life })),
       shakeAmt: this.shakeAmt,
     };
   }
@@ -825,31 +842,36 @@ class Game {
     }
 
     if (this.mode === 'guest') {
+      // Match by stable id, never by array index: the host filters out dead enemies,
+      // so indices shift and index-matching would make survivors interpolate towards
+      // some other enemy's position (a slide across the map that looks like lag).
       const incomingEnemies = s.enemies || [];
-      if (this.enemies.length > incomingEnemies.length) {
-        this.enemies.length = incomingEnemies.length;
-      }
-      for (let i = 0; i < incomingEnemies.length; i++) {
-        const d = incomingEnemies[i];
-        if (this.enemies[i]) {
-          const e = this.enemies[i];
-          e.targetX = d.x;
-          e.targetY = d.y;
-          e.radius = d.radius;
-          e.color = d.color;
+      const byId = this._enemyById || (this._enemyById = new Map());
+      const next = [];
+      for (const d of incomingEnemies) {
+        let e = byId.get(d.id);
+        if (!e) {
+          const def = ENEMY_DEFS[d.type] || {};
+          e = Object.assign(Object.create(Enemy.prototype), d, {
+            def, radius: def.radius, color: def.color, dead: false,
+            x: d.x, y: d.y, phase: Utils.rand(0, 6.28), wanderAngle: null, state: 'alerted',
+          });
+          byId.set(d.id, e);
+        } else {
           e.hp = d.hp;
           e.maxHp = d.maxHp;
-          e.type = d.type;
           e.hitFlash = d.hitFlash;
-        } else {
-          const e = Object.assign(Object.create(Enemy.prototype), d, { draw: Enemy.prototype.draw, dead: false });
-          e.targetX = d.x;
-          e.targetY = d.y;
-          e.x = d.x;
-          e.y = d.y;
-          this.enemies[i] = e;
         }
+        e.targetX = d.x;
+        e.targetY = d.y;
+        next.push(e);
       }
+      // drop entries the host no longer reports, so the id map can't grow forever
+      if (byId.size > next.length) {
+        const live = new Set(next.map((e) => e.id));
+        for (const id of byId.keys()) if (!live.has(id)) byId.delete(id);
+      }
+      this.enemies = next;
     } else {
       this.enemies = s.enemies.map((d) => Object.assign(Object.create(Enemy.prototype), d, { draw: Enemy.prototype.draw, dead: false }));
     }
@@ -883,9 +905,10 @@ class Game {
       this.boss = null;
     }
 
-    this.projectiles = s.projectiles.map((d) => Object.assign(Object.create(Projectile.prototype), d, {
-      trail: [], vx: Math.cos(d.angle) * 500, vy: Math.sin(d.angle) * 500,
-    }));
+    // vx/vy now come from the host, so bullets keep their true speed (they used to be
+    // hardcoded to 500, which was wrong for every weapon) and the guest can advance
+    // them between snapshots — see the dead-reckoning step in update().
+    this.projectiles = s.projectiles.map((d) => Object.assign(Object.create(Projectile.prototype), d, { trail: [] }));
     this.enemyProjectiles = s.enemyProjectiles;
     this.coins = s.coins.map((d) => new Coin(d.x, d.y));
     this.medkits = s.medkits.map((d) => { const m = new Medkit(d.x, d.y); m.life = d.life; return m; });
