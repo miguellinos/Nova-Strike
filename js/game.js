@@ -1309,11 +1309,20 @@ class Game {
       this.maskCanvas = document.createElement('canvas');
       this.maskCtx = this.maskCanvas.getContext('2d');
     }
+    if (!this.lightCanvas) {
+      this.lightCanvas = document.createElement('canvas');
+      this.lightCtx = this.lightCanvas.getContext('2d');
+    }
+
     const targetW = Math.ceil(this.canvas.width / this.zoom);
     const targetH = Math.ceil(this.canvas.height / this.zoom);
     if (this.maskCanvas.width !== targetW || this.maskCanvas.height !== targetH) {
       this.maskCanvas.width = targetW;
       this.maskCanvas.height = targetH;
+    }
+    if (this.lightCanvas.width !== targetW || this.lightCanvas.height !== targetH) {
+      this.lightCanvas.width = targetW;
+      this.lightCanvas.height = targetH;
     }
 
     const mCtx = this.maskCtx;
@@ -1321,11 +1330,11 @@ class Game {
 
     const darkT = this.gameMode === 'horror' ? 1 : this.interiorT;
 
-    // Tactical dark overlay color (scales with interior transition factor)
+    // 1. Fill mask with default ambient darkness
     mCtx.fillStyle = 'rgba(7, 8, 12, ' + (0.80 * darkT) + ')';
     mCtx.fillRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
 
-    // Draw building dark covers (fog of war / roofs) ON the mask canvas
+    // 2. Draw building dark covers (fog of war / roofs) ON the mask canvas
     const localPlayer = this.localPlayer;
     if (localPlayer) {
       const activeBuilding = this.world.getBuildingAt(localPlayer.x, localPlayer.y);
@@ -1351,47 +1360,32 @@ class Game {
       }
     }
 
-    // Carve out flashlight cones
-    mCtx.globalCompositeOperation = 'destination-out';
+    const castShadowOnCtx = (targetCtx, screenX, screenY, ax, ay, bx, by) => {
+      const dxA = ax - screenX;
+      const dyA = ay - screenY;
+      const distA = Math.sqrt(dxA * dxA + dyA * dyA);
+      if (distA === 0) return;
 
-    for (const p of this.players) {
-      if (p.hp <= 0) continue;
+      const dxB = bx - screenX;
+      const dyB = by - screenY;
+      const distB = Math.sqrt(dxB * dxB + dyB * dyB);
+      if (distB === 0) return;
 
-      const screenX = p.x - this.cam.x;
-      const screenY = p.y - this.cam.y;
-      const visionMult = p.mods.visionRange || 1;
-      const range = 540 * visionMult; // further range
-      const ambientRadius = 110 * visionMult; // larger glow
-      const coneHalfAngle = (42 * Math.PI / 180); // 84 degrees total spread
+      const projAx = ax + (dxA / distA) * 2000;
+      const projAy = ay + (dyA / distA) * 2000;
+      const projBx = bx + (dxB / distB) * 2000;
+      const projBy = by + (dyB / distB) * 2000;
 
-      // 1. Ambient lighting around player
-      let gradAmbient = mCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, ambientRadius);
-      gradAmbient.addColorStop(0, 'rgba(0,0,0,1.0)');
-      gradAmbient.addColorStop(0.6, 'rgba(0,0,0,0.9)');
-      gradAmbient.addColorStop(1, 'rgba(0,0,0,0.0)');
-      
-      mCtx.fillStyle = gradAmbient;
-      mCtx.beginPath();
-      mCtx.arc(screenX, screenY, ambientRadius, 0, Math.PI * 2);
-      mCtx.fill();
+      targetCtx.beginPath();
+      targetCtx.moveTo(ax, ay);
+      targetCtx.lineTo(bx, by);
+      targetCtx.lineTo(projBx, projBy);
+      targetCtx.lineTo(projAx, projAy);
+      targetCtx.closePath();
+      targetCtx.fill();
+    };
 
-      // 2. Directional cone
-      mCtx.beginPath();
-      mCtx.moveTo(screenX, screenY);
-      mCtx.arc(screenX, screenY, range, p.aimAngle - coneHalfAngle, p.aimAngle + coneHalfAngle);
-      mCtx.closePath();
-
-      let gradCone = mCtx.createRadialGradient(screenX, screenY, ambientRadius * 0.5, screenX, screenY, range);
-      gradCone.addColorStop(0, 'rgba(0,0,0,1.0)');
-      gradCone.addColorStop(0.5, 'rgba(0,0,0,1.0)'); // strong beam center
-      gradCone.addColorStop(0.85, 'rgba(0,0,0,0.6)');
-      gradCone.addColorStop(1, 'rgba(0,0,0,0.0)');
-      
-      mCtx.fillStyle = gradCone;
-      mCtx.fill();
-    }
-
-    // 3. Project shadows for walls to restore darkness behind them
+    // 3. Project shadows for walls to restore darkness behind them on main mask canvas
     mCtx.globalCompositeOperation = 'source-over';
     const shadowOpacity = 0.65 + 0.28 * darkT;
     mCtx.fillStyle = 'rgba(7, 8, 12, ' + shadowOpacity + ')';
@@ -1404,31 +1398,6 @@ class Game {
       const visionMult = p.mods.visionRange || 1;
       const range = 540 * visionMult;
       const maxShadowDist = range + 150;
-
-      const castShadow = (ax, ay, bx, by) => {
-        const dxA = ax - screenX;
-        const dyA = ay - screenY;
-        const distA = Math.sqrt(dxA * dxA + dyA * dyA);
-        if (distA === 0) return;
-
-        const dxB = bx - screenX;
-        const dyB = by - screenY;
-        const distB = Math.sqrt(dxB * dxB + dyB * dyB);
-        if (distB === 0) return;
-
-        const projAx = ax + (dxA / distA) * 2000;
-        const projAy = ay + (dyA / distA) * 2000;
-        const projBx = bx + (dxB / distB) * 2000;
-        const projBy = by + (dyB / distB) * 2000;
-
-        mCtx.beginPath();
-        mCtx.moveTo(ax, ay);
-        mCtx.lineTo(bx, by);
-        mCtx.lineTo(projBx, projBy);
-        mCtx.lineTo(projAx, projAy);
-        mCtx.closePath();
-        mCtx.fill();
-      };
 
       for (const rect of this.world.rects) {
         if (rect.kind === 'enemy-barrier') continue;
@@ -1444,20 +1413,99 @@ class Game {
         const rh = rect.h;
 
         // Edge 1: top
-        castShadow(rx, ry, rx + rw, ry);
+        castShadowOnCtx(mCtx, screenX, screenY, rx, ry, rx + rw, ry);
         // Edge 2: right
-        castShadow(rx + rw, ry, rx + rw, ry + rh);
+        castShadowOnCtx(mCtx, screenX, screenY, rx + rw, ry, rx + rw, ry + rh);
         // Edge 3: bottom
-        castShadow(rx + rw, ry + rh, rx, ry + rh);
+        castShadowOnCtx(mCtx, screenX, screenY, rx + rw, ry + rh, rx, ry + rh);
         // Edge 4: left
-        castShadow(rx, ry + rh, rx, ry);
+        castShadowOnCtx(mCtx, screenX, screenY, rx, ry + rh, rx, ry);
       }
     }
 
-    // Draw the mask on top of the main canvas
+    // 4. For each player, generate their individual illumination mask and carve it out of the main mask canvas
+    const lCtx = this.lightCtx;
+
+    for (const p of this.players) {
+      if (p.hp <= 0) continue;
+
+      const screenX = p.x - this.cam.x;
+      const screenY = p.y - this.cam.y;
+      const visionMult = p.mods.visionRange || 1;
+      const range = 540 * visionMult;
+      const ambientRadius = 110 * visionMult;
+      const coneHalfAngle = (42 * Math.PI / 180);
+      const maxShadowDist = range + 150;
+
+      // Clear temporary light canvas
+      lCtx.clearRect(0, 0, targetW, targetH);
+
+      // A. Draw this player's flashlight light on the light canvas
+      lCtx.globalCompositeOperation = 'source-over';
+
+      // 1. Ambient lighting around player
+      let gradAmbient = lCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, ambientRadius);
+      gradAmbient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+      gradAmbient.addColorStop(0.6, 'rgba(255, 255, 255, 0.9)');
+      gradAmbient.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
+      
+      lCtx.fillStyle = gradAmbient;
+      lCtx.beginPath();
+      lCtx.arc(screenX, screenY, ambientRadius, 0, Math.PI * 2);
+      lCtx.fill();
+
+      // 2. Directional cone
+      lCtx.beginPath();
+      lCtx.moveTo(screenX, screenY);
+      lCtx.arc(screenX, screenY, range, p.aimAngle - coneHalfAngle, p.aimAngle + coneHalfAngle);
+      lCtx.closePath();
+
+      let gradCone = lCtx.createRadialGradient(screenX, screenY, ambientRadius * 0.5, screenX, screenY, range);
+      gradCone.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+      gradCone.addColorStop(0.5, 'rgba(255, 255, 255, 1.0)'); // strong beam center
+      gradCone.addColorStop(0.85, 'rgba(255, 255, 255, 0.6)');
+      gradCone.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
+      
+      lCtx.fillStyle = gradCone;
+      lCtx.fill();
+
+      // B. Carve out this player's own shadows from their light canvas
+      lCtx.globalCompositeOperation = 'destination-out';
+      lCtx.fillStyle = 'rgba(0, 0, 0, 1.0)';
+
+      for (const rect of this.world.rects) {
+        if (rect.kind === 'enemy-barrier') continue;
+
+        // Culling: check if rect is close to player
+        const cx = rect.x + rect.w / 2;
+        const cy = rect.y + rect.h / 2;
+        if (Utils.dist(p.x, p.y, cx, cy) > maxShadowDist) continue;
+
+        const rx = rect.x - this.cam.x;
+        const ry = rect.y - this.cam.y;
+        const rw = rect.w;
+        const rh = rect.h;
+
+        // Edge 1: top
+        castShadowOnCtx(lCtx, screenX, screenY, rx, ry, rx + rw, ry);
+        // Edge 2: right
+        castShadowOnCtx(lCtx, screenX, screenY, rx + rw, ry, rx + rw, ry + rh);
+        // Edge 3: bottom
+        castShadowOnCtx(lCtx, screenX, screenY, rx + rw, ry + rh, rx, ry + rh);
+        // Edge 4: left
+        castShadowOnCtx(lCtx, screenX, screenY, rx, ry + rh, rx, ry);
+      }
+
+      // C. Carve this player's lit area out of the main mask canvas
+      mCtx.globalCompositeOperation = 'destination-out';
+      mCtx.drawImage(this.lightCanvas, 0, 0);
+    }
+
+    // 5. Draw the final mask on top of the main canvas
+    mCtx.globalCompositeOperation = 'source-over';
     ctx.drawImage(this.maskCanvas, 0, 0);
 
-    // Draw subtle volumetric dust/beam reflection
+    // 6. Draw subtle volumetric dust/beam reflection
     for (const p of this.players) {
       if (p.hp <= 0) continue;
 
