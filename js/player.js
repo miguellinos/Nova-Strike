@@ -351,7 +351,9 @@ class Player {
     this.hitFlash = 0.35;
     this.invuln = 0.4;
     game.shake(6);
-    game.damageVignette = 1;
+    if (this === game.localPlayer) {
+      game.damageVignette = 1;
+    }
     if (this.hp <= 0) { this.hp = 0; game.onPlayerDeath(); }
   }
 

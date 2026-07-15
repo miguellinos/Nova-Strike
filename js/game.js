@@ -7,7 +7,8 @@ class Game {
     this.state = 'menu'; // menu | playing | paused | shop | gameover
     this.mode = 'solo';  // solo | host | guest (LAN co-op)
     this.gameMode = 'standard'; // 'standard' | 'horror'
-    this.cam = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+    this.zoom = 1.35;
+    this.cam = { x: 0, y: 0, w: canvas.width / this.zoom, h: canvas.height / this.zoom };
     this.time = 0; this.dt = 0;
     this.shakeAmt = 0;
     this.damageVignette = 0;
@@ -20,7 +21,8 @@ class Game {
   resize() {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
-    this.cam.w = this.canvas.width; this.cam.h = this.canvas.height;
+    this.cam.w = this.canvas.width / this.zoom;
+    this.cam.h = this.canvas.height / this.zoom;
   }
 
   // all active players (1 in solo, 2 in co-op)
@@ -562,8 +564,8 @@ class Game {
         }
 
         this.updateCamera(dt);
-        Input.mouse.worldX = this.cam.x + Input.mouse.x;
-        Input.mouse.worldY = this.cam.y + Input.mouse.y;
+        Input.mouse.worldX = this.cam.x + Input.mouse.x / this.zoom;
+        Input.mouse.worldY = this.cam.y + Input.mouse.y / this.zoom;
         this.nearWorkbench = this.workbench && Utils.dist(this.player2.x, this.player2.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
         this.nearShop = this.shopTable && Utils.dist(this.player2.x, this.player2.y, this.shopTable.x, this.shopTable.y) < this.shopTable.interactRange;
         this.nearTrainingRange = this.trainingRange && Utils.dist(this.player2.x, this.player2.y, this.trainingRange.x, this.trainingRange.y) < this.trainingRange.interactRange;
@@ -632,8 +634,8 @@ class Game {
 
     this.playTime += dt;
     // convert mouse to world
-    Input.mouse.worldX = this.cam.x + Input.mouse.x;
-    Input.mouse.worldY = this.cam.y + Input.mouse.y;
+    Input.mouse.worldX = this.cam.x + Input.mouse.x / this.zoom;
+    Input.mouse.worldY = this.cam.y + Input.mouse.y / this.zoom;
 
     // workbench + shop + training range interact ("press F")
     this.nearWorkbench = this.workbench && Utils.dist(this.player.x, this.player.y, this.workbench.x, this.workbench.y) < this.workbench.interactRange;
@@ -812,6 +814,8 @@ class Game {
         this.player2.targetX = d.x;
         this.player2.targetY = d.y;
         if (this.player2.x === undefined) { this.player2.x = d.x; this.player2.y = d.y; }
+        const oldHp = this.player2.hp;
+        const oldShield = this.player2.shieldHp;
         this.player2.aimAngle = d.aimAngle;
         this.player2.hp = d.hp;
         this.player2.maxHp = d.maxHp;
@@ -831,6 +835,10 @@ class Game {
         this.player2.scanTimer = d.scanTimer || 0;
         this.player2.scanTargetX = d.scanTargetX;
         this.player2.scanTargetY = d.scanTargetY;
+
+        if (oldHp !== undefined && (d.hp < oldHp || (oldShield !== undefined && d.shieldHp < oldShield))) {
+          this.damageVignette = 1;
+        }
         if (!this.player2.mods) this.player2.mods = {};
         this.player2.mods.visionRange = d.visionRange || 1;
 
@@ -1098,6 +1106,7 @@ class Game {
     let sx = 0, sy = 0;
     if (this.shakeAmt > 0) { sx = Utils.rand(-this.shakeAmt, this.shakeAmt); sy = Utils.rand(-this.shakeAmt, this.shakeAmt); }
     ctx.save();
+    ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.cam.x + sx, -this.cam.y + sy);
 
     // 1. Draw elements that are hidden in the dark
