@@ -177,7 +177,14 @@ class Player {
       }
     }
 
-    const menusOpen = game.shopOpenLocal || game.workbenchOpenLocal || game.inventoryOpenLocal;
+    // These overlay flags belong to THIS browser tab's own player. On the host the
+    // simulation drives both players, so gating player2 (the remote guest) by the
+    // host's flags would freeze the guest's shooting whenever the host opens a shop/
+    // workbench/pause menu. The guest already sends a neutral input packet while its
+    // own menu is open, so only ever gate the local player here.
+    const menusOpen = (this === game.localPlayer) &&
+      (game.shopOpenLocal || game.workbenchOpenLocal || game.inventoryOpenLocal ||
+       game.trainingOpenLocal || game.pauseOpenLocal);
 
     // weapon switch by number keys or mouse wheel
     if (!menusOpen) {

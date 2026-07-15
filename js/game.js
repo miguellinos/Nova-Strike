@@ -59,6 +59,7 @@ class Game {
     this.nearTrainingRange = false;
     this.trainingOpenLocal = false;
     this.inventoryOpenLocal = false;
+    this.pauseOpenLocal = false;
     this._snapshotTimer = 0;
     const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
     this.player = new Player(spawn.x - 20, spawn.y);
@@ -485,14 +486,28 @@ class Game {
   }
 
   pause() {
-    if (this.state !== 'playing') return;
-    this.state = 'paused';
-    Menus.show('pause-menu');
+    if (this.mode === 'solo') {
+      if (this.state !== 'playing') return;
+      this.state = 'paused';
+      Menus.show('pause-menu');
+    } else {
+      // co-op: you can't freeze time for your partner over the network, so pause is
+      // a personal overlay — the world keeps running and only you stand still while
+      // it's open (like the shop/workbench). No state change, so the host keeps
+      // simulating and broadcasting snapshots.
+      if (this.pauseOpenLocal) return;
+      this.pauseOpenLocal = true;
+      Menus.show('pause-menu');
+    }
   }
   resume() {
-    if (this.state !== 'paused') return;
+    if (this.mode === 'solo') {
+      if (this.state !== 'paused') return;
+      this.state = 'playing';
+    } else {
+      this.pauseOpenLocal = false;
+    }
     Menus.hideAll();
-    this.state = 'playing';
   }
 
   // ----- main update -----
@@ -562,7 +577,11 @@ class Game {
           if (this.inventoryOpenLocal) this.closeInventory(); else this.openInventory();
           Input.pressed['i'] = false;
         }
-        if (this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal) {
+        if (Input.wasPressed('escape')) {
+          if (this.pauseOpenLocal) this.resume(); else this.pause();
+          Input.pressed['escape'] = false;
+        }
+        if (this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal || this.pauseOpenLocal) {
           // menu open: stand still, don't fire — send a neutral packet
           Net.sendInput({ keys: {}, justPressed: [], mouseWorldX: Input.mouse.worldX, mouseWorldY: Input.mouse.worldY, mouseDown: false, rightDown: false, rightPressed: false });
         } else {
@@ -602,7 +621,14 @@ class Game {
       Input.clearFrame();
       return;
     }
-    if (Input.wasPressed('escape')) { this.pause(); Input.clearFrame(); return; }
+    if (Input.wasPressed('escape')) {
+      if (this.pauseOpenLocal) this.resume();
+      else this.pause();
+      // solo pause freezes the sim (return early); co-op pause is a personal overlay
+      // that must NOT stop the host simulating for the partner, so fall through.
+      if (this.mode === 'solo') { Input.clearFrame(); return; }
+      Input.pressed['escape'] = false;
+    }
 
     this.playTime += dt;
     // convert mouse to world
@@ -930,7 +956,7 @@ class Game {
       // that left the local "*OpenLocal" flags stuck true forever, which in
       // turn permanently blocked movement/shooting input for the guest.
       const localOverlayOpen = (this.shopOpenLocal && this.midWaveShop) ||
-        this.workbenchOpenLocal || this.trainingOpenLocal || this.inventoryOpenLocal;
+        this.workbenchOpenLocal || this.trainingOpenLocal || this.inventoryOpenLocal || this.pauseOpenLocal;
       if (!localOverlayOpen) {
         this.shopOpenLocal = false;
         this.ui.showHUD(true);
