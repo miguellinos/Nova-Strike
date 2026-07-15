@@ -239,12 +239,34 @@
 
     <!-- Inventar-Menü -->
     <div id="inventory-menu" class="overlay hidden">
-      <div class="menu-panel" style="width: 500px; max-width: 92vw; padding: 24px 28px;">
-        <h2 class="panel-title">🎒 DEIN INVENTAR</h2>
-        <div id="inventory-items" style="display: flex; flex-direction: column; gap: 12px; margin: 20px 0; min-width: 320px;">
-          <!-- Items will be dynamically rendered here -->
+      <div class="inventory-panel">
+        
+        <!-- Top Section: Player Preview & Weapons -->
+        <div class="inventory-top">
+          <!-- Left: Player Portrait Canvas -->
+          <div class="player-preview-box">
+            <span class="box-label">Spezialist</span>
+            <canvas id="inventory-player-canvas" width="120" height="150"></canvas>
+          </div>
+          
+          <!-- Right: Unlocked Weapons -->
+          <div class="inventory-weapons-box">
+            <span class="box-label">Ausrüstung</span>
+            <div id="inventory-weapons" class="weapons-grid">
+              <!-- Unlocked weapons rendered here -->
+            </div>
+          </div>
         </div>
-        <button class="btn btn-primary" data-action="inventory-close">Schließen (Taste I)</button>
+
+        <!-- Bottom Section: Owned Items Grid (Minecraft style slots) -->
+        <div class="inventory-bottom">
+          <span class="box-label">Rucksack (Klick zum Benutzen)</span>
+          <div id="inventory-slots" class="minecraft-grid">
+            <!-- Items rendered here as slots -->
+          </div>
+        </div>
+
+        <button class="btn btn-primary" data-action="inventory-close" style="margin: 0; width: 100%;">Schließen (Taste I)</button>
       </div>
     </div>
 

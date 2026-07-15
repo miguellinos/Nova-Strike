@@ -280,72 +280,128 @@ class UI {
 
   showInventory(game) {
     const me = game.localPlayer || game.player;
-    const container = document.getElementById('inventory-items');
-    if (!container) return;
-    container.innerHTML = '';
 
-    const items = [
-      {
-        id: 'bread',
-        name: 'Frisches Brot',
-        icon: '🍞',
-        desc: 'Heilt dich sofort um 15 HP.',
-        count: me.breadCount || 0,
-        canUse: me.hp < me.maxHp && (me.breadCount || 0) > 0,
-      },
-      {
-        id: 'novacola',
-        name: 'Novacola',
-        icon: '🥤',
-        desc: 'Gibt dir einen Speedboost für 8 Sek.',
-        count: me.novacolaCount || 0,
-        canUse: (me.novacolaCount || 0) > 0,
-      },
-      {
-        id: 'medkit',
-        name: 'Tragbares Medkit',
-        icon: '🎒',
-        desc: 'Heilt dich sofort um 40 HP.',
-        count: me.medkitsCount || 0,
-        canUse: me.hp < me.maxHp && (me.medkitsCount || 0) > 0,
-      },
-      {
-        id: 'shield',
-        name: 'Schildzelle',
-        icon: '🛡️',
-        desc: 'Lädt dein Schild um 50 Punkte auf.',
-        count: me.shieldsCount || 0,
-        canUse: me.shieldHp < me.maxShieldHp && (me.shieldsCount || 0) > 0,
+    // 1. Render Unlocked Weapons in top-right box
+    const weaponsContainer = document.getElementById('inventory-weapons');
+    if (weaponsContainer) {
+      weaponsContainer.innerHTML = '';
+      let weaponsCount = 0;
+      WEAPON_ORDER.forEach((key) => {
+        if (me.weapons[key] && me.weapons[key].unlocked) {
+          weaponsCount++;
+          const def = WEAPON_DEFS[key];
+          const row = document.createElement('div');
+          row.className = 'weapon-slot-row';
+          
+          let icon = '🔫';
+          if (key === 'plasma') icon = '🔫';
+          else {
+            const shopItem = WEAPON_SHOP_ITEMS.find((w) => w.key === key);
+            if (shopItem) icon = shopItem.icon;
+          }
+          
+          const maxAmmo = Math.round(def.mag * me.mods.mag);
+          const currentAmmo = me.weapons[key].ammo;
+
+          row.innerHTML = `
+            <span class="weapon-icon">${icon}</span>
+            <span class="weapon-name">${def.name}</span>
+            <span class="weapon-ammo">${currentAmmo} / ${maxAmmo}</span>
+          `;
+          weaponsContainer.appendChild(row);
+        }
+      });
+      if (weaponsCount === 0) {
+        weaponsContainer.innerHTML = '<div style="color: #666; font-size: 11px; padding: 10px;">Keine Waffen.</div>';
       }
-    ];
+    }
 
-    items.forEach((item) => {
-      const row = document.createElement('div');
-      row.style.display = 'flex';
-      row.style.alignItems = 'center';
-      row.style.justifyContent = 'space-between';
-      row.style.background = 'rgba(25, 35, 25, 0.7)';
-      row.style.border = '1px solid rgba(74, 246, 38, 0.2)';
-      row.style.borderRadius = '8px';
-      row.style.padding = '10px 14px';
-      row.style.gap = '12px';
+    // 2. Render Minecraft style slots for owned items
+    const slotsContainer = document.getElementById('inventory-slots');
+    if (slotsContainer) {
+      slotsContainer.innerHTML = '';
+      
+      const items = [
+        { id: 'bread', name: 'Frisches Brot', icon: '🍞', count: me.breadCount || 0, desc: 'Heilt dich sofort um 15 HP.', canUse: me.hp < me.maxHp },
+        { id: 'novacola', name: 'Novacola', icon: '🥤', count: me.novacolaCount || 0, desc: 'Gibt dir einen Speedboost für 8 Sek.', canUse: true },
+        { id: 'medkit', name: 'Tragbares Medkit', icon: '🎒', count: me.medkitsCount || 0, desc: 'Heilt dich sofort um 40 HP.', canUse: me.hp < me.maxHp },
+        { id: 'shield', name: 'Schildzelle', icon: '🛡️', count: me.shieldsCount || 0, desc: 'Lädt dein Schild um 50 Punkte auf.', canUse: me.shieldHp < me.maxShieldHp }
+      ];
 
-      row.innerHTML = `
-        <div style="font-size: 24px;">${item.icon}</div>
-        <div style="flex: 1; text-align: left;">
-          <div style="font-weight: bold; color: var(--cyan);">${item.name} <span style="color: var(--gold); font-size: 14px;">(Besitz: ${item.count})</span></div>
-          <div style="font-size: 11px; color: #a2bca0; margin-top: 2px;">${item.desc}</div>
-        </div>
-        <button class="btn btn-use" style="width: auto; margin: 0; padding: 6px 14px; font-size: 13px;" ${!item.canUse ? 'disabled' : ''}>Benutzen</button>
-      `;
-
-      const btn = row.querySelector('.btn-use');
-      btn.addEventListener('click', () => {
-        game.useInventoryItem(item.id);
+      let itemsOwned = 0;
+      items.forEach((item) => {
+        if (item.count > 0) {
+          itemsOwned++;
+          const slot = document.createElement('div');
+          slot.className = 'mc-slot';
+          if (!item.canUse) {
+            slot.style.opacity = '0.55';
+          }
+          slot.innerHTML = `
+            <span class="slot-icon">${item.icon}</span>
+            <span class="slot-count">${item.count}</span>
+            <div class="mc-slot-tooltip">
+              <div class="mc-tooltip-title">${item.name}</div>
+              <div>${item.desc}</div>
+              <div class="mc-tooltip-action">${item.canUse ? 'Klicken zum Benutzen' : 'Voll / Nicht benutzbar'}</div>
+            </div>
+          `;
+          
+          if (item.canUse) {
+            slot.addEventListener('click', () => {
+              game.useInventoryItem(item.id);
+            });
+          }
+          slotsContainer.appendChild(slot);
+        }
       });
 
-      container.appendChild(row);
-    });
+      if (itemsOwned === 0) {
+        slotsContainer.innerHTML = '<div style="color: #888; font-size: 12px; text-align: center; width: 100%; padding: 15px;">Dein Rucksack ist leer. Besuche den Shop oben rechts!</div>';
+      }
+    }
+  }
+
+  drawInventoryPreview(game) {
+    const me = game.localPlayer || game.player;
+    const canvas = document.getElementById('inventory-player-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear preview canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Fill portrait background
+    ctx.fillStyle = '#111116';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#3c3c3c';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+    // Save current player state to temporarily animate on the preview screen
+    const oldX = me.x;
+    const oldY = me.y;
+    const oldAim = me.aimAngle;
+    const oldWalk = me.walkPhase;
+    const oldTrail = me.dashTrail;
+
+    // Center player character inside the 120x150 portrait canvas
+    me.x = canvas.width / 2;
+    me.y = canvas.height / 2 + 10;
+    me.aimAngle = Math.PI * 0.5; // face downwards/forwards
+    me.walkPhase = game.time * 6.5; // animate walk phase
+    me.dashTrail = []; // clear trails in preview
+
+    ctx.save();
+    me.draw(ctx, game.time);
+    ctx.restore();
+
+    // Restore original coordinates
+    me.x = oldX;
+    me.y = oldY;
+    me.aimAngle = oldAim;
+    me.walkPhase = oldWalk;
+    me.dashTrail = oldTrail;
   }
 
   showGameOver(stats) {
