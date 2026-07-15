@@ -93,20 +93,16 @@ class World {
     for (const h of layout.hangars) this.buildHangar(h.x, h.y, h.w, h.h, h.gateSide, h.name);
     for (const o of layout.obs) this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4] });
 
-<<<<<<< HEAD
     // Shop building walls in the top right
     this.rects.push({ x: 2120, y: 40, w: 20, h: 240, kind: 'hangar-wall' }); // West wall
     // South walls leaving a doorway from 2190 to 2270
     this.rects.push({ x: 2120, y: 260, w: 70, h: 20, kind: 'hangar-wall' }); // South wall left
     this.rects.push({ x: 2270, y: 260, w: 90, h: 20, kind: 'hangar-wall' }); // South wall right
 
-    // workbench: pick the first clear candidate spot near the map center (layout-safe)
-=======
     // workbench: pick the first clear spot near the player's own spawn point (see
     // game.js's newGame()) so it's always in the same open area the player starts in
     // — never deep inside a maze pocket that might not actually be reachable.
     const sx = this.w / 2, sy = this.h / 2 - 180;
->>>>>>> 38c1bc031752de005f10322af0889b086d511713
     const wbCandidates = [
       { x: sx + 180, y: sy + 90 }, { x: sx - 180, y: sy + 90 },
       { x: sx + 180, y: sy - 90 }, { x: sx - 180, y: sy - 90 },
