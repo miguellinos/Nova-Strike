@@ -1,7 +1,7 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
   overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'upgrade-menu',
-             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu', 'cheat-menu'],
+             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu', 'cheat-menu', 'lexicon-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
   show(id) { this.hideAll(); document.getElementById(id).classList.remove('hidden'); },
@@ -122,6 +122,16 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'settings-back': Menus.show(Menus.prev || 'main-menu'); if (game.state === 'paused') {/* stay paused overlay */} break;
       case 'controls': Menus.prev = getVisibleOverlay(); Menus.show('controls-menu'); break;
       case 'controls-back': Menus.show(Menus.prev || 'main-menu'); break;
+      case 'lexicon-menu':
+        Menus.prev = getVisibleOverlay();
+        Menus.show('lexicon-menu');
+        // Reset active tabs to Weapons by default
+        document.querySelectorAll('.lexicon-tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === 'lexicon-weapons'));
+        game.ui.showLexiconTab('lexicon-weapons', game);
+        break;
+      case 'lexicon-back':
+        Menus.show(Menus.prev || 'main-menu');
+        break;
       case 'quit': Menus.show('main-menu'); alert('Danke fürs Spielen! Du kannst den Tab schließen.'); break;
       case 'resume': game.resume(); break;
       case 'restart': Net.reset(); game.newGame('solo', game.gameMode); Menus.hideAll(); break;
@@ -279,6 +289,18 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('inv-grenade').addEventListener('click', (e) => {
     Input.pressed['g'] = true;
     e.stopPropagation();
+  });
+
+  // Handle tab switching in Lexicon
+  document.getElementById('game-container').addEventListener('click', (e) => {
+    const tabBtn = e.target.closest('.lexicon-tab-btn');
+    if (!tabBtn) return;
+    
+    document.querySelectorAll('.lexicon-tab-btn').forEach(btn => btn.classList.remove('active'));
+    tabBtn.classList.add('active');
+    
+    const targetTab = tabBtn.dataset.tab;
+    game.ui.showLexiconTab(targetTab, game);
   });
 
   // ----- game loop -----

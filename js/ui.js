@@ -479,6 +479,364 @@ class UI {
       '<div>Gesammelte Münzen: <b>' + stats.coins + '</b></div>' +
       '<div>Spielzeit: <b>' + stats.time + '</b></div>';
   }
+
+  showLexiconTab(tabId, game) {
+    if (!this.el.lexiconContent) {
+      this.el.lexiconContent = document.getElementById('lexicon-menu').querySelector('.lexicon-content');
+    }
+    const container = this.el.lexiconContent;
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (tabId === 'lexicon-weapons') {
+      const grid = document.createElement('div');
+      grid.className = 'lexicon-grid';
+
+      for (const key of WEAPON_ORDER) {
+        const def = WEAPON_DEFS[key];
+        const shopItem = WEAPON_SHOP_ITEMS.find(item => item.key === key) || {};
+        const iconSvg = getWeaponIconSvg(key);
+
+        const card = document.createElement('div');
+        card.className = 'lexicon-card';
+        
+        let perkHtml = '';
+        if (def.burn) perkHtml = `<div class="lexicon-stat-item">🔥 Verbrennen: <b>${def.burn} DPS</b></div>`;
+        else if (def.chain) perkHtml = `<div class="lexicon-stat-item">⚡ Blitzsprung: <b>${def.chain} Feinde</b></div>`;
+        else if (def.slow) perkHtml = `<div class="lexicon-stat-item">❄️ Verlangsamen: <b>${def.slow}s</b></div>`;
+        else if (def.pierce) perkHtml = `<div class="lexicon-stat-item">🎯 Durchdringen: <b>${def.pierce} Feinde</b></div>`;
+        else if (def.aoe) perkHtml = `<div class="lexicon-stat-item">🚀 Explosion: <b>${def.aoe} AOE</b></div>`;
+
+        card.innerHTML = `
+          <div class="lexicon-card-header">
+            <span class="lexicon-card-emoji">${iconSvg}</span>
+            <span class="lexicon-card-title">${def.name}</span>
+          </div>
+          <div class="lexicon-card-desc">${shopItem.desc || 'Standardwaffe für Spezialeinsätze.'}</div>
+          <div class="lexicon-stats">
+            <div class="lexicon-stat-item">💥 Schaden: <b>${def.damage}</b></div>
+            <div class="lexicon-stat-item">🔥 Feuerrate: <b>${def.fireRate}/s</b></div>
+            <div class="lexicon-stat-item">🎒 Magazin: <b>${def.mag} Schuss</b></div>
+            <div class="lexicon-stat-item">🔄 Nachladen: <b>${def.reload}s</b></div>
+            <div class="lexicon-stat-item">🚀 Geschw.: <b>${def.speed} px/s</b></div>
+            <div class="lexicon-stat-item">🪙 Preis: <b>${shopItem.price ? '$' + shopItem.price : 'Gratis'}</b></div>
+            ${perkHtml}
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+      container.appendChild(grid);
+    } 
+    else if (tabId === 'lexicon-medkits') {
+      const items = [
+        { name: '🎒 Medkit', desc: 'Konsumierbares Erste-Hilfe-Set. Heilt augenblicklich 50 Gesundheitspunkte.', key: 'Q', limit: 'Max. 3 im Inventar', price: '🪙 25 Münzen im Shop' },
+        { name: '🛡️ Schild-Batterie', desc: 'Konsumierbare Energiezelle. Lädt deinen Energieschild vollständig auf (100 Punkte).', key: 'E', limit: 'Max. 3 im Inventar', price: '🪙 35 Münzen im Shop' },
+        { name: '🪙 Münzen', desc: 'Währung, die von besiegten Gegnern fallengelassen wird. Wird an der Werkbank und am Shop-Tisch im Hauptquartier ausgegeben.', key: 'Sammeln', limit: 'Unbegrenzt', price: 'Gratis von Feinden' },
+        { name: '🏆 Punkte (Score)', desc: 'Erreichte Punktzahl durch Abschüsse und Überleben von Wellen. Kann im Trainingsbereich für globale Charakter-Upgrades ausgegeben werden.', key: 'Sammeln', limit: 'Permanent', price: 'Wellen-Boni' },
+      ];
+
+      const grid = document.createElement('div');
+      grid.className = 'lexicon-grid';
+
+      for (const item of items) {
+        const card = document.createElement('div');
+        card.className = 'lexicon-card';
+        card.innerHTML = `
+          <div class="lexicon-card-header">
+            <span class="lexicon-card-title">${item.name}</span>
+          </div>
+          <div class="lexicon-card-desc">${item.desc}</div>
+          <div class="lexicon-stats">
+            <div class="lexicon-stat-item">Taste: <b>${item.key}</b></div>
+            <div class="lexicon-stat-item">Limit: <b>${item.limit}</b></div>
+            <div class="lexicon-stat-item">Kosten: <b>${item.price}</b></div>
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+      container.appendChild(grid);
+    }
+    else if (tabId === 'lexicon-enemies') {
+      const grid = document.createElement('div');
+      grid.className = 'lexicon-grid';
+
+      const enemiesList = [
+        { type: 'drone', emoji: '👾', details: 'Einfacher Infanterist. Versucht dich im Nahkampf anzureisen.' },
+        { type: 'striker', emoji: '💀', details: 'Schneller, gepanzerter Sturmsoldat. Richtet hohen Nahkampfschaden an.' },
+        { type: 'shooter', emoji: '🛞', details: 'Militärischer Scout-Humvee. Feuert schnelle Salven mit einem montierten MG.' },
+        { type: 'tank', emoji: '🚜', details: 'Kampfpanzer mit schweren Ketten. Feuert langsame, aber verheerende Doppel-Explosivgeschosse ab.' },
+        { type: 'bomber', emoji: '💥', details: 'Sprengstoff-Läufer. Läuft mit extrem hoher Geschwindigkeit auf dich zu und sprengt sich selbst in die Luft.' },
+        { type: 'marksman', emoji: '🎯', details: 'Scharfschütze im Ghillie-Tarnanzug. Zielt aus großer Entfernung mit einem gelben Laser und feuert durchdringende Railgun-Projektile ab.' },
+        { type: 'rockettank', emoji: '🚀', details: 'Raketenwerfer-Panzer. Feuert wärmesuchende Lenkraketen ab, die dich 5 Sekunden lang verfolgen und dann explodieren.' },
+        { type: 'novabeast', emoji: '👹', details: 'Schwerer Panzerträger (APC). Ein massiver Rammbock, der mit hoher Geschwindigkeit direkt auf dich zustürmt.' }
+      ];
+
+      for (const e of enemiesList) {
+        const def = ENEMY_DEFS[e.type];
+        const name = def.name;
+        const hp = def.hp;
+        const speed = def.speed + ' px/s';
+        const dmg = def.dmg;
+        let features = def.ranged ? 'Fernkampf' : 'Nahkampf';
+        if (e.type === 'bomber') features = 'Selbstmord-Explosion';
+        if (e.type === 'rockettank') features = 'Lenkraketen';
+
+        const card = document.createElement('div');
+        card.className = 'lexicon-card';
+        card.innerHTML = `
+          <div class="lexicon-card-header">
+            <span class="lexicon-card-emoji">${e.emoji}</span>
+            <span class="lexicon-card-title">${name}</span>
+          </div>
+          <canvas class="lexicon-thumbnail" width="80" height="80" data-key="${e.type}" data-category="enemies" style="background:#090b08; border: 1px solid rgba(74,246,38,0.12); border-radius: 8px; margin: 8px auto; display: block;"></canvas>
+          <div class="lexicon-card-desc">${e.details}</div>
+          <div class="lexicon-stats">
+            <div class="lexicon-stat-item">❤️ HP: <b>${hp}</b></div>
+            <div class="lexicon-stat-item">⚡ Tempo: <b>${speed}</b></div>
+            <div class="lexicon-stat-item">⚔️ Schaden: <b>${dmg}</b></div>
+            <div class="lexicon-stat-item">ℹ️ Typ: <b>${features}</b></div>
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+      container.appendChild(grid);
+    }
+    else if (tabId === 'lexicon-bosses') {
+      const grid = document.createElement('div');
+      grid.className = 'lexicon-grid';
+
+      const bossesList = [
+        { type: 'tank', emoji: '👑', name: 'Superpanzer "LEVIATHAN"', hp: '1800+', speed: '60 px/s', dmg: '32', desc: 'Riesiger Kampfpanzer. Feuert explosive Dual-Kanonensalven und entfesselt Schockwellenringe.' },
+        { type: 'spider', emoji: '🕷️', name: 'Arachno-Läufer "WIDOW"', hp: '1500+', speed: '140 px/s', dmg: '22', desc: 'Agiler mech-spinnenartiger Läufer. Prescht im Sprint vor und legt Netzbomben-Minen aus.' },
+        { type: 'artillery', emoji: '🛡️', name: 'Haubitzen-Plattform "GOLIATH"', hp: '2800+', speed: '40 px/s', dmg: '30', desc: 'Schwere gepanzerte Belagerungsstation. Beschießt dich aus weiter Distanz und lädt Schilde auf.' },
+        { type: 'swarm', emoji: '⚡', name: 'Befehlshaber "SCHWARM"', hp: '1700+', speed: '110 px/s', dmg: '18', desc: 'Schwebendes kybernetisches Zentralbewusstsein. Teleportiert sich und spawnt Dronen-Schwärme.' }
+      ];
+
+      for (const b of bossesList) {
+        const card = document.createElement('div');
+        card.className = 'lexicon-card';
+        card.innerHTML = `
+          <div class="lexicon-card-header">
+            <span class="lexicon-card-emoji">${b.emoji}</span>
+            <span class="lexicon-card-title">${b.name}</span>
+          </div>
+          <canvas class="lexicon-thumbnail" width="80" height="80" data-key="${b.type}" data-category="bosses" style="background:#090b08; border: 1px solid rgba(74,246,38,0.12); border-radius: 8px; margin: 8px auto; display: block;"></canvas>
+          <div class="lexicon-card-desc">${b.desc}</div>
+          <div class="lexicon-stats">
+            <div class="lexicon-stat-item">❤️ HP: <b>${b.hp}</b></div>
+            <div class="lexicon-stat-item">⚡ Tempo: <b>${b.speed}</b></div>
+            <div class="lexicon-stat-item">⚔️ Schaden: <b>${b.dmg}</b></div>
+            <div class="lexicon-stat-item">ℹ️ Typ: <b>Hauptboss</b></div>
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+      container.appendChild(grid);
+    }
+    else if (tabId === 'lexicon-buildings') {
+      const buildings = [
+        { key: 'hangar', name: '🏢 Hangare', desc: 'Riesige Industriehallen. Hier spawnen vermehrt Feinde. Der Innenbereich ist dunkel und verbirgt Gegner, bis du sie beleuchtest.', inside: 'Dunkel (Fog of War)' },
+        { key: 'baracke', name: '🏠 Baracken / Hütten', desc: 'Kleinere Holzhütten und Wachposten mit engen Türen. Ähnlich wie Hangare verbergen sie ihren Inhalt vor Blicken von außen.', inside: 'Dunkel (Fog of War)' },
+        { key: 'basecamp', name: '🛡️ Hauptquartier', desc: 'Blau geflieste Sicherheitszone am linken Kartenrand. Geschützt durch ein blaues Laserschutzgitter, das feindliche Einheiten blockiert.', inside: 'Sicherheitszone' },
+        { key: 'workbench', name: '🔧 Werkbank', desc: 'Steht im Hauptquartier. Ermöglicht dir das Freischalten neuer Primärwaffen und das Verbessern der Waffenwerte bis Stufe 3.', inside: 'Waffen-Upgrades' },
+        { key: 'shop', name: '🛒 Shop-Tisch', desc: 'Befindet sich im Hauptquartier. Ermöglicht den Kauf von Munitionsboxen, Medkits und Schild-Akkus während der Wellen.', inside: 'Ausrüstungs-Verkauf' },
+        { key: 'training', name: '🏋️ Trainingsbereich', desc: 'Hier kannst du am Ende jeder Welle deine globalen Charakterwerte mit erreichten Punkten verbessern.', inside: 'Charakter-Upgrades' },
+      ];
+
+      const grid = document.createElement('div');
+      grid.className = 'lexicon-grid';
+
+      for (const b of buildings) {
+        const card = document.createElement('div');
+        card.className = 'lexicon-card';
+        card.innerHTML = `
+          <div class="lexicon-card-header">
+            <span class="lexicon-card-title">${b.name}</span>
+          </div>
+          <canvas class="lexicon-thumbnail" width="80" height="80" data-key="${b.key}" data-category="buildings" style="background:#090b08; border: 1px solid rgba(74,246,38,0.12); border-radius: 8px; margin: 8px auto; display: block;"></canvas>
+          <div class="lexicon-card-desc">${b.desc}</div>
+          <div class="lexicon-stats">
+            <div class="lexicon-stat-item" style="grid-column: span 2;">Kategorie: <b>${b.inside}</b></div>
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+      container.appendChild(grid);
+    }
+    else if (tabId === 'lexicon-maps') {
+      const maps = [
+        { key: 'military', name: '🗺️ Hangar-Komplex Alpha', desc: 'Ein riesiger Militärstützpunkt mit zwei gigantischen Hangars (Nord und Süd). Ideal für kontrollierte Indoor-Gefechte.', theme: 'Militärisch (Schlamm & Erde)' },
+        { key: 'battlefield', name: 'Sektor 4 - Schlachtfeld', desc: 'Ein offenes Trümmerfeld mit zahlreichen Barrikaden, Mauern und Kistenstapeln.', theme: 'Militärisch (Schlamm & Erde)' },
+        { key: 'desert', name: 'Wüsten-Kreuzung', desc: 'Eine weitläufige Dünenlandschaft mit drei Hangaren im Süden. Der extreme Sandstaub erschwert die Sicht.', theme: 'Wüste (Sand & Staub)' },
+        { key: 'arctic', name: 'Bunker-Ring', desc: 'Ein kreisförmiger Bunkerwall in der Mitte der eisigen Tundra. Der zentrale Raum bietet Schutz.', theme: 'Arktisch (Schnee & Eis)' },
+        { key: 'toxic', name: 'Giftsumpf-Anlage', desc: 'Ein toxisches Industriegelände mit violetter Sumpferde und grünen Giftpfützen. Vier kleine Außenposten liegen in den Ecken.', theme: 'Toxisch (Violettes Sumpfland)' },
+      ];
+
+      const grid = document.createElement('div');
+      grid.className = 'lexicon-grid';
+
+      for (const m of maps) {
+        const card = document.createElement('div');
+        card.className = 'lexicon-card';
+        card.innerHTML = `
+          <div class="lexicon-card-header">
+            <span class="lexicon-card-title">${m.name}</span>
+          </div>
+          <canvas class="lexicon-thumbnail" width="80" height="80" data-key="${m.key}" data-category="maps" style="background:#090b08; border: 1px solid rgba(74,246,38,0.12); border-radius: 8px; margin: 8px auto; display: block;"></canvas>
+          <div class="lexicon-card-desc">${m.desc}</div>
+          <div class="lexicon-stats">
+            <div class="lexicon-stat-item" style="grid-column: span 2;">Vibe / Thema: <b>${m.theme}</b></div>
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+      container.appendChild(grid);
+    }
+
+    // Loop through injected canvases and render thumbnails
+    const canvases = container.querySelectorAll('.lexicon-thumbnail');
+    for (const canvas of canvases) {
+      const ctx = canvas.getContext('2d');
+      const cat = canvas.dataset.category;
+      const key = canvas.dataset.key;
+      drawLexiconThumbnail(ctx, cat, key, game);
+    }
+  }
+}
+
+function drawLexiconThumbnail(ctx, cat, key, game) {
+  ctx.clearRect(0, 0, 80, 80);
+  ctx.save();
+  ctx.translate(40, 40); // center
+  
+  if (cat === 'enemies') {
+    const e = new Enemy(key, 0, 0);
+    e.vx = 1; e.vy = 0; // face right
+    ctx.scale(1.2, 1.2);
+    e.draw(ctx, 0, false);
+  }
+  else if (cat === 'bosses') {
+    const b = new Boss(0, 0, 5, key);
+    ctx.scale(0.48, 0.48);
+    b.draw(ctx, 0, false);
+  }
+  else if (cat === 'buildings') {
+    if (key === 'hangar') {
+      ctx.fillStyle = '#2b2f33';
+      ctx.fillRect(-35, -35, 70, 70);
+      ctx.strokeStyle = '#1d2024';
+      ctx.lineWidth = 1;
+      for (let x = -25; x <= 25; x += 15) {
+        ctx.beginPath(); ctx.moveTo(x, -35); ctx.lineTo(x, 35); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-35, x); ctx.lineTo(35, x); ctx.stroke();
+      }
+      ctx.fillStyle = '#1c1d1f';
+      ctx.fillRect(-35, -35, 70, 10);
+      ctx.strokeStyle = '#050505';
+      ctx.strokeRect(-35, -35, 70, 10);
+      ctx.fillStyle = '#e5a93b';
+      ctx.beginPath(); ctx.arc(10, 10, 8, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#111';
+      ctx.stroke();
+    }
+    else if (key === 'baracke') {
+      ctx.fillStyle = '#4a3d2c';
+      ctx.fillRect(-35, -35, 70, 70);
+      ctx.strokeStyle = '#2b2217';
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(-35, -35, 70, 70);
+      ctx.fillStyle = '#6b573d';
+      ctx.fillRect(-10, -10, 20, 20);
+      ctx.strokeRect(-10, -10, 20, 20);
+      ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(10, 10); ctx.stroke();
+    }
+    else if (key === 'basecamp') {
+      ctx.fillStyle = '#1e1c24';
+      ctx.fillRect(-35, -35, 70, 70);
+      ctx.strokeStyle = 'rgba(0, 255, 200, 0.25)';
+      ctx.strokeRect(-35, -35, 70, 70);
+      for (let x = -15; x <= 15; x += 15) {
+        ctx.beginPath(); ctx.moveTo(x, -35); ctx.lineTo(x, 35); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-35, x); ctx.lineTo(35, x); ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.85)';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath(); ctx.moveTo(22, -35); ctx.lineTo(22, 35); ctx.stroke();
+    }
+    else if (key === 'workbench') {
+      ctx.fillStyle = '#3c4043';
+      ctx.fillRect(-30, -15, 60, 30);
+      ctx.strokeStyle = '#18191a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-30, -15, 60, 30);
+      ctx.fillStyle = '#9c2626';
+      ctx.fillRect(-12, -8, 24, 16);
+      ctx.strokeRect(-12, -8, 24, 16);
+      ctx.fillStyle = '#999';
+      ctx.fillRect(-4, -2, 8, 4);
+    }
+    else if (key === 'shop') {
+      ctx.fillStyle = '#8a6237';
+      ctx.fillRect(-30, -20, 60, 40);
+      ctx.strokeStyle = '#4a321a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-30, -20, 60, 40);
+      ctx.fillStyle = '#d94141';
+      ctx.fillRect(-15, -8, 12, 16);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-11, -2, 4, 4);
+      ctx.fillStyle = '#3a86ff';
+      ctx.fillRect(5, -10, 10, 16);
+      ctx.fillStyle = '#ffa500';
+      ctx.fillRect(8, -4, 4, 4);
+    }
+    else if (key === 'training') {
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#ff3300';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+    }
+  }
+  else if (cat === 'maps') {
+    let themeColor = '#221b14';
+    let mudColor = '#17120d';
+    let grassColor = '#2d3319';
+    let detailColor = '#ff5500';
+    
+    if (key === 'military') {
+      themeColor = '#221b14'; mudColor = '#17120d'; grassColor = '#2d3319';
+    } else if (key === 'battlefield') {
+      themeColor = '#2a2620'; mudColor = '#1c1914'; grassColor = '#3f452d';
+    } else if (key === 'desert') {
+      themeColor = '#3a2f1e'; mudColor = '#4a3d26'; grassColor = '#6b5a2e'; detailColor = '#ffaa00';
+    } else if (key === 'arctic') {
+      themeColor = '#dce8ee'; mudColor = '#a9c2cf'; grassColor = '#c3d8e0'; detailColor = '#4ad9ff';
+    } else if (key === 'toxic') {
+      themeColor = '#241a2e'; mudColor = '#33224a'; grassColor = '#6fbf3f'; detailColor = '#9c4eff';
+    }
+
+    ctx.fillStyle = themeColor;
+    ctx.fillRect(-35, -35, 70, 70);
+    ctx.fillStyle = mudColor;
+    ctx.beginPath(); ctx.ellipse(-10, -5, 20, 12, 0.4, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = grassColor;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(15, 15); ctx.lineTo(12, 5);
+    ctx.moveTo(15, 15); ctx.lineTo(20, 7);
+    ctx.moveTo(-18, 10); ctx.lineTo(-22, 0);
+    ctx.stroke();
+    ctx.fillStyle = detailColor;
+    ctx.beginPath(); ctx.arc(-5, -20, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(22, -12, 2, 0, Math.PI*2); ctx.fill();
+  }
+  
+  ctx.restore();
 }
 
 function getStatsAtLevel(def, lvl) {

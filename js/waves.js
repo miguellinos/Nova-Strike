@@ -40,6 +40,11 @@ class WaveManager {
         const sp = this.game.world.randomHangarSpawnPoint();
         this.game.enemies.push(new Enemy('striker', sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
       }
+      const rockettanks = 1 + Math.floor(n / 10);
+      for (let i = 0; i < rockettanks; i++) {
+        const sp = this.game.world.randomHangarSpawnPoint();
+        this.game.enemies.push(new Enemy('rockettank', sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
+      }
     } else {
       // fill the queue but let update() trickle-spawn it over time (see below) —
       // dumping dozens of enemies at once on higher waves tanks the framerate,
@@ -61,6 +66,7 @@ class WaveManager {
     if (n >= 4) add('grenadier', 1 + Math.floor(n * 0.35));
     if (n >= 5) add('shieldtrooper', Math.floor(n / 4));
     if (n >= 6) add('medic', Math.floor(n / 5)); // support unit — only shows up once squads are big enough to matter
+    if (n >= 5) add('rockettank', Math.floor(n / 5));
     if (n >= 6 && n % 2 === 0) add('novabeast', Math.floor(n / 6));
     // shuffle
     for (let i = q.length - 1; i > 0; i--) {

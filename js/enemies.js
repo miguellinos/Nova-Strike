@@ -6,10 +6,10 @@ const ENEMY_DEFS = {
   shooter: { name: 'Militär-Humvee',     hp: 60,  speed: 110, dmg: 10, radius: 18, color: '#c2b280', coins: [3, 5],  score: 30,  ranged: true,  touchCd: 0.7, shootCd: 1.5, keepDist: 300, projSpeed: 380, projColor: '#ffcc00', vision: 640 },
   novabeast:{name: 'aw Panzerträger',hp: 1200, speed: 90,  dmg: 40, radius: 36, color: '#4f5d65', coins: [10, 20],score: 200, ranged: false, touchCd: 0.8, elite: true, vision: 680 },
   marksman:{ name: 'Scharfschütze',      hp: 45,  speed: 85,  dmg: 24, radius: 14, color: '#5a5342', coins: [3, 6],  score: 35,  ranged: true,  touchCd: 0.7, shootCd: 2.4, keepDist: 520, projSpeed: 700, projColor: '#ffe680', vision: 720 },
-  bomber:  { name: 'Sprengstoff-Läufer', hp: 22,  speed: 235, dmg: 55, radius: 14, color: '#8a3a1e', coins: [2, 4],  score: 25,  ranged: false, touchCd: 1, vision: 460, blastRadius: 90 },
   medic:   { name: 'Feldsanitäter',      hp: 40,  speed: 155, dmg: 0,  radius: 13, color: '#e8e4d8', coins: [3, 6],  score: 30,  ranged: false, touchCd: 1, vision: 500, healAmount: 12, healCd: 2.2, healRange: 200 },
   grenadier:{name: 'Granatwerfer',       hp: 65,  speed: 115, dmg: 30, radius: 16, color: '#5c5a3a', coins: [3, 6],  score: 32,  ranged: true,  touchCd: 0.8, shootCd: 3, keepDist: 260, vision: 560, blastRadius: 75 },
   shieldtrooper:{name: 'Schildträger',   hp: 90,  speed: 95,  dmg: 16, radius: 17, color: '#3a4a5a', coins: [4, 8],  score: 38,  ranged: false, touchCd: 0.8, vision: 480, shieldHp: 90 },
+  rockettank: { name: 'Raketenwerfer-Panzer', hp: 420, speed: 55, dmg: 22, radius: 30, color: '#2a445c', coins: [8, 15], score: 65, ranged: true, touchCd: 1.0, vision: 660, shootCd: 4.2, projSpeed: 170, projColor: '#ff3b00' },
 };
 
 // steer a movement direction around nearby walls instead of walking straight
@@ -315,6 +315,40 @@ class Enemy {
         // a priority target, not its movement or a special attack
         spd = this.speed * (this.shieldHp > 0 ? 0.85 : 1.1);
       }
+      else if (this.type === 'rockettank') {
+        // Keeps mid-long distance from player, firing tracking rockets
+        if (distToP < 320) {
+          mx = -mx; my = -my; spd = this.speed * 0.9;
+        } else if (distToP > 550) {
+          // approach
+        } else {
+          // strafe around player slowly
+          const t = mx; mx = -my; my = t;
+          spd *= 0.6;
+        }
+
+        this.shootTimer -= dt;
+        if (this.shootTimer <= 0 && distToP < 750 && p.hp > 0) {
+          this.shootTimer = this.def.shootCd;
+          game.enemyProjectiles.push({
+            x: this.x, y: this.y,
+            vx: Math.cos(angleToP) * this.def.projSpeed,
+            vy: Math.sin(angleToP) * this.def.projSpeed,
+            radius: 8,
+            dmg: this.dmg,
+            color: this.def.projColor,
+            dead: false,
+            life: 5.0, // 5 seconds lifetime
+            isHoming: true,
+            isExplosive: true,
+            aoe: 90
+          });
+          Audio2.shoot('cannon');
+          const bx = this.x + Math.cos(angleToP) * this.radius;
+          const by = this.y + Math.sin(angleToP) * this.radius;
+          game.particles.spawn(bx, by, '#ff3b00', { count: 6, angle: angleToP, spread: 0.4, minSpeed: 40, maxSpeed: 100, life: 0.25 });
+        }
+      }
     }
 
     // squad separation: nudge apart from very close allies so they don't stack
@@ -414,14 +448,19 @@ class Enemy {
 
     if (this.type === 'drone') {
       // 1. Infanterist (Normal Soldier)
-      // Shoulders
-      ctx.fillStyle = '#4c593c'; // olive drab clothing
+      // Shoulder pads with camo pattern
+      ctx.fillStyle = '#4c593c'; 
       ctx.beginPath();
       ctx.ellipse(-1, 0, this.radius * 0.65, this.radius * 1.05, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = '#1e2417';
       ctx.lineWidth = 1.8;
       ctx.stroke();
+
+      // Camo stripes on shoulders
+      ctx.fillStyle = '#39422c';
+      ctx.fillRect(-this.radius * 0.4, -this.radius * 0.8, this.radius * 0.3, this.radius * 0.3);
+      ctx.fillRect(-this.radius * 0.4, this.radius * 0.5, this.radius * 0.3, this.radius * 0.3);
 
       // Helmet
       ctx.fillStyle = flash ? '#ffffff' : '#39422c';
@@ -430,20 +469,37 @@ class Enemy {
       ctx.fill();
       ctx.stroke();
 
-      // Gun/Rifle
-      ctx.fillStyle = '#111';
-      ctx.fillRect(this.radius * 0.2, this.radius * 0.35, this.radius * 0.8, 3);
+      // Glowing green goggles
+      ctx.fillStyle = '#4af626';
+      ctx.fillRect(this.radius * 0.3, -this.radius * 0.22, 2, this.radius * 0.44);
+
+      // Gun/Rifle with flash muzzle
+      ctx.fillStyle = '#1c1d21';
+      ctx.fillRect(this.radius * 0.2, this.radius * 0.35, this.radius * 0.8, 3.5);
+      ctx.fillStyle = '#2b2c30';
+      ctx.fillRect(this.radius * 0.9, this.radius * 0.3, 2, 4.5);
     } 
     else if (this.type === 'striker') {
       // 2. Elite-Soldat (Elite Commando)
-      // Shoulders
-      ctx.fillStyle = '#24262b'; // charcoal/black clothing
+      // Shoulder armor plates
+      ctx.fillStyle = '#24262b'; 
       ctx.beginPath();
       ctx.ellipse(-1, 0, this.radius * 0.65, this.radius * 1.05, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 1.8;
       ctx.stroke();
+
+      // Red combat stripes on shoulders
+      ctx.fillStyle = '#9c2626';
+      ctx.fillRect(-this.radius * 0.45, -this.radius * 0.85, 3, this.radius * 0.3);
+      ctx.fillRect(-this.radius * 0.45, this.radius * 0.55, 3, this.radius * 0.3);
+
+      // Tactical backpack
+      ctx.fillStyle = '#1c1d20';
+      ctx.fillRect(-this.radius * 0.9, -this.radius * 0.4, this.radius * 0.4, this.radius * 0.8);
+      ctx.strokeStyle = '#000';
+      ctx.strokeRect(-this.radius * 0.9, -this.radius * 0.4, this.radius * 0.4, this.radius * 0.8);
 
       // Red Beret
       ctx.fillStyle = flash ? '#ffffff' : '#9c2626';
@@ -454,11 +510,13 @@ class Enemy {
 
       // Red laser visor glow
       ctx.fillStyle = '#ff2b2b';
-      ctx.fillRect(this.radius * 0.35, -this.radius * 0.25, 2, this.radius * 0.5);
+      ctx.fillRect(this.radius * 0.35, -this.radius * 0.25, 2.5, this.radius * 0.5);
 
-      // Gun barrel
-      ctx.fillStyle = '#111';
-      ctx.fillRect(this.radius * 0.2, this.radius * 0.35, this.radius * 0.9, 3.5);
+      // Advanced gun barrel
+      ctx.fillStyle = '#161719';
+      ctx.fillRect(this.radius * 0.2, this.radius * 0.35, this.radius * 0.9, 4);
+      ctx.fillStyle = '#ff2b2b'; // red laser scope mount
+      ctx.fillRect(this.radius * 0.4, this.radius * 0.2, 3, 2);
 
       // Red laser sight guide
       ctx.strokeStyle = 'rgba(255, 43, 43, 0.45)';
@@ -471,11 +529,20 @@ class Enemy {
     else if (this.type === 'tank') {
       // 3. Kampfpanzer (Combat Tank)
       // Tracks left & right
-      ctx.fillStyle = '#151515';
+      ctx.fillStyle = '#111214';
       ctx.fillRect(-this.radius * 0.95, -this.radius * 0.95, this.radius * 1.9, this.radius * 0.3);
       ctx.fillRect(-this.radius * 0.95, this.radius * 0.65, this.radius * 1.9, this.radius * 0.3);
       
-      // Tracks outlines and links lines
+      // Tracks links details
+      ctx.strokeStyle = '#282b30';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let tx = -this.radius * 0.8; tx < this.radius * 0.8; tx += 10) {
+        ctx.moveTo(tx, -this.radius * 0.95); ctx.lineTo(tx, -this.radius * 0.65);
+        ctx.moveTo(tx, this.radius * 0.65); ctx.lineTo(tx, this.radius * 0.95);
+      }
+      ctx.stroke();
+
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(-this.radius * 0.95, -this.radius * 0.95, this.radius * 1.9, this.radius * 0.3);
@@ -484,11 +551,11 @@ class Enemy {
       // Main Tank Chassis Body
       ctx.fillStyle = flash ? '#ffffff' : '#3f4f34';
       ctx.fillRect(-this.radius * 0.8, -this.radius * 0.65, this.radius * 1.6, this.radius * 1.3);
-      ctx.strokeStyle = '#222d1c';
+      ctx.strokeStyle = '#1d2618';
       ctx.lineWidth = 2.5;
       ctx.strokeRect(-this.radius * 0.8, -this.radius * 0.65, this.radius * 1.6, this.radius * 1.3);
 
-      // Camouflage lines
+      // Camouflage shapes
       ctx.fillStyle = '#2f3b25';
       ctx.fillRect(-this.radius * 0.4, -this.radius * 0.5, this.radius * 0.8, this.radius * 0.24);
       ctx.fillRect(-this.radius * 0.6, this.radius * 0.25, this.radius * 0.7, this.radius * 0.24);
@@ -501,19 +568,20 @@ class Enemy {
       ctx.stroke();
 
       // Hatch
-      ctx.fillStyle = '#222';
+      ctx.fillStyle = '#1c1e21';
       ctx.beginPath();
       ctx.arc(-this.radius * 0.15, -this.radius * 0.15, this.radius * 0.13, 0, Math.PI * 2);
       ctx.fill();
 
-      // Cannon Barrel
-      ctx.fillStyle = '#111';
-      ctx.fillRect(this.radius * 0.3, -this.radius * 0.1, this.radius * 0.95, this.radius * 0.2);
+      // Double Cannon Barrel (looks way cooler!)
+      ctx.fillStyle = '#141517';
+      ctx.fillRect(this.radius * 0.3, -this.radius * 0.17, this.radius * 0.95, this.radius * 0.12);
+      ctx.fillRect(this.radius * 0.3, this.radius * 0.05, this.radius * 0.95, this.radius * 0.12);
     } 
     else if (this.type === 'shooter') {
       // 4. Militär-Humvee (Scout vehicle)
       // 4 Wheels
-      ctx.fillStyle = '#1c1c1c';
+      ctx.fillStyle = '#111214';
       ctx.fillRect(-this.radius * 0.75, -this.radius * 0.82, this.radius * 0.45, this.radius * 0.22);
       ctx.fillRect(this.radius * 0.3, -this.radius * 0.82, this.radius * 0.45, this.radius * 0.22);
       ctx.fillRect(-this.radius * 0.75, this.radius * 0.6, this.radius * 0.45, this.radius * 0.22);
@@ -527,10 +595,19 @@ class Enemy {
       ctx.strokeRect(-this.radius * 0.9, -this.radius * 0.6, this.radius * 1.8, this.radius * 1.2);
 
       // Windows/Windshield (metallic blue glass)
-      ctx.fillStyle = '#243b5c';
+      ctx.fillStyle = '#2a4463';
       ctx.fillRect(this.radius * 0.2, -this.radius * 0.45, this.radius * 0.25, this.radius * 0.9);
       ctx.fillRect(-this.radius * 0.4, -this.radius * 0.52, this.radius * 0.35, this.radius * 0.08);
       ctx.fillRect(-this.radius * 0.4, this.radius * 0.44, this.radius * 0.35, this.radius * 0.08);
+
+      // Reinforced front bumper grill
+      ctx.fillStyle = '#1c1d1f';
+      ctx.fillRect(this.radius * 0.85, -this.radius * 0.5, this.radius * 0.1, this.radius * 1.0);
+
+      // Glowing headlights
+      ctx.fillStyle = '#fff4a3';
+      ctx.fillRect(this.radius * 0.8, -this.radius * 0.45, 2, 4);
+      ctx.fillRect(this.radius * 0.8, this.radius * 0.35, 2, 4);
 
       // Roof Gun Turret
       ctx.fillStyle = flash ? '#ffffff' : '#998b60';
@@ -546,7 +623,7 @@ class Enemy {
     else if (this.type === 'novabeast') {
       // 5. Schwerer Panzerträger (Elite APC / Mech carrier)
       // 6 Heavy Wheels
-      ctx.fillStyle = '#151515';
+      ctx.fillStyle = '#111214';
       const wW = this.radius * 0.38, wH = this.radius * 0.18;
       ctx.fillRect(-this.radius * 0.8, -this.radius * 0.95, wW, wH);
       ctx.fillRect(-this.radius * 0.1, -this.radius * 0.95, wW, wH);
@@ -579,6 +656,13 @@ class Enemy {
       ctx.ellipse(this.radius * 0.2, this.radius * 0.3, this.radius * 0.3, this.radius * 0.25, -0.6, 0, Math.PI * 2);
       ctx.fill();
 
+      // Slanted yellow-black warning stripes on the back
+      ctx.fillStyle = '#e5a93b';
+      ctx.fillRect(-this.radius * 0.9, -this.radius * 0.4, 4, this.radius * 0.8);
+      ctx.fillStyle = '#1c1c1f';
+      ctx.fillRect(-this.radius * 0.9, -this.radius * 0.2, 4, 3);
+      ctx.fillRect(-this.radius * 0.9, this.radius * 0.1, 4, 3);
+
       // Missile tubes launchers
       ctx.fillStyle = flash ? '#ffffff' : '#282f33';
       ctx.fillRect(-this.radius * 0.6, -this.radius * 0.5, this.radius * 0.55, this.radius * 0.3);
@@ -596,7 +680,15 @@ class Enemy {
       ctx.fillRect(-this.radius * 0.05, this.radius * 0.37, 3, 5);
     }
     else if (this.type === 'marksman') {
-      // Prone-styled sniper: long thin silhouette + rifle + laser dot
+      // Ghillie camouflage foliage outline (jagged leafy shapes)
+      ctx.fillStyle = '#2b3620';
+      ctx.beginPath();
+      ctx.arc(-this.radius * 0.5, -this.radius * 0.5, this.radius * 0.6, 0, Math.PI * 2);
+      ctx.arc(-this.radius * 0.3, this.radius * 0.5, this.radius * 0.65, 0, Math.PI * 2);
+      ctx.arc(this.radius * 0.2, -this.radius * 0.4, this.radius * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Prone sniper body
       ctx.fillStyle = '#3d3a2e';
       ctx.beginPath();
       ctx.ellipse(-1, 0, this.radius * 0.6, this.radius * 0.95, 0, 0, Math.PI * 2);
@@ -611,10 +703,15 @@ class Enemy {
       ctx.fill();
       ctx.stroke();
 
-      // long rifle barrel + scope
-      ctx.fillStyle = '#111';
-      ctx.fillRect(this.radius * 0.2, this.radius * 0.3, this.radius * 1.6, 3);
-      ctx.fillStyle = '#222';
+      // long sniper rifle barrel with thermal sleeve segments
+      ctx.fillStyle = '#111113';
+      ctx.fillRect(this.radius * 0.2, this.radius * 0.3, this.radius * 1.6, 4);
+      ctx.fillStyle = '#3c403d';
+      ctx.fillRect(this.radius * 0.5, this.radius * 0.25, this.radius * 0.3, 5);
+      ctx.fillRect(this.radius * 1.0, this.radius * 0.25, this.radius * 0.3, 5);
+
+      // Glowing targeting scope lens
+      ctx.fillStyle = '#4ae6ff';
       ctx.fillRect(this.radius * 0.4, -this.radius * 0.15, this.radius * 0.4, 2.5);
 
       // faint laser dot telegraph
@@ -624,7 +721,7 @@ class Enemy {
       ctx.fill();
     }
     else if (this.type === 'bomber') {
-      // Twitchy sprinting suicide unit, red pulsing core telegraphing the detonation
+      // Twitchy suicide unit with straps of TNT and hazard symbols
       const pulse = 0.5 + 0.5 * Math.sin(time * 14);
       ctx.fillStyle = '#241410';
       ctx.beginPath();
@@ -639,14 +736,71 @@ class Enemy {
       ctx.lineWidth = 1.8;
       ctx.stroke();
 
+      // Pulsing hazardous core
       ctx.fillStyle = `rgba(255, 90, 30, ${pulse})`;
       ctx.beginPath();
-      ctx.arc(0, 0, this.radius * 0.3, 0, Math.PI * 2);
+      ctx.arc(0, 0, this.radius * 0.32, 0, Math.PI * 2);
       ctx.fill();
 
-      // strapped charges on the back
-      ctx.fillStyle = '#1a1a1a';
+      // Strapped active battery charges on the back
+      ctx.fillStyle = '#1c1c1c';
       ctx.fillRect(-this.radius * 0.9, -this.radius * 0.3, this.radius * 0.4, this.radius * 0.6);
+      ctx.strokeStyle = '#ff3300';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-this.radius * 0.9, -this.radius * 0.3, this.radius * 0.4, this.radius * 0.6);
+    }
+    else if (this.type === 'rockettank') {
+      // 8. Rocket Launcher Tank (Heavy Missile Unit)
+      // Heavy wide treads
+      ctx.fillStyle = '#181a1c';
+      ctx.fillRect(-this.radius * 0.95, -this.radius * 0.95, this.radius * 1.9, this.radius * 0.32);
+      ctx.fillRect(-this.radius * 0.95, this.radius * 0.63, this.radius * 1.9, this.radius * 0.32);
+      
+      ctx.strokeStyle = '#0a0b0c';
+      ctx.lineWidth = 1.8;
+      ctx.strokeRect(-this.radius * 0.95, -this.radius * 0.95, this.radius * 1.9, this.radius * 0.32);
+      ctx.strokeRect(-this.radius * 0.95, this.radius * 0.63, this.radius * 1.9, this.radius * 0.32);
+
+      // Tread links
+      ctx.strokeStyle = '#2b2d30';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let tx = -this.radius * 0.8; tx < this.radius * 0.8; tx += 12) {
+        ctx.moveTo(tx, -this.radius * 0.95); ctx.lineTo(tx, -this.radius * 0.63);
+        ctx.moveTo(tx, this.radius * 0.63); ctx.lineTo(tx, this.radius * 0.95);
+      }
+      ctx.stroke();
+
+      // Main Chassis (heavy navy steel plates)
+      ctx.fillStyle = flash ? '#ffffff' : '#2a445c';
+      ctx.fillRect(-this.radius * 0.8, -this.radius * 0.6, this.radius * 1.6, this.radius * 1.2);
+      ctx.strokeStyle = '#162738';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(-this.radius * 0.8, -this.radius * 0.6, this.radius * 1.6, this.radius * 1.2);
+
+      // Heavy front bumper
+      ctx.fillStyle = '#1c2229';
+      ctx.fillRect(this.radius * 0.75, -this.radius * 0.5, this.radius * 0.15, this.radius * 1.0);
+      ctx.strokeRect(this.radius * 0.75, -this.radius * 0.5, this.radius * 0.15, this.radius * 1.0);
+
+      // Rotating Missile Battery Box (Turret)
+      ctx.fillStyle = flash ? '#ffffff' : '#3d5d7d';
+      ctx.fillRect(-this.radius * 0.45, -this.radius * 0.45, this.radius * 0.9, this.radius * 0.9);
+      ctx.strokeRect(-this.radius * 0.45, -this.radius * 0.45, this.radius * 0.9, this.radius * 0.9);
+
+      // 4 Missile Launcher Tubes
+      ctx.fillStyle = '#181a1c';
+      ctx.fillRect(-this.radius * 0.1, -this.radius * 0.38, this.radius * 0.65, this.radius * 0.15);
+      ctx.fillRect(-this.radius * 0.1, -this.radius * 0.15, this.radius * 0.65, this.radius * 0.15);
+      ctx.fillRect(-this.radius * 0.1, this.radius * 0.08, this.radius * 0.65, this.radius * 0.15);
+      ctx.fillRect(-this.radius * 0.1, this.radius * 0.31, this.radius * 0.65, this.radius * 0.15);
+
+      // Loaded Red Missile tips
+      ctx.fillStyle = '#ff2b00';
+      ctx.fillRect(this.radius * 0.5, -this.radius * 0.35, 3, 4);
+      ctx.fillRect(this.radius * 0.5, -this.radius * 0.12, 3, 4);
+      ctx.fillRect(this.radius * 0.5, this.radius * 0.11, 3, 4);
+      ctx.fillRect(this.radius * 0.5, this.radius * 0.34, 3, 4);
     }
     else if (this.type === 'medic') {
       // Support trooper: pale coat, red-cross satchel, no visible weapon

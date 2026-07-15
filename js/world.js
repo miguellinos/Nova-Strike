@@ -33,8 +33,6 @@ const MAP_LAYOUTS = [
     hangars: [
       { x: 350, y: 80, w: 1950, h: 740, gateSide: 'south', name: 'Alpha Hangar Nord' },
       { x: 350, y: 980, w: 1950, h: 740, gateSide: 'north', name: 'Alpha Hangar Süd' },
-      { x: 1100, y: 855, w: 200, h: 120, gateSide: 'south', name: 'Wachposten Mitte', isHouse: true },
-      { x: 2100, y: 855, w: 200, h: 120, gateSide: 'south', name: 'Wachposten Ost', isHouse: true },
     ],
     obs: [
       // format: [x, y, w, h, kind, angle]

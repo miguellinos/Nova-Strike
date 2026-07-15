@@ -93,6 +93,7 @@
         <button class="btn" data-action="character-menu">Charakter wechseln</button>
         <button class="btn" data-action="settings">Einstellungen</button>
         <button class="btn" data-action="controls">Steuerung</button>
+        <button class="btn" data-action="lexicon-menu">Lexikon 📖</button>
         <button class="btn" data-action="quit">Spiel beenden</button>
       </div>
     </div>
@@ -279,6 +280,31 @@
         <div class="shop-coins">Deine Münzen: 🪙 <b id="workbench-coins">0</b></div>
         <div id="workbench-cards" class="shop-cards-container"></div>
         <button class="btn btn-primary" data-action="workbench-close">Schließen</button>
+      </div>
+    </div>
+
+    <!-- Lexikon -->
+    <div id="lexicon-menu" class="overlay hidden">
+      <div class="menu-panel wide" style="max-height: 85vh; display: flex; flex-direction: column; width: 860px; max-width: 92vw; padding: 24px 28px;">
+        <h2 class="panel-title">📚 LEXIKON</h2>
+        <p class="subtitle" style="margin-bottom: 12px;">Übersicht und Details zu allen Elementen in Nova Strike.</p>
+        
+        <!-- Tab Navigation -->
+        <div class="lexicon-tabs" style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center;">
+          <button class="lexicon-tab-btn active" data-tab="lexicon-weapons">🔫 Waffen</button>
+          <button class="lexicon-tab-btn" data-tab="lexicon-medkits">🎒 Items</button>
+          <button class="lexicon-tab-btn" data-tab="lexicon-enemies">👾 Gegner</button>
+          <button class="lexicon-tab-btn" data-tab="lexicon-bosses">👑 Bosse</button>
+          <button class="lexicon-tab-btn" data-tab="lexicon-buildings">🏢 Gebäude</button>
+          <button class="lexicon-tab-btn" data-tab="lexicon-maps">🗺️ Maps</button>
+        </div>
+
+        <!-- Tab Content Wrapper -->
+        <div class="lexicon-content" style="flex: 1; overflow-y: auto; text-align: left; padding-right: 8px;">
+          <!-- Content injected dynamically via UI/Main -->
+        </div>
+        
+        <button class="btn btn-primary" data-action="lexicon-back" style="margin-top: 15px;">Zurück</button>
       </div>
     </div>
 
