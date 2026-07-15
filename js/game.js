@@ -47,9 +47,9 @@ class Game {
     this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
     this.nearWorkbench = false;
     this.workbenchOpenLocal = false;
-    this.shopTable = new ShopTable(120, 300);
+    this.shopTable = new ShopTable(-150, 320);
     this.nearShop = false;
-    this.trainingRange = new TrainingRange(120, 640);
+    this.trainingRange = new TrainingRange(-150, 680);
     this.nearTrainingRange = false;
     this.trainingOpenLocal = false;
     this.inventoryOpenLocal = false;
@@ -661,7 +661,8 @@ class Game {
     // fields from the host so my coins/weapons/upgrades don't get clobbered mid-purchase.
     if (s.players[1] && this.player2) {
       const d = s.players[1];
-      if (this.shopOpenLocal && this.localPlayer === this.player2) {
+      const localMenuOpen = this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal;
+      if (localMenuOpen && this.localPlayer === this.player2) {
         this.player2.x = d.x; this.player2.y = d.y; this.player2.aimAngle = d.aimAngle;
         this.player2.hp = d.hp; this.player2.maxHp = d.maxHp; this.player2.hitFlash = d.hitFlash;
         this.player2.invuln = d.invuln; this.player2.walkPhase = d.walkPhase; this.player2.shieldHp = d.shieldHp;
@@ -1060,7 +1061,7 @@ class Game {
     const ty = target.y - this.cam.h / 2;
     this.cam.x = Utils.lerp(this.cam.x, tx, 0.12);
     this.cam.y = Utils.lerp(this.cam.y, ty, 0.12);
-    this.cam.x = Utils.clamp(this.cam.x, 0, Math.max(0, this.world.w - this.cam.w));
+    this.cam.x = Utils.clamp(this.cam.x, -300, Math.max(0, this.world.w - this.cam.w));
     this.cam.y = Utils.clamp(this.cam.y, 0, Math.max(0, this.world.h - this.cam.h));
   }
 }

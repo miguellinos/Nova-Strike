@@ -171,11 +171,24 @@ class World {
 
   build() {
     const t = 40; // border thickness
-    // outer walls
+    // outer walls (with doorway to the shop/workbench safe annex on the left from y: 200 to y: 800)
     this.rects.push({ x: 0, y: 0, w: this.w, h: t, kind: 'wall' });
     this.rects.push({ x: 0, y: this.h - t, w: this.w, h: t, kind: 'wall' });
-    this.rects.push({ x: 0, y: 0, w: t, h: this.h, kind: 'wall' });
+    
+    // Left outer wall split to leave an opening from y: 200 to y: 800
+    this.rects.push({ x: 0, y: 0, w: t, h: 200, kind: 'wall' });
+    this.rects.push({ x: 0, y: 800, w: t, h: this.h - 800, kind: 'wall' });
+    
     this.rects.push({ x: this.w - t, y: 0, w: t, h: this.h, kind: 'wall' });
+
+    // Build the Safe Haven Pocket Alcove extension on the left:
+    // x: -300 to x: 0, y: 200 to y: 800
+    this.rects.push({ x: -300, y: 200, w: 300, h: t, kind: 'wall' }); // North wall
+    this.rects.push({ x: -300, y: 800 - t, w: 300, h: t, kind: 'wall' }); // South wall
+    this.rects.push({ x: -300, y: 200, w: t, h: 600, kind: 'wall' }); // West wall
+    
+    // The player-only entrance gate (laser shield blocks enemies) at x: 0, y: 200..800
+    this.rects.push({ x: 0, y: 200, w: t, h: 600, kind: 'enemy-barrier' });
 
     const layout = MAP_LAYOUTS[this.layoutIndex] || MAP_LAYOUTS[0];
     for (const h of layout.hangars) this.buildHangar(h.x, h.y, h.w, h.h, h.gateSide, h.name);
@@ -183,15 +196,7 @@ class World {
       this.rects.push({ x: o[0], y: o[1], w: o[2], h: o[3], kind: o[4], angle: o[5] || 0 });
     }
 
-    // Shop building walls in the top-left (outside the hangars)
-    this.rects.push({ x: 40, y: 200, w: 200, h: 20, kind: 'hangar-wall' }); // North wall
-    this.rects.push({ x: 40, y: 400, w: 200, h: 20, kind: 'hangar-wall' }); // South wall
-    
-    // East wall leaving a doorway from 270 to 330
-    this.rects.push({ x: 220, y: 200, w: 20, h: 70, kind: 'hangar-wall' }); // East wall top
-    this.rects.push({ x: 220, y: 330, w: 20, h: 90, kind: 'hangar-wall' }); // East wall bottom
-
-    this.workbenchPos = { x: 120, y: 470 };
+    this.workbenchPos = { x: -150, y: 500 };
 
     // generate static terrain features
     this.grassPatches = [];
@@ -370,11 +375,11 @@ class World {
       ctx.fillText(h.name, h.x + h.w / 2, h.y + h.h / 2);
     }
 
-    // 1c. Draw Shop Floor (on the left outside area)
-    const shopFloorX = 40;
-    const shopFloorY = 220;
-    const shopFloorW = 180;
-    const shopFloorH = 180;
+    // 1c. Draw Safe Haven Pocket Floor
+    const shopFloorX = -300;
+    const shopFloorY = 200;
+    const shopFloorW = 300;
+    const shopFloorH = 600;
     if (!(shopFloorX > cam.x + cam.w || shopFloorX + shopFloorW < cam.x || shopFloorY > cam.y + cam.h || shopFloorY + shopFloorH < cam.y)) {
       ctx.fillStyle = '#1e1c24'; // sleek dark purple-ish grey
       ctx.fillRect(shopFloorX, shopFloorY, shopFloorW, shopFloorH);
@@ -383,20 +388,20 @@ class World {
       ctx.strokeStyle = 'rgba(0, 255, 200, 0.15)'; // glowing cyan tiles
       ctx.lineWidth = 1.8;
       ctx.beginPath();
-      for (let gx = shopFloorX + 45; gx < shopFloorX + shopFloorW; gx += 45) {
+      for (let gx = shopFloorX + 50; gx < shopFloorX + shopFloorW; gx += 50) {
         ctx.moveTo(gx, shopFloorY); ctx.lineTo(gx, shopFloorY + shopFloorH);
       }
-      for (let gy = shopFloorY + 45; gy < shopFloorY + shopFloorH; gy += 45) {
+      for (let gy = shopFloorY + 50; gy < shopFloorY + shopFloorH; gy += 50) {
         ctx.moveTo(shopFloorX, gy); ctx.lineTo(shopFloorX + shopFloorW, gy);
       }
       ctx.stroke();
 
-      // Draw "SHOP" on the floor
+      // Draw "BASE CAMP" on the floor
       ctx.fillStyle = 'rgba(0, 255, 200, 0.2)';
-      ctx.font = 'bold 20px sans-serif';
+      ctx.font = 'bold 24px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🛒 SHOP', shopFloorX + shopFloorW / 2, shopFloorY + shopFloorH / 2);
+      ctx.fillText('🛡️ BASE CAMP', shopFloorX + shopFloorW / 2, shopFloorY + shopFloorH / 2);
     }
 
     // 2. Draw tire tracks
@@ -514,6 +519,28 @@ class World {
     // 7. Solid obstacles (concrete walls, wooden crates, sandbags)
     for (const r of this.rects) {
       if (r.x > cam.x + cam.w || r.x + r.w < cam.x || r.y > cam.y + cam.h || r.y + r.h < cam.y) continue;
+      
+      if (r.kind === 'enemy-barrier') {
+        const pulse = 0.5 + 0.3 * Math.sin(time * 6);
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 255, 240, ${pulse * 0.25})`;
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        
+        ctx.strokeStyle = `rgba(0, 255, 240, ${pulse * 0.75})`;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#00fff0';
+        ctx.strokeRect(r.x, r.y, r.w, r.h);
+        
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(r.x + r.w / 2, r.y);
+        ctx.lineTo(r.x + r.w / 2, r.y + r.h);
+        ctx.stroke();
+        ctx.restore();
+        continue;
+      }
       
       if (r.kind === 'hangar-wall') {
         // Steel hangar wall panel

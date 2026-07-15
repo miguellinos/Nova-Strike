@@ -142,8 +142,9 @@ class Player {
     // move + collide
     this.x += mx * speed * dt;
     this.y += my * speed * dt;
-    const res = resolveCircleRects(this.x, this.y, this.radius, world.rects);
-    this.x = Utils.clamp(res.x, this.radius, world.w - this.radius);
+    const collidableRects = world.rects.filter(r => r.kind !== 'enemy-barrier');
+    const res = resolveCircleRects(this.x, this.y, this.radius, collidableRects);
+    this.x = Utils.clamp(res.x, -300 + this.radius, world.w - this.radius);
     this.y = Utils.clamp(res.y, this.radius, world.h - this.radius);
 
     if (len > 0) this.walkPhase += dt * 12; else this.walkPhase = 0;
@@ -183,18 +184,20 @@ class Player {
       }
     }
 
-    // shooting
+    // shooting (disabled inside safe base camp at x < 20)
     if (this.fireCooldown > 0) this.fireCooldown -= dt;
-    if (!menusOpen && this.input.mouse.down && !this.reloading && this.fireCooldown <= 0) {
+    const canShoot = !menusOpen && this.x >= 20;
+    if (canShoot && this.input.mouse.down && !this.reloading && this.fireCooldown <= 0) {
       const w = this.weapons[this.currentWeapon];
       if (w.ammo > 0) this.shoot(game);
       else this.startReload();
     }
 
-    // melee attack (right-click)
+    // melee attack (right-click, disabled inside safe base camp at x < 20)
     if (this.meleeCd > 0) this.meleeCd -= dt;
     if (this.meleeSwing > 0) this.meleeSwing -= dt;
-    if (!menusOpen && this.input.mouse.rightPressed && this.meleeCd <= 0) this.meleeAttack(game);
+    const canMelee = !menusOpen && this.x >= 20;
+    if (canMelee && this.input.mouse.rightPressed && this.meleeCd <= 0) this.meleeAttack(game);
 
     // active item activations
     if (!menusOpen && this.input.wasPressed('q')) this.useMedkit(game);
