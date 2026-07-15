@@ -156,6 +156,7 @@ class Enemy {
         }
 
         this.shootTimer -= dt;
+      
         if (this.shootTimer <= 0 && distToP < 600 && p.hp > 0) {
           this.shootTimer = this.def.shootCd;
           game.enemyProjectiles.push({

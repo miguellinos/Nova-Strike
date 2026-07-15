@@ -38,7 +38,8 @@ class Game {
   }
 
   // mode: 'solo' (default) | 'host' | 'guest' — coop games always run 2 player slots
-  newGame(mode, gameMode, mapIndex) {
+  // cheat: optional { wave, weapons } from the "M" cheat menu — solo only.
+  newGame(mode, gameMode, mapIndex, cheat) {
     this.mode = mode || 'solo';
     this.gameMode = gameMode || 'standard';
     // Random map for wave 1 (host/solo pick; guests get the synced index) — every
@@ -80,6 +81,14 @@ class Game {
     this.guestShopDone = false;
     this._syncState = 'playing';
     this.ui.showHUD(true);
+
+    // cheat menu ("M" from the main menu, solo only): unlock chosen weapons +
+    // jump straight to a given wave (with its normal hp/dmg scaling applied).
+    if (cheat && this.mode === 'solo') {
+      if (cheat.weapons) for (const key of cheat.weapons) this.player.unlock(key);
+      this.waves.startWave(Math.max(1, cheat.wave || 1));
+      return;
+    }
     if (this.mode !== 'guest') this.waves.startWave(1);
   }
 

@@ -1,7 +1,7 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
   overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'upgrade-menu',
-             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu'],
+             'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu', 'cheat-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
   show(id) { this.hideAll(); document.getElementById(id).classList.remove('hidden'); },
@@ -145,6 +145,31 @@ window.addEventListener('DOMContentLoaded', () => {
 
       case 'character-menu': Menus.show('character-menu'); renderCharacterMenu(); break;
       case 'character-back': Menus.show('main-menu'); break;
+
+      case 'cheat-back': Menus.show('main-menu'); break;
+      case 'cheat-wave-inc': {
+        const el = document.getElementById('cheat-wave');
+        el.value = Math.min(99, (parseInt(el.value, 10) || 1) + 1);
+        break;
+      }
+      case 'cheat-wave-dec': {
+        const el = document.getElementById('cheat-wave');
+        el.value = Math.max(1, (parseInt(el.value, 10) || 1) - 1);
+        break;
+      }
+      case 'cheat-weapon-toggle':
+        if (!btn.classList.contains('locked')) btn.classList.toggle('selected');
+        break;
+      case 'cheat-start': {
+        const waveInput = document.getElementById('cheat-wave');
+        const wave = Math.max(1, parseInt(waveInput.value, 10) || 1);
+        const horror = document.getElementById('cheat-horror').checked;
+        const weapons = Array.from(document.querySelectorAll('.cheat-weapon-card.selected')).map((el) => el.dataset.weapon);
+        Net.reset();
+        game.newGame('solo', horror ? 'horror' : 'standard', undefined, { wave, weapons });
+        Menus.hideAll();
+        break;
+      }
       case 'pick-character':
         Settings.set('character', btn.dataset.char);
         if (game.player) game.player.charId = btn.dataset.char;
@@ -206,6 +231,32 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function renderCheatWeapons() {
+    const container = document.getElementById('cheat-weapons');
+    if (!container) return;
+    container.innerHTML = '';
+    WEAPON_ORDER.forEach((key) => {
+      const def = WEAPON_DEFS[key];
+      const isDefault = key === 'plasma'; // always owned — shown but locked on
+      const card = document.createElement('div');
+      card.className = 'cheat-weapon-card' + (isDefault ? ' selected locked' : '');
+      card.dataset.action = 'cheat-weapon-toggle';
+      card.dataset.weapon = key;
+      card.innerHTML = '<span class="cheat-weapon-check"></span><span class="cheat-weapon-name">' + def.name + '</span>';
+      container.appendChild(card);
+    });
+  }
+
+  // Cheat mode: press "M" while the main menu is open to pick a starting wave + weapons (solo only).
+  window.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() !== 'm') return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (getVisibleOverlay() !== 'main-menu') return;
+    Menus.show('cheat-menu');
+    renderCheatWeapons();
+  });
+
   function getVisibleOverlay() {
     for (const id of Menus.overlays) {
       if (!document.getElementById(id).classList.contains('hidden')) return id;
@@ -231,8 +282,18 @@ window.addEventListener('DOMContentLoaded', () => {
     let dt = (now - last) / 1000;
     last = now;
     if (dt > 0.05) dt = 0.05; // clamp big frame gaps
-    game.update(dt);
-    game.render();
+    // An uncaught error inside update()/render() used to kill the whole loop
+    // silently — requestAnimationFrame(loop) was never called again, which
+    // looked like the entire game freezing (frozen HUD, no more shooting/
+    // clicking working, since nothing was updating anymore). Catch here so
+    // one bad frame doesn't brick the whole session, and log it so the real
+    // cause is visible in the console instead of just "everything is gone".
+    try {
+      game.update(dt);
+      game.render();
+    } catch (err) {
+      console.error('Frame error (game kept running):', err);
+    }
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);

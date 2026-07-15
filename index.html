@@ -93,6 +93,34 @@
       </div>
     </div>
 
+    <!-- Cheat mode: pick starting wave + starting weapons. Not linked from any menu —
+         only reachable by pressing M on the main menu (intentionally hidden/undiscoverable). -->
+    <div id="cheat-menu" class="overlay hidden">
+      <div class="menu-panel wide">
+        <h2 class="panel-title">🐞 CHEAT-MODUS</h2>
+        <p class="subtitle">Startwelle &amp; Startwaffen wählen (nur Solo).</p>
+
+        <div class="cheat-row">
+          <span class="cheat-label">Startwelle</span>
+          <div class="cheat-stepper">
+            <button type="button" class="cheat-step-btn" data-action="cheat-wave-dec">−</button>
+            <input type="number" id="cheat-wave" min="1" max="99" value="1">
+            <button type="button" class="cheat-step-btn" data-action="cheat-wave-inc">+</button>
+          </div>
+        </div>
+        <label class="cheat-toggle-row">
+          <input type="checkbox" id="cheat-horror">
+          <span>🔦 Horror-Modus</span>
+        </label>
+
+        <div class="cheat-section-label">Startwaffen</div>
+        <div id="cheat-weapons" class="cheat-weapons-grid"></div>
+
+        <button class="btn btn-primary" data-action="cheat-start">Starten 🚀</button>
+        <button class="btn" data-action="cheat-back">Zurück</button>
+      </div>
+    </div>
+
     <!-- Character selection -->
     <div id="character-menu" class="overlay hidden">
       <div class="menu-panel wide">
