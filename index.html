@@ -39,11 +39,15 @@
           <span class="chip" id="score-chip">Punkte: <b id="score-val">0</b></span>
           <span class="chip" id="kills-chip">Kills: <b id="kills-val">0</b></span>
         </div>
-        <div class="stat-row" style="margin-top: 8px; pointer-events: auto;">
-          <button class="inv-btn" id="inv-medkit" title="Medkit verwenden (Taste Q)">🎒 Medkits: <b
-              id="inv-medkit-val">0</b></button>
-          <button class="inv-btn" id="inv-shield" title="Schild aufladen (Taste E)">🛡️ Schilde: <b
-              id="inv-shield-val">0</b></button>
+        <div class="stat-row" style="margin-top: 8px; pointer-events: auto; align-items: flex-end;">
+          <button class="inv-icon-btn" id="inv-medkit" title="Medkit verwenden (Taste Q)">
+            <span class="inv-icon-glyph">🎒</span>
+            <span class="inv-icon-count" id="inv-medkit-val">0</span>
+          </button>
+          <button class="inv-icon-btn" id="inv-shield" title="Schild aufladen (Taste E)">
+            <span class="inv-icon-glyph">🛡️</span>
+            <span class="inv-icon-count" id="inv-shield-val">0</span>
+          </button>
           <button class="inv-btn" id="inv-grenade" title="Granate werfen (Taste G)">💣 Granaten: <b
               id="inv-grenade-val">0</b></button>
         </div>
@@ -86,16 +90,32 @@
     </div>
 
     <!-- Main Menu -->
-    <div id="main-menu" class="overlay">
+    <!-- Profile select: shown before the main menu, backed by the SQLite profiles API -->
+    <div id="profile-menu" class="overlay">
+      <div class="menu-panel">
+        <h1 class="title">NOVA<span>STRIKE</span></h1>
+        <p class="subtitle">Profil wählen oder neu erstellen.</p>
+        <div id="profile-list" class="profile-list"></div>
+        <div class="profile-create-row">
+          <input type="text" id="profile-name-input" class="profile-name-input" maxlength="24" placeholder="Neuer Profilname">
+          <button class="btn btn-primary" data-action="profile-create" style="width: auto; margin: 0;">Erstellen</button>
+        </div>
+        <p id="profile-error" class="profile-error hidden"></p>
+      </div>
+    </div>
+
+    <div id="main-menu" class="overlay hidden">
       <div class="menu-panel">
         <h1 class="title">NOVA<span>STRIKE</span></h1>
         <p class="subtitle">Militärische Spezialoperation. Verteidige die Stellung und überlebe die Wellen.</p>
+        <p id="main-menu-profile" class="profile-badge"></p>
         <button class="btn btn-primary" data-action="play-menu">Spielen ▶</button>
         <button class="btn" data-action="coop-menu">Koop (LAN)</button>
         <button class="btn" data-action="character-menu">Charakter wechseln</button>
         <button class="btn" data-action="settings">Einstellungen</button>
         <button class="btn" data-action="controls">Steuerung</button>
         <button class="btn" data-action="lexicon-menu">Lexikon 📖</button>
+        <button class="btn" data-action="switch-profile">Profil wechseln</button>
         <button class="btn" data-action="quit">Spiel beenden</button>
       </div>
     </div>
@@ -244,6 +264,7 @@
         <h2 class="panel-title">PAUSE</h2>
         <button class="btn btn-primary" data-action="resume">Weiterspielen</button>
         <button class="btn" data-action="settings">Einstellungen</button>
+        <button class="btn" data-action="controls">Steuerung</button>
         <button class="btn" data-action="restart">Neustart</button>
         <button class="btn" data-action="menu">Hauptmenü</button>
       </div>
@@ -427,6 +448,7 @@
   <!-- Systems (classic scripts, load-order matters) -->
   <script src="js/utils.js"></script>
   <script src="js/settings.js"></script>
+  <script src="js/profile.js"></script>
   <script src="js/characters.js"></script>
   <script src="js/input.js"></script>
   <script src="js/audio.js"></script>

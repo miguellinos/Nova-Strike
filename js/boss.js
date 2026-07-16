@@ -218,8 +218,32 @@ class Boss {
 
   spawnReinforcements(game, count) {
     const addType = { tank: 'drone', spider: 'striker', artillery: 'shooter', swarm: 'drone' }[this.bossType] || 'drone';
+    const players = game.players || [];
+    const maxPlayerRadius = players.reduce((max, p) => Math.max(max, p.radius || 0), 0);
+    const minDist = 180 + maxPlayerRadius;
+    const minDistSq = minDist * minDist;
     for (let k = 0; k < count; k++) {
-      game.enemies.push(new Enemy(addType, this.x + Utils.rand(-80, 80), this.y + Utils.rand(-80, 80), game.hpMult, game.dmgMult));
+      let bestX = this.x + Utils.rand(-80, 80);
+      let bestY = this.y + Utils.rand(-80, 80);
+      let bestD2 = players.length ? Infinity : minDistSq;
+      for (let i = 0; i < 12 && players.length; i++) {
+        const cx = this.x + Utils.rand(-80, 80);
+        const cy = this.y + Utils.rand(-80, 80);
+        let nearest = Infinity;
+        for (const p of players) {
+          const dx = cx - p.x, dy = cy - p.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < nearest) nearest = d2;
+        }
+        if (nearest >= minDistSq) {
+          bestX = cx; bestY = cy; bestD2 = nearest;
+          break;
+        }
+        if (nearest > bestD2) {
+          bestX = cx; bestY = cy; bestD2 = nearest;
+        }
+      }
+      game.enemies.push(new Enemy(addType, bestX, bestY, game.hpMult, game.dmgMult));
     }
     Audio2.enemyDie();
     game.particles.burst(this.x, this.y, this.color, 14, 200);

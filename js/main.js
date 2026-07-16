@@ -1,6 +1,6 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
-  overlays: ['main-menu', 'play-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'extract-menu', 'upgrade-menu',
+  overlays: ['profile-menu', 'main-menu', 'play-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'extract-menu', 'upgrade-menu',
              'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu', 'cheat-menu', 'lexicon-menu', 'atm-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
@@ -24,30 +24,81 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   // ----- settings UI -----
-  const s = Settings.data;
-  const bindSlider = (id, key) => {
-    const el = document.getElementById(id);
-    const valSpan = el.parentElement.querySelector('.slider-val');
-    el.value = s[key];
-    valSpan.textContent = s[key];
+  const sliderEls = {
+    master: document.getElementById('set-master'),
+    music: document.getElementById('set-music'),
+    sfx: document.getElementById('set-sfx'),
+  };
+  const quality = document.getElementById('set-quality');
+  const fs = document.getElementById('set-fullscreen');
+
+  // Re-applies Settings.data to the settings-screen controls. Called once at
+  // startup and again once a profile's settings arrive from the server, since
+  // those load asynchronously (after the controls are already bound below).
+  function refreshSettingsUI() {
+    const s = Settings.data;
+    for (const key in sliderEls) {
+      sliderEls[key].value = s[key];
+      sliderEls[key].parentElement.querySelector('.slider-val').textContent = s[key];
+    }
+    quality.value = s.quality;
+    fs.checked = s.fullscreen;
+  }
+
+  for (const key in sliderEls) {
+    const el = sliderEls[key];
     el.addEventListener('input', () => {
       Settings.set(key, parseInt(el.value, 10));
-      valSpan.textContent = el.value;
+      el.parentElement.querySelector('.slider-val').textContent = el.value;
       Audio2.applyVolumes();
     });
-  };
-  bindSlider('set-master', 'master');
-  bindSlider('set-music', 'music');
-  bindSlider('set-sfx', 'sfx');
-  const quality = document.getElementById('set-quality');
-  quality.value = s.quality;
+  }
   quality.addEventListener('change', () => Settings.set('quality', quality.value));
-  const fs = document.getElementById('set-fullscreen');
-  fs.checked = s.fullscreen;
   fs.addEventListener('change', () => {
     Settings.set('fullscreen', fs.checked);
     if (fs.checked && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
     else if (!fs.checked && document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  });
+  refreshSettingsUI();
+
+  // ----- profile select (shown before the main menu; server/db.js is the source of truth) -----
+  const profileListEl = document.getElementById('profile-list');
+  const profileNameInput = document.getElementById('profile-name-input');
+  const profileError = document.getElementById('profile-error');
+  const mainMenuProfile = document.getElementById('main-menu-profile');
+  let cachedProfiles = [];
+
+  function showProfileError(msg) {
+    profileError.textContent = msg;
+    profileError.classList.remove('hidden');
+  }
+
+  function enterMainMenu() {
+    refreshSettingsUI();
+    mainMenuProfile.innerHTML = 'Profil: <b>' + Profile.current.name + '</b>';
+    Menus.show('main-menu');
+  }
+
+  async function renderProfileList() {
+    profileListEl.innerHTML = '';
+    profileError.classList.add('hidden');
+    try {
+      cachedProfiles = await Profile.list();
+      cachedProfiles.forEach((p) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn profile-item-btn';
+        btn.dataset.action = 'profile-select';
+        btn.dataset.id = p.id;
+        btn.innerHTML = '<span>' + p.name + '</span>';
+        profileListEl.appendChild(btn);
+      });
+    } catch (err) {
+      showProfileError('Server nicht erreichbar. Läuft "npm start"?');
+    }
+  }
+  renderProfileList();
+  profileNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.querySelector('[data-action="profile-create"]').click();
   });
 
   // ----- LAN co-op networking -----
@@ -128,6 +179,25 @@ window.addEventListener('DOMContentLoaded', () => {
     Audio2.init(); Audio2.resume();
     const action = btn.dataset.action;
     switch (action) {
+      case 'profile-select': {
+        const p = cachedProfiles.find((x) => x.id === Number(btn.dataset.id));
+        if (p) { Profile.select(p); enterMainMenu(); }
+        break;
+      }
+      case 'profile-create': {
+        const name = profileNameInput.value.trim();
+        if (!name) { showProfileError('Bitte einen Namen eingeben.'); break; }
+        profileError.classList.add('hidden');
+        Profile.getOrCreate(name).then((p) => { Profile.select(p); enterMainMenu(); })
+          .catch(() => showProfileError('Profil konnte nicht erstellt werden. Läuft "npm start"?'));
+        break;
+      }
+      case 'switch-profile':
+        profileNameInput.value = '';
+        Menus.show('profile-menu');
+        renderProfileList();
+        break;
+
       case 'start-standard': Net.reset(); game.newGame('solo', 'standard'); Menus.hideAll(); break;
       case 'start-horror': Net.reset(); game.newGame('solo', 'horror'); Menus.hideAll(); break;
       case 'start-extraction': Net.reset(); game.newGame('solo', 'extraction'); Menus.hideAll(); break;

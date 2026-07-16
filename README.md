@@ -15,6 +15,15 @@ Ein hochoktaniger, browserbasierter Space-Shooter, gebaut mit **HTML5 Canvas** u
 * Bosskämpfe mit großen Gegnern
 * Komplett im Browser spielbar
 * Entwickelt mit purem HTML5 Canvas und JavaScript, ohne Game Engine
+* Spielerprofile mit servergespeicherten Einstellungen (SQLite)
+
+## Profile
+
+Beim Start wählst du ein Profil (nur Name, kein Passwort) oder legst ein
+neues an. Profile und ihre Einstellungen (Lautstärke, Grafikqualität,
+Charakter) werden serverseitig in einer SQLite-Datenbank abgelegt
+(`server/db.js`), sodass sie auf jedem Gerät im selben LAN unter demselben
+Profilnamen verfügbar sind — nicht nur im `localStorage` des einen Browsers.
 
 ## Spielprinzip
 
@@ -38,7 +47,19 @@ Du startest mit einem leichten Schiff und kämpfst dich durch immer stärkere Ge
    ```bash
    cd NOVA-STRIKE-Galactic-Annihilator
    ```
-3. Die `index.html` im Browser öffnen.
+3. Abhängigkeiten installieren und Server starten (benötigt Node.js 22.5+):
+
+   ```bash
+   npm install
+   npm start
+   ```
+4. `http://localhost:3000` im Browser öffnen.
+
+Das Spiel benötigt jetzt den Node-Server für alle Spielmodi (nicht nur Koop):
+er liefert die Seiten aus **und** speichert Spielerprofile in einer SQLite-
+Datenbank (`server/novastrike.db`, wird beim ersten Start automatisch
+angelegt). Direktes Öffnen von `index.html` per Doppelklick funktioniert
+nicht mehr, da die Profilauswahl den Server braucht.
 
 ## Entwicklung
 

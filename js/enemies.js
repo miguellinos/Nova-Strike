@@ -431,9 +431,32 @@ class Enemy {
     game.particles.spawn(this.x, this.y - this.radius, '#ffaa00', { count: 3, minSpeed: 20, maxSpeed: 60, life: 0.3, size: 2.5 });
   }
 
+  drawHorror(ctx, flash) {
+    // Horror-mode silhouette: pale white body with glowing red eyes
+    ctx.fillStyle = flash ? '#ffffff' : '#e6e6e6';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, this.radius * 0.65, this.radius * 0.9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#b0b0b0';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#ff0505';
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#ff0505';
+    const eyeX = this.radius * 0.4;
+    const eyeY = this.radius * 0.25;
+    const eyeR = this.radius * 0.18;
+    ctx.beginPath();
+    ctx.arc(eyeX, -eyeY, eyeR, 0, Math.PI * 2);
+    ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
   draw(ctx, time) {
     const flash = this.hitFlash > 0;
-    
+
     // get orientation angle
     let angle = this.phase;
     const p = window.game ? window.game.player : null;
@@ -447,7 +470,10 @@ class Enemy {
     ctx.translate(this.x, this.y);
     ctx.rotate(angle);
 
-    if (this.type === 'drone') {
+    const horror = window.game && window.game.gameMode === 'horror';
+    if (horror) {
+      this.drawHorror(ctx, flash);
+    } else if (this.type === 'drone') {
       // 1. Infanterist (Normal Soldier)
       // Shoulder pads with camo pattern
       ctx.fillStyle = '#4c593c'; 

@@ -114,6 +114,7 @@ class Game {
     this.cam.y = target.y - this.cam.h / 2;
     this.state = 'playing';
     this.midWaveShop = false;
+    this.intermissionTimer = 0; // >0 between waves, while the squad loots the ground
     // per-client shop state (co-op: each player shops independently)
     this.shopOpenLocal = false;
     this.shopUpgradeIds = [];
@@ -255,16 +256,9 @@ class Game {
   endWave() {
     if (!this.waves.active) return;
     this.waves.active = false;
-
-    // auto-collect remaining coins for the whole squad
-    for (const c of this.coins) { this.player.coins += c.value; }
-    this.coins = [];
-    this.medkits = [];
-    this.shields = [];
-    this.grenadePickups = [];
     this.boss = null;
 
-    // revive any downed squadmate now that the wave has been cleared without them
+    // revive any downed squadmate right away, so they can help loot the intermission too
     for (const p of this.players) {
       if (p.hp <= 0) {
         p.hp = Math.round(p.maxHp * 0.5);
@@ -274,6 +268,32 @@ class Game {
         Audio2.heal();
       }
     }
+
+    this.ui.showBanner('WELLE ERLEDIGT');
+
+    // Roll new upgrades for the Trainingsrange terminal pool
+    this.shopUpgrades = rollShopUpgrades(this.gameMode);
+    this.shopUpgradeIds = this.shopUpgrades.map((u) => u.id);
+
+    // Give the squad a breather to walk over and collect coins/medkits/shields
+    // still on the ground before the map resets for the next wave (startNextWave()
+    // below auto-collects whatever's left once this runs out, since the map switch
+    // makes anything still on the ground unreachable).
+    this.intermissionTimer = 8;
+    setTimeout(() => this.startNextWave(), this.intermissionTimer * 1000);
+  }
+
+  // fires once the endWave() grace period above runs out
+  startNextWave() {
+    if (!(this.state === 'playing' || this.state === 'upgrade' || this.state === 'shop')) return;
+    this.intermissionTimer = 0;
+
+    // auto-collect whatever the squad didn't reach in time
+    for (const c of this.coins) { this.player.coins += c.value; }
+    this.coins = [];
+    this.medkits = [];
+    this.shields = [];
+    this.grenadePickups = [];
 
     // Pick a fresh random map between waves (any of the layouts, not just the first two)
     let mapIndex = Utils.randInt(0, MAP_LAYOUTS.length - 1);
@@ -294,21 +314,10 @@ class Game {
         this.player2.y = spawn.y;
       }
     }
-    
-    this.ui.showBanner('WELLE ERLEDIGT');
-    
-    // Roll new upgrades for the Trainingsrange terminal pool
-    this.shopUpgrades = rollShopUpgrades(this.gameMode);
-    this.shopUpgradeIds = this.shopUpgrades.map((u) => u.id);
 
-    // Briefly wait and start next wave automatically (after 4s)
-    setTimeout(() => {
-      if (this.state === 'playing' || this.state === 'upgrade' || this.state === 'shop') {
-        this.state = 'playing';
-        this.ui.showHUD(true);
-        this.waves.startWave(this.waves.wave + 1);
-      }
-    }, 4000);
+    this.state = 'playing';
+    this.ui.showHUD(true);
+    this.waves.startWave(this.waves.wave + 1);
   }
 
   // enter the per-client free-upgrade → shop flow (host and guest both call this)
@@ -796,6 +805,7 @@ class Game {
     if (this.shakeAmt > 0) this.shakeAmt = Math.max(0, this.shakeAmt - dt * 40);
     if (this.damageVignette > 0) this.damageVignette = Math.max(0, this.damageVignette - dt * 2);
     if (this.flashWhiteout > 0) this.flashWhiteout = Math.max(0, this.flashWhiteout - dt);
+    if (this.intermissionTimer > 0) this.intermissionTimer = Math.max(0, this.intermissionTimer - dt);
 
     // wave clear?
     if (this.waves.isCleared()) this.endWave();
@@ -829,6 +839,7 @@ class Game {
       gameMode: this.gameMode,
       wave: this.waves ? this.waves.wave : 1,
       enemiesLeft: this.waves ? this.waves.totalRemaining() : 0,
+      intermissionTimer: this.intermissionTimer || 0,
       extractProgress: this.extractProgress || 0,
       layoutIndex: this.world ? this.world.layoutIndex : 0,
       shopUpgradeIds: this.shopUpgradeIds || [],
@@ -882,6 +893,7 @@ class Game {
     this.gameMode = s.gameMode || 'standard';
     if (this.waves) this.waves.wave = s.wave;
     this._enemiesLeft = s.enemiesLeft || 0;
+    this.intermissionTimer = s.intermissionTimer || 0;
     this.extractProgress = s.extractProgress || 0;
     if (this.extractionPoint) {
       this.nearExtraction = Utils.dist(this.player2.x, this.player2.y, this.extractionPoint.x, this.extractionPoint.y) < this.extractionPoint.interactRange;

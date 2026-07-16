@@ -73,8 +73,13 @@ class UI {
     this.el.coins.textContent = p.coins;
     this.el.score.textContent = p.score;
     this.el.kills.textContent = p.kills;
-    this.el.wave.textContent = 'WELLE ' + game.waves.wave;
-    this.el.enemiesLeft.textContent = 'Gegner: ' + (game.mode === 'guest' ? (game._enemiesLeft || 0) : game.waves.totalRemaining());
+    if (game.intermissionTimer > 0) {
+      this.el.wave.textContent = 'WELLE ' + game.waves.wave + ' ERLEDIGT';
+      this.el.enemiesLeft.textContent = '💰 Münzen einsammeln — nächste Welle in ' + Math.ceil(game.intermissionTimer) + 's';
+    } else {
+      this.el.wave.textContent = 'WELLE ' + game.waves.wave;
+      this.el.enemiesLeft.textContent = 'Gegner: ' + (game.mode === 'guest' ? (game._enemiesLeft || 0) : game.waves.totalRemaining());
+    }
     this.el.weaponName.textContent = p.weaponDef().name;
     this.el.ammo.textContent = (p.reloading ? '...' : p.weapons[p.currentWeapon].ammo) + ' / ' + p.magSize();
     this.el.reloadBar.style.width = p.reloading ? ((1 - p.reloadTimer / p.reloadTotal) * 100) + '%' : '0%';

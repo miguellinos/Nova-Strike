@@ -31,20 +31,21 @@ class WaveManager {
       Audio2.bossSpawn();
       this.game.ui.showBanner('⚠ BOSS ⚠');
       
-      // Spawn boss escort adds in hangars
+      // Spawn boss escort adds in hangars, keeping them away from players
+      const escortMinDist = 320;
       const drones = 4 + n;
       for (let i = 0; i < drones; i++) {
-        const sp = this.game.world.randomHangarSpawnPoint();
+        const sp = this.game.world.randomHangarSpawnPoint(this.game.players, escortMinDist);
         this.game.enemies.push(new Enemy('drone', sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
       }
       const strikers = 2 + Math.floor(n / 5);
       for (let i = 0; i < strikers; i++) {
-        const sp = this.game.world.randomHangarSpawnPoint();
+        const sp = this.game.world.randomHangarSpawnPoint(this.game.players, escortMinDist);
         this.game.enemies.push(new Enemy('striker', sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
       }
       const rockettanks = 1 + Math.floor(n / 10);
       for (let i = 0; i < rockettanks; i++) {
-        const sp = this.game.world.randomHangarSpawnPoint();
+        const sp = this.game.world.randomHangarSpawnPoint(this.game.players, escortMinDist);
         this.game.enemies.push(new Enemy('rockettank', sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
       }
     } else {
@@ -86,7 +87,7 @@ class WaveManager {
         const batch = Math.min(this.spawnQueue.length, this.isBossWave ? 1 : Utils.randInt(1, 2));
         for (let i = 0; i < batch; i++) {
           const type = this.spawnQueue.shift();
-          const sp = this.game.world.randomSpawnPoint();
+          const sp = this.game.world.randomSpawnPoint(this.game.players, 420);
           this.game.enemies.push(new Enemy(type, sp.x, sp.y, this.game.hpMult, this.game.dmgMult));
         }
         this.spawnTimer = Utils.rand(0.4, 0.9);

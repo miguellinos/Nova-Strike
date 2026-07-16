@@ -4,6 +4,9 @@
   "private": true,
   "description": "Nova Strike - LAN-Koop Server",
   "main": "server/server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "start": "node server/server.js"
   },

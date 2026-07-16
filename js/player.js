@@ -154,12 +154,22 @@ class Player {
       mx = this.dashDir.x; my = this.dashDir.y;
       this.dashTrail.push({ x: this.x, y: this.y, life: 0.3 });
     }
-    // move + collide
-    this.x += mx * speed * dt;
-    this.y += my * speed * dt;
-    const res = resolveCircleRects(this.x, this.y, this.radius, world.playerCollidableRects);
-    this.x = Utils.clamp(res.x, -300 + this.radius, world.w - this.radius);
-    this.y = Utils.clamp(res.y, this.radius, world.h - this.radius);
+    // move + collide, in substeps: a single big position jump (dash moves at 900px/s,
+    // so up to ~45px in one frame) can land clean on the far side of a thin wall
+    // without ever overlapping it, so resolveCircleRects never sees a collision to
+    // push back from. Capping each substep well under the thinnest wall (25px) means
+    // the player always overlaps the wall on the step that reaches it.
+    const moveX = mx * speed * dt, moveY = my * speed * dt;
+    const moveDist = Math.hypot(moveX, moveY);
+    const steps = Math.max(1, Math.ceil(moveDist / 10));
+    for (let i = 0; i < steps; i++) {
+      this.x += moveX / steps;
+      this.y += moveY / steps;
+      const res = resolveCircleRects(this.x, this.y, this.radius, world.playerCollidableRects);
+      this.x = res.x; this.y = res.y;
+    }
+    this.x = Utils.clamp(this.x, -300 + this.radius, world.w - this.radius);
+    this.y = Utils.clamp(this.y, this.radius, world.h - this.radius);
 
     if (len > 0) this.walkPhase += dt * 12; else this.walkPhase = 0;
     for (let i = this.dashTrail.length - 1; i >= 0; i--) {
@@ -287,6 +297,7 @@ class Player {
       let diff = Math.abs(ang - this.aimAngle);
       if (diff > Math.PI) diff = Math.PI * 2 - diff;
       if (diff > this.meleeArc / 2) continue;
+      if (game.world && segmentBlockedByRects(this.x, this.y, t.x, t.y, game.world.wallRects)) continue;
       t.lastHitBy = this;
       t.takeDamage(this.meleeDamage * this.mods.damage, game);
       // knockback

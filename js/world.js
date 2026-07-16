@@ -1,6 +1,16 @@
 // ---------- world.js : the tactical battlefield map ----------
 // Map layouts differ not just in wall/obstacle geometry but in ground "vibe" —
 // each has a color theme so not every map reads as the same brown war-torn dirt field.
+function nearestPlayerDistSq(x, y, players) {
+  let best = Infinity;
+  for (const p of players) {
+    const dx = x - p.x, dy = y - p.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < best) best = d2;
+  }
+  return best;
+}
+
 const THEMES = {
   military: { // muddy war-zone brown (the original look)
     ground: '#221b14', mud: '#17120d', track: '#1c1610',
@@ -141,6 +151,8 @@ const MAP_LAYOUTS = [
   },
 ];
 
+const WALL_THICKNESS = 25; // hangar/interior wall thickness
+
 class World {
   constructor(layoutIndex) {
     this.w = 2400;
@@ -159,40 +171,43 @@ class World {
     // single frame inside Player.update() (60x/sec per player, so 120x/sec in co-op)
     // — rects are static after build(), filtering them repeatedly is pure waste.
     this.playerCollidableRects = this.rects.filter((r) => r.kind !== 'enemy-barrier');
+    // melee only needs to be blocked by actual walls, not crates/vehicles/sandbags
+    this.wallRects = this.rects.filter((r) => r.kind === 'wall' || r.kind === 'hangar-wall');
   }
 
   // pushes a hangar's perimeter walls (with a gate gap) + its interior partition
   buildHangar(hx, hy, hw, hh, gateSide, name, isHouse = false) {
     this.hangars.push({ x: hx, y: hy, w: hw, h: hh, name, isHouse });
     const gateGap = isHouse ? 80 : 160; // standard door gap width
+    const wt = WALL_THICKNESS;
     if (gateSide === 'south') {
       const gate = (hw - gateGap) / 2;
-      this.rects.push({ x: hx, y: hy, w: hw, h: 25, kind: 'hangar-wall' }); // top
-      this.rects.push({ x: hx, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // left
-      this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // right
-      this.rects.push({ x: hx, y: hy + hh - 25, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'right' });
-      this.rects.push({ x: hx + hw - gate, y: hy + hh - 25, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'left' });
+      this.rects.push({ x: hx, y: hy, w: hw, h: wt, kind: 'hangar-wall' }); // top
+      this.rects.push({ x: hx, y: hy, w: wt, h: hh, kind: 'hangar-wall' }); // left
+      this.rects.push({ x: hx + hw - wt, y: hy, w: wt, h: hh, kind: 'hangar-wall' }); // right
+      this.rects.push({ x: hx, y: hy + hh - wt, w: gate, h: wt, kind: 'hangar-wall', gateSide: 'right' });
+      this.rects.push({ x: hx + hw - gate, y: hy + hh - wt, w: gate, h: wt, kind: 'hangar-wall', gateSide: 'left' });
     } else if (gateSide === 'north') {
       const gate = (hw - gateGap) / 2;
-      this.rects.push({ x: hx, y: hy + hh - 25, w: hw, h: 25, kind: 'hangar-wall' }); // bottom
-      this.rects.push({ x: hx, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // left
-      this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // right
-      this.rects.push({ x: hx, y: hy, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'right' });
-      this.rects.push({ x: hx + hw - gate, y: hy, w: gate, h: 25, kind: 'hangar-wall', gateSide: 'left' });
+      this.rects.push({ x: hx, y: hy + hh - wt, w: hw, h: wt, kind: 'hangar-wall' }); // bottom
+      this.rects.push({ x: hx, y: hy, w: wt, h: hh, kind: 'hangar-wall' }); // left
+      this.rects.push({ x: hx + hw - wt, y: hy, w: wt, h: hh, kind: 'hangar-wall' }); // right
+      this.rects.push({ x: hx, y: hy, w: gate, h: wt, kind: 'hangar-wall', gateSide: 'right' });
+      this.rects.push({ x: hx + hw - gate, y: hy, w: gate, h: wt, kind: 'hangar-wall', gateSide: 'left' });
     } else if (gateSide === 'east') {
       const gateH = (hh - gateGap) / 2;
-      this.rects.push({ x: hx, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // left
-      this.rects.push({ x: hx, y: hy, w: hw, h: 25, kind: 'hangar-wall' }); // top
-      this.rects.push({ x: hx, y: hy + hh - 25, w: hw, h: 25, kind: 'hangar-wall' }); // bottom
-      this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: gateH, kind: 'hangar-wall' });
-      this.rects.push({ x: hx + hw - 25, y: hy + hh - gateH, w: 25, h: gateH, kind: 'hangar-wall' });
+      this.rects.push({ x: hx, y: hy, w: wt, h: hh, kind: 'hangar-wall' }); // left
+      this.rects.push({ x: hx, y: hy, w: hw, h: wt, kind: 'hangar-wall' }); // top
+      this.rects.push({ x: hx, y: hy + hh - wt, w: hw, h: wt, kind: 'hangar-wall' }); // bottom
+      this.rects.push({ x: hx + hw - wt, y: hy, w: wt, h: gateH, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + hw - wt, y: hy + hh - gateH, w: wt, h: gateH, kind: 'hangar-wall' });
     } else if (gateSide === 'west') {
       const gateH = (hh - gateGap) / 2;
-      this.rects.push({ x: hx + hw - 25, y: hy, w: 25, h: hh, kind: 'hangar-wall' }); // right
-      this.rects.push({ x: hx, y: hy, w: hw, h: 25, kind: 'hangar-wall' }); // top
-      this.rects.push({ x: hx, y: hy + hh - 25, w: hw, h: 25, kind: 'hangar-wall' }); // bottom
-      this.rects.push({ x: hx, y: hy, w: 25, h: gateH, kind: 'hangar-wall' });
-      this.rects.push({ x: hx, y: hy + hh - gateH, w: 25, h: gateH, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + hw - wt, y: hy, w: wt, h: hh, kind: 'hangar-wall' }); // right
+      this.rects.push({ x: hx, y: hy, w: hw, h: wt, kind: 'hangar-wall' }); // top
+      this.rects.push({ x: hx, y: hy + hh - wt, w: hw, h: wt, kind: 'hangar-wall' }); // bottom
+      this.rects.push({ x: hx, y: hy, w: wt, h: gateH, kind: 'hangar-wall' });
+      this.rects.push({ x: hx, y: hy + hh - gateH, w: wt, h: gateH, kind: 'hangar-wall' });
     }
     if (!isHouse) {
       this.addHangarInterior(hx, hy, hw, hh, gateSide);
@@ -311,30 +326,31 @@ class World {
 
   addHangarInterior(hx, hy, hw, hh, gateSide) {
     if (hw >= 600) return; // leave massive hangars open for airplanes and vehicles
+    const wt = WALL_THICKNESS;
     if (gateSide === 'south') {
       // Horizontal middle divider
-      this.rects.push({ x: hx, y: hy + 140, w: 140, h: 25, kind: 'hangar-wall' });
-      this.rects.push({ x: hx + 220, y: hy + 140, w: hw - 220, h: 25, kind: 'hangar-wall' });
-      
+      this.rects.push({ x: hx, y: hy + 140, w: 140, h: wt, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 220, y: hy + 140, w: hw - 220, h: wt, kind: 'hangar-wall' });
+
       // Vertical top partition
-      this.rects.push({ x: hx + 200, y: hy, w: 25, h: 50, kind: 'hangar-wall' });
-      this.rects.push({ x: hx + 200, y: hy + 110, w: 25, h: 30, kind: 'hangar-wall' });
-      
+      this.rects.push({ x: hx + 200, y: hy, w: wt, h: 50, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 200, y: hy + 110, w: wt, h: 30, kind: 'hangar-wall' });
+
       // Vertical bottom partition
-      this.rects.push({ x: hx + 140, y: hy + 140, w: 25, h: 50, kind: 'hangar-wall' });
-      this.rects.push({ x: hx + 140, y: hy + 250, w: 25, h: hh - 250, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 140, y: hy + 140, w: wt, h: 50, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 140, y: hy + 250, w: wt, h: hh - 250, kind: 'hangar-wall' });
     } else {
       // Horizontal middle divider
-      this.rects.push({ x: hx, y: hy + 140, w: 140, h: 25, kind: 'hangar-wall' });
-      this.rects.push({ x: hx + 220, y: hy + 140, w: hw - 220, h: 25, kind: 'hangar-wall' });
-      
+      this.rects.push({ x: hx, y: hy + 140, w: 140, h: wt, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 220, y: hy + 140, w: hw - 220, h: wt, kind: 'hangar-wall' });
+
       // Vertical top partition
-      this.rects.push({ x: hx + 140, y: hy, w: 25, h: 50, kind: 'hangar-wall' });
-      this.rects.push({ x: hx + 140, y: hy + 110, w: 25, h: 30, kind: 'hangar-wall' });
-      
+      this.rects.push({ x: hx + 140, y: hy, w: wt, h: 50, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 140, y: hy + 110, w: wt, h: 30, kind: 'hangar-wall' });
+
       // Vertical bottom partition
-      this.rects.push({ x: hx + 200, y: hy + 140, w: 25, h: 55, kind: 'hangar-wall' });
-      this.rects.push({ x: hx + 200, y: hy + 250, w: 25, h: hh - 250, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 200, y: hy + 140, w: wt, h: 55, kind: 'hangar-wall' });
+      this.rects.push({ x: hx + 200, y: hy + 250, w: wt, h: hh - 250, kind: 'hangar-wall' });
     }
   }
 
@@ -349,12 +365,16 @@ class World {
       }
     }
   }
-  // a spawn point on the outer ring but not inside a wall or building
-  randomSpawnPoint() {
+  // a spawn point on the outer ring but not inside a wall, building, or player
+  randomSpawnPoint(players = [], minDist = 0) {
     if (this.hangars && this.hangars.length > 0 && Utils.chance(0.75)) {
-      return this.randomHangarSpawnPoint();
+      return this.randomHangarSpawnPoint(players, minDist);
     }
-    for (let i = 0; i < 40; i++) {
+    const maxPlayerRadius = players.reduce((max, p) => Math.max(max, p.radius || 0), 0);
+    const effectiveMinDist = minDist + maxPlayerRadius;
+    const minDistSq = effectiveMinDist * effectiveMinDist;
+    let best = null, bestD2 = -1;
+    for (let i = 0; i < 80; i++) {
       const edge = Utils.randInt(0, 3);
       let x, y;
       if (edge === 0) { x = Utils.rand(80, this.w - 80); y = 90; }
@@ -362,28 +382,38 @@ class World {
       else if (edge === 2) { x = 90; y = Utils.rand(80, this.h - 80); }
       else { x = this.w - 90; y = Utils.rand(80, this.h - 80); }
       if (!pointInRects(x, y, this.rects, 30) && this.getBuildingAt(x, y) === null) {
-        return { x, y };
+        const d2 = nearestPlayerDistSq(x, y, players);
+        if (d2 >= minDistSq) return { x, y };
+        if (d2 > bestD2) { bestD2 = d2; best = { x, y }; }
       }
     }
+    if (best) return best;
     return { x: this.w / 2, y: 90 };
   }
 
-  randomHangarSpawnPoint() {
+  randomHangarSpawnPoint(players = [], minDist = 0) {
     if (!this.hangars || this.hangars.length === 0) {
-      return this.randomSpawnPoint();
+      return this.randomSpawnPoint(players, minDist);
     }
-    for (let i = 0; i < 50; i++) {
+    const maxPlayerRadius = players.reduce((max, p) => Math.max(max, p.radius || 0), 0);
+    const effectiveMinDist = minDist + maxPlayerRadius;
+    const minDistSq = effectiveMinDist * effectiveMinDist;
+    let best = null, bestD2 = -1;
+    for (let i = 0; i < 80; i++) {
       const h = Utils.pick(this.hangars);
       if (!h) continue;
       const m = 40; // safe margin
       const rx = Utils.rand(h.x + m, h.x + h.w - m);
       const ry = Utils.rand(h.y + m, h.y + h.h - m);
       if (!pointInRects(rx, ry, this.rects, 25)) {
-        return { x: rx, y: ry };
+        const d2 = nearestPlayerDistSq(rx, ry, players);
+        if (d2 >= minDistSq) return { x: rx, y: ry };
+        if (d2 > bestD2) { bestD2 = d2; best = { x: rx, y: ry }; }
       }
     }
+    if (best) return best;
     const h = Utils.pick(this.hangars);
-    if (!h) return this.randomSpawnPoint();
+    if (!h) return this.randomSpawnPoint(players, minDist);
     return { x: h.x + h.w / 2, y: h.y + h.h / 2 };
   }
   draw(ctx, cam, time) {
