@@ -855,7 +855,7 @@ class Game {
     }
     if (s.players[1] && this.player2) {
       const d = s.players[1];
-      const localMenuOpen = this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal;
+      const localMenuOpen = this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal || this.atmOpenLocal;
       if (this.mode === 'guest') {
         this.player2.targetX = d.x;
         this.player2.targetY = d.y;
@@ -1012,7 +1012,7 @@ class Game {
       // that left the local "*OpenLocal" flags stuck true forever, which in
       // turn permanently blocked movement/shooting input for the guest.
       const localOverlayOpen = (this.shopOpenLocal && this.midWaveShop) ||
-        this.workbenchOpenLocal || this.trainingOpenLocal || this.inventoryOpenLocal || this.pauseOpenLocal;
+        this.workbenchOpenLocal || this.trainingOpenLocal || this.inventoryOpenLocal || this.pauseOpenLocal || this.atmOpenLocal;
       if (!localOverlayOpen) {
         this.shopOpenLocal = false;
         this.ui.showHUD(true);
