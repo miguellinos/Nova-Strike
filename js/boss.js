@@ -355,9 +355,13 @@ class Boss {
           radius: 12, dmg: this.dmg * 0.8, color: '#ff3a22', dead: false, life: 3 });
       }
       Audio2.shoot('cannon');
-    } else {
+    } else if (i === 2) {
       if (!this.phase2) {
-        // call in turret support drones — only while still above 50% hp
+        // call in turret support drones — only while still above 50% hp, and
+        // only on this one dedicated slot of the 4-attack rotation (this used
+        // to also fire on i===3 below, silently doubling GOLIATH's reinforcement
+        // rate compared to every other boss, which only spawns adds on 1 of 4
+        // rotation slots — that's what made it spawn so much more).
         this.spawnReinforcements(game, 2);
       } else {
         // aimed volley again in place of a support call
@@ -368,6 +372,15 @@ class Boss {
         }
         Audio2.shoot('cannon');
       }
+    } else {
+      // 4th rotation slot: a lighter radial shell burst — never spawns adds
+      const n = this.phase2 ? 14 : 8;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2;
+        game.enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230,
+          radius: 10, dmg: this.dmg * 0.5, color: '#ffaa00', dead: false, life: 4.5, isExplosive: true, aoe: 50 });
+      }
+      Audio2.explosion();
     }
   }
 
