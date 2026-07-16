@@ -22,23 +22,41 @@ Du startest mit einem leichten Schiff und kämpfst dich durch immer stärkere Ge
 
 ## Steuerung
 
-* **Pfeiltasten / WASD**: Bewegen
-* **Leertaste**: Schießen
-* **Weitere Tasten**: je nach Implementierung im Spiel für Spezialfunktionen oder Menüs
+* **W A S D**: Bewegen
+* **Maus**: Zielen
+* **Linksklick**: Schießen
+* **Rechtsklick**: Nahkampf-Attacke (Messer)
+* **R**: Nachladen
+* **Shift**: Dash
+* **1–9**: Waffe wechseln
+* **Q**: Medkit benutzen
+* **E**: Schild aufladen
+* **G**: Handgranate werfen
+* **F**: Werkbank / Shop / Geldautomat öffnen (wenn in der Nähe)
+* **Escape**: Pause / Menü schließen
+* **M**: Dev-Modus (nur im Hauptmenü — Startwelle, Karte & Waffen wählen)
 
 ## Installation
 
 1. Repository klonen:
 
    ```bash
-   git clone https://github.com/huzaifajaved80433-max/NOVA-STRIKE-Galactic-Annihilator.git
+   git clone https://github.com/miguellinos/Nova-Strike.git
    ```
 2. In den Projektordner wechseln:
 
    ```bash
-   cd NOVA-STRIKE-Galactic-Annihilator
+   cd Nova-Strike
    ```
-3. Die `index.html` im Browser öffnen.
+3. **Solo spielen:** `index.html` direkt im Browser öffnen.
+4. **LAN-Koop:** Node-Server starten (benötigt [Node.js](https://nodejs.org) ≥ 18):
+
+   ```bash
+   npm install
+   npm start
+   ```
+
+   Danach im Browser `http://localhost:3000` öffnen (Host). Der Mitspieler im selben WLAN öffnet die angezeigte LAN-Adresse und tritt mit dem Raumcode bei.
 
 ## Entwicklung
 

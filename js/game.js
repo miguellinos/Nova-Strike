@@ -1887,7 +1887,7 @@ class Game {
   sendCoinsFromAtm(amount) {
     const me = this.localPlayer;
     if (me.coins < amount) {
-      alert("Nicht genügend Münzen!");
+      this.ui.toast("Nicht genügend Münzen!");
       return;
     }
     

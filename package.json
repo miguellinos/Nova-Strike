@@ -2,11 +2,20 @@
   "name": "nova-strike",
   "version": "1.0.0",
   "private": true,
-  "description": "Nova Strike - LAN-Koop Server",
+  "description": "NOVA STRIKE: Galactic Annihilator — browser-based HTML5 Canvas space shooter with a Node/WebSocket LAN co-op server.",
   "main": "server/server.js",
   "scripts": {
-    "start": "node server/server.js"
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
   },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/miguellinos/Nova-Strike.git"
+  },
+  "license": "UNLICENSED",
   "dependencies": {
     "ws": "^8.18.0"
   }
