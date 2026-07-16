@@ -78,6 +78,11 @@
       <div id="interact-prompt" class="hidden">Drücke <b>F</b> für die Werkbank</div>
 
       <div id="spectate-banner" class="hidden">💀 DU BIST GEFALLEN — schaue deinem Mitspieler zu<br><span>Wiederbelebung, sobald die Welle geschafft ist</span></div>
+
+      <div id="extract-banner" class="hidden">
+        <div id="extract-banner-text">🚁 Extraktionszone</div>
+        <div class="extract-progress-bg"><div id="extract-progress-bar"></div></div>
+      </div>
     </div>
 
     <!-- Main Menu -->
@@ -85,16 +90,26 @@
       <div class="menu-panel">
         <h1 class="title">NOVA<span>STRIKE</span></h1>
         <p class="subtitle">Militärische Spezialoperation. Verteidige die Stellung und überlebe die Wellen.</p>
-        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-          <button class="btn btn-primary" data-action="start-standard">Standard-Modus</button>
-          <button class="btn btn-primary" data-action="start-horror" style="background: linear-gradient(135deg, #441a1a, #260a0a); border-color: #ff3b52; color: #ffcccc;" title="Spiele im Dunkeln mit einer Taschenlampe">Horror-Modus 🔦</button>
-        </div>
-        <button class="btn" style="margin-top: 8px;" data-action="coop-menu">Koop (LAN)</button>
+        <button class="btn btn-primary" data-action="play-menu">Spielen ▶</button>
+        <button class="btn" data-action="coop-menu">Koop (LAN)</button>
         <button class="btn" data-action="character-menu">Charakter wechseln</button>
         <button class="btn" data-action="settings">Einstellungen</button>
         <button class="btn" data-action="controls">Steuerung</button>
         <button class="btn" data-action="lexicon-menu">Lexikon 📖</button>
         <button class="btn" data-action="quit">Spiel beenden</button>
+      </div>
+    </div>
+
+    <!-- Play: pick a solo game mode -->
+    <div id="play-menu" class="overlay hidden">
+      <div class="menu-panel">
+        <h2 class="panel-title">MODUS WÄHLEN</h2>
+        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+          <button class="btn btn-primary" data-action="start-standard">Standard-Modus</button>
+          <button class="btn btn-primary" data-action="start-horror" style="background: linear-gradient(135deg, #441a1a, #260a0a); border-color: #ff3b52; color: #ffcccc;" title="Spiele im Dunkeln mit einer Taschenlampe">Horror-Modus 🔦</button>
+          <button class="btn btn-primary" data-action="start-extraction" style="background: linear-gradient(135deg, #0d2b1a, #0a1a12); border-color: var(--cyan); color: #cfffe0;" title="Überlebe, erreiche die Extraktionszone und entkomme">Extraktion 🚁</button>
+        </div>
+        <button class="btn" style="margin-top: 8px;" data-action="play-back">Zurück</button>
       </div>
     </div>
 
@@ -117,6 +132,31 @@
           <input type="checkbox" id="cheat-horror">
           <span>🔦 Horror-Modus</span>
         </label>
+
+        <div class="cheat-row">
+          <span class="cheat-label">🎒 Medkits</span>
+          <div class="cheat-stepper">
+            <button type="button" class="cheat-step-btn" data-action="cheat-medkit-dec">−</button>
+            <input type="number" id="cheat-medkits" min="0" max="99" value="1">
+            <button type="button" class="cheat-step-btn" data-action="cheat-medkit-inc">+</button>
+          </div>
+        </div>
+        <div class="cheat-row">
+          <span class="cheat-label">🛡️ Schilde</span>
+          <div class="cheat-stepper">
+            <button type="button" class="cheat-step-btn" data-action="cheat-shield-dec">−</button>
+            <input type="number" id="cheat-shields" min="0" max="99" value="1">
+            <button type="button" class="cheat-step-btn" data-action="cheat-shield-inc">+</button>
+          </div>
+        </div>
+        <div class="cheat-row">
+          <span class="cheat-label">💣 Granaten</span>
+          <div class="cheat-stepper">
+            <button type="button" class="cheat-step-btn" data-action="cheat-grenade-dec">−</button>
+            <input type="number" id="cheat-grenades" min="0" max="99" value="0">
+            <button type="button" class="cheat-step-btn" data-action="cheat-grenade-inc">+</button>
+          </div>
+        </div>
 
         <div class="cheat-section-label">Startwaffen</div>
         <div id="cheat-weapons" class="cheat-weapons-grid"></div>
@@ -167,6 +207,7 @@
               <select id="coop-game-mode" style="background: #111; color: #fff; border: 1px solid #ffaa00; padding: 6px 12px; font-family: monospace; font-size: 14px; border-radius: 4px; cursor: pointer;">
                 <option value="standard">Standard Modus</option>
                 <option value="horror">Horror Modus 🔦</option>
+                <option value="extraction">Extraktion 🚁</option>
               </select>
             </label>
           </div>
@@ -366,6 +407,17 @@
       <div class="menu-panel">
         <h2 class="panel-title fail">MISSION FAILED</h2>
         <div id="gameover-stats" class="stats-list"></div>
+        <button class="btn btn-primary" data-action="restart">Erneut spielen</button>
+        <button class="btn" data-action="menu">Hauptmenü</button>
+      </div>
+    </div>
+
+    <!-- Extraction success -->
+    <div id="extract-menu" class="overlay hidden">
+      <div class="menu-panel">
+        <h2 class="panel-title" style="color: var(--cyan); text-shadow: 0 0 20px var(--cyan);">🚁 EXTRAHIERT</h2>
+        <p class="subtitle">Mission erfolgreich — du hast es rausgeschafft.</p>
+        <div id="extract-stats" class="stats-list"></div>
         <button class="btn btn-primary" data-action="restart">Erneut spielen</button>
         <button class="btn" data-action="menu">Hauptmenü</button>
       </div>

@@ -9,15 +9,39 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 #game-canvas { display: block; width: 100%; height: 100%; background: #090b08; cursor: crosshair; }
 .hidden { display: none !important; }
 
+/* ---------- Custom scrollbars (menus, weapon lists, ...) ---------- */
+.menu-panel, .cheat-weapons-grid, .shop-cards-container, #shop-cards, #workbench-cards, #upgrade-cards {
+  scrollbar-width: thin; scrollbar-color: rgba(74,246,38,0.5) rgba(10,14,10,0.4);
+}
+.menu-panel::-webkit-scrollbar, .cheat-weapons-grid::-webkit-scrollbar,
+.shop-cards-container::-webkit-scrollbar, #shop-cards::-webkit-scrollbar,
+#workbench-cards::-webkit-scrollbar, #upgrade-cards::-webkit-scrollbar { width: 8px; }
+.menu-panel::-webkit-scrollbar-track, .cheat-weapons-grid::-webkit-scrollbar-track,
+.shop-cards-container::-webkit-scrollbar-track, #shop-cards::-webkit-scrollbar-track,
+#workbench-cards::-webkit-scrollbar-track, #upgrade-cards::-webkit-scrollbar-track {
+  background: rgba(10,14,10,0.4); border-radius: 4px; }
+.menu-panel::-webkit-scrollbar-thumb, .cheat-weapons-grid::-webkit-scrollbar-thumb,
+.shop-cards-container::-webkit-scrollbar-thumb, #shop-cards::-webkit-scrollbar-thumb,
+#workbench-cards::-webkit-scrollbar-thumb, #upgrade-cards::-webkit-scrollbar-thumb {
+  background: rgba(74,246,38,0.5); border-radius: 4px; border: 1px solid rgba(74,246,38,0.15); }
+.menu-panel::-webkit-scrollbar-thumb:hover, .cheat-weapons-grid::-webkit-scrollbar-thumb:hover,
+.shop-cards-container::-webkit-scrollbar-thumb:hover, #shop-cards::-webkit-scrollbar-thumb:hover,
+#workbench-cards::-webkit-scrollbar-thumb:hover, #upgrade-cards::-webkit-scrollbar-thumb:hover {
+  background: rgba(74,246,38,0.8); }
+.menu-panel::-webkit-scrollbar-button, .cheat-weapons-grid::-webkit-scrollbar-button,
+.shop-cards-container::-webkit-scrollbar-button, #shop-cards::-webkit-scrollbar-button,
+#workbench-cards::-webkit-scrollbar-button, #upgrade-cards::-webkit-scrollbar-button { display: none; }
+
 /* ---------- Overlays / Menus ---------- */
 .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   background: radial-gradient(circle at 50% 40%, rgba(20,40,15,0.4), rgba(5,6,5,0.96));
   backdrop-filter: blur(4px); z-index: 20; }
 .menu-panel { background: var(--panel); border: 1px solid rgba(74,246,38,0.35);
   border-radius: 16px; padding: 32px 40px; min-width: 320px; text-align: center;
-  box-shadow: 0 0 60px rgba(74,246,38,0.15), inset 0 0 30px rgba(45,76,30,0.08); }
+  box-shadow: 0 0 60px rgba(74,246,38,0.15), inset 0 0 30px rgba(45,76,30,0.08);
+  max-height: 90vh; overflow-y: auto; }
 .menu-panel.wide { min-width: 480px; max-width: 90vw; }
-#shop-menu .menu-panel, #upgrade-menu .menu-panel { width: 860px; max-width: 92vw; padding: 24px 28px; }
+#shop-menu .menu-panel, #upgrade-menu .menu-panel, #cheat-menu .menu-panel { width: 860px; max-width: 92vw; padding: 24px 28px; }
 .title { font-size: 64px; font-weight: 800; letter-spacing: 6px; margin-bottom: 6px;
   color: var(--cyan); text-shadow: 0 0 24px var(--cyan), 0 0 60px var(--blue); }
 .title span { color: var(--violet); text-shadow: 0 0 24px var(--violet); }
@@ -139,6 +163,14 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   letter-spacing: 0.5px; box-shadow: 0 0 26px rgba(255,59,82,0.25); animation: coopPulse 1.6s ease-in-out infinite; }
 #spectate-banner span { display: block; font-size: 12px; font-weight: 500; color: #ff8fa0; margin-top: 4px; letter-spacing: 0.3px; }
 
+#extract-banner { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); text-align: center;
+  background: rgba(6, 20, 16, 0.88); border: 1px solid rgba(74,246,38,0.55); border-radius: 10px;
+  padding: 10px 22px; box-shadow: 0 0 24px rgba(74,246,38,0.2); min-width: 260px; }
+#extract-banner-text { font-size: 15px; font-weight: 700; color: #cfffe0; letter-spacing: 0.5px; margin-bottom: 6px; }
+.extract-progress-bg { width: 100%; height: 10px; background: rgba(74,246,38,0.12);
+  border: 1px solid rgba(74,246,38,0.35); border-radius: 5px; overflow: hidden; }
+#extract-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--cyan), #8fffb0); transition: width .1s; }
+
 /* ---------- Active Inventory & Shields ---------- */
 .shield-bar-bg { width: 240px; height: 14px; background: rgba(10,25,60,0.6); border: 1px solid rgba(40,140,255,0.4);
   border-radius: 7px; overflow: hidden; }
@@ -178,8 +210,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .cheat-section-label { font-size: 12px; letter-spacing: 2px; color: #6f8a6c; text-transform: uppercase;
   margin-bottom: 10px; text-align: left; }
 
-.cheat-weapons-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px;
-  margin-bottom: 20px; max-height: 46vh; overflow-y: auto; padding: 2px; }
+.cheat-weapons-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  margin-bottom: 20px; max-height: 56vh; overflow-y: auto; padding: 2px; }
 .cheat-weapon-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px;
   background: rgba(20,30,60,0.55); border: 1px solid rgba(90,150,255,0.3); border-radius: 10px;
   cursor: pointer; transition: all .15s; text-align: left; }

@@ -126,3 +126,74 @@ class ShieldPickup {
     ctx.stroke();
   }
 }
+
+class GrenadePickup {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.radius = 11;
+    this.vx = Utils.rand(-40, 40); this.vy = Utils.rand(-40, 40);
+    this.dead = false;
+    this.phase = Utils.rand(0, 6.28);
+    this.life = 18; // despawns if left uncollected
+  }
+  update(dt, game) {
+    const p = game.nearestPlayer(this.x, this.y);
+    const d = Utils.dist(this.x, this.y, p.x, p.y);
+    const range = p.mods.coinRange * 0.6;
+    if (d < range) {
+      const a = Utils.angle(this.x, this.y, p.x, p.y);
+      const pull = Utils.lerp(300, 90, d / range);
+      this.vx += Math.cos(a) * pull * dt * 6;
+      this.vy += Math.sin(a) * pull * dt * 6;
+    }
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    this.vx *= 0.9; this.vy *= 0.9;
+    this.life -= dt;
+    if (this.life <= 0) { this.dead = true; return; }
+    if (d < p.radius + this.radius + 4) this.collect(game, p);
+  }
+  collect(game, p) {
+    if (this.dead) return;
+    this.dead = true;
+    (p || game.player).grenadeCount++;
+    Audio2.coin(); // pickup sound
+    game.particles.spawn(this.x, this.y, '#ffaa00', { count: 6, minSpeed: 30, maxSpeed: 90, life: 0.35, size: 3 });
+  }
+  draw(ctx, time) {
+    const pulse = 0.75 + 0.25 * Math.sin(time * 5 + this.phase);
+    const blink = this.life < 4 && Math.floor(this.life * 6) % 2 === 0;
+    if (blink) return;
+    const r = this.radius;
+
+    ctx.shadowBlur = 10; ctx.shadowColor = '#ffaa00';
+    ctx.globalAlpha = pulse;
+
+    // Grenade body (olive drab ellipse) with pin ring on top
+    ctx.fillStyle = '#4f5e3d';
+    ctx.strokeStyle = '#2a3320';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.y, r * 0.6, r * 0.85, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+
+    // segmented pineapple grid lines
+    ctx.strokeStyle = '#2a3320';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(this.x - r * 0.5, this.y); ctx.lineTo(this.x + r * 0.5, this.y);
+    ctx.moveTo(this.x, this.y - r * 0.7); ctx.lineTo(this.x, this.y + r * 0.7);
+    ctx.stroke();
+
+    // spoon + pin
+    ctx.fillStyle = '#888';
+    ctx.fillRect(this.x - r * 0.2, this.y - r * 1.05, r * 0.4, r * 0.35);
+    ctx.strokeStyle = '#ccc';
+    ctx.beginPath();
+    ctx.arc(this.x + r * 0.15, this.y - r * 0.95, r * 0.22, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}

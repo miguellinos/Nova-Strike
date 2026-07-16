@@ -9,12 +9,14 @@ class WaveManager {
     this.isBossWave = false;
   }
 
-  startWave(n) {
+  // forcedBossType: from the lexicon's boss practice-fight picker — forces this
+  // wave to be a boss wave with that exact boss, regardless of wave number.
+  startWave(n, forcedBossType) {
     this.wave = n;
     this.game.hpMult = 1 + (n - 1) * 0.12;
     this.game.dmgMult = 1 + (n - 1) * 0.06;
     Audio2.setIntensity(n);
-    this.isBossWave = (n % 5 === 0);
+    this.isBossWave = forcedBossType ? true : (n % 5 === 0);
     this.spawnQueue = [];
     this.active = true;
 
@@ -24,7 +26,7 @@ class WaveManager {
     if (this.isBossWave) {
       const bx = this.game.world.w / 2;
       const by = this.game.world.h / 2;
-      const boss = new Boss(bx, by, n);
+      const boss = new Boss(bx, by, n, forcedBossType);
       this.game.boss = boss;
       Audio2.bossSpawn();
       this.game.ui.showBanner('⚠ BOSS ⚠');

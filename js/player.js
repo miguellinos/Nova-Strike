@@ -592,6 +592,21 @@ class Player {
       ctx.fillStyle = '#111';
       ctx.fillRect(-2, 3, 6, 1.5); // folded stock
       ctx.fillRect(13, 3, 5, 1.8); // short barrel
+    } else if (wDef.key === 'carbine') {
+      // Vektor carbine: mid-length body, straight mag, compact optic
+      ctx.fillRect(3, 2, 12, 3.5); // receiver
+      ctx.fillStyle = '#222';
+      ctx.fillRect(7, 5.5, 2.5, 5); // straight magazine
+      ctx.fillRect(6, -0.5, 3.5, 2); // low-profile optic
+      ctx.fillStyle = '#111';
+      ctx.fillRect(15, 2.8, 7, 1.8); // barrel
+    } else if (wDef.key === 'sawedoff') {
+      // Sawed-off double-barrel: short stubby twin tubes, no stock
+      ctx.fillStyle = '#4f3b28'; // cut wood grip
+      ctx.fillRect(3, 3, 6, 3.5);
+      ctx.fillStyle = '#151617';
+      ctx.fillRect(8, 2.2, 10, 2); // top barrel
+      ctx.fillRect(8, 4.6, 10, 2); // bottom barrel
     } else {
       // M4A1 Sturmgewehr (rifle)
       ctx.fillRect(3, 2, 14, 4); // receiver

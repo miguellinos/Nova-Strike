@@ -73,7 +73,7 @@ const Net = {
 
   sendInput(data) { this.send({ type: 'input', data }); },
   sendSnapshot(data) { this.send({ type: 'snapshot', data }); },
-  sendStart(gameMode, mapIndex) { this.send({ type: 'start', gameMode, mapIndex }); },
+  sendStart(gameMode, mapIndex, extractPos) { this.send({ type: 'start', gameMode, mapIndex, extractPos }); },
   sendShopAction(data) { this.send({ type: 'shop-action', data }); },
   sendShopDone() { this.send({ type: 'shop-done' }); },
   sendWorkbenchAction(data) { this.send({ type: 'workbench-action', data }); },

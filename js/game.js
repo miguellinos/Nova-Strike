@@ -12,6 +12,7 @@ class Game {
     this.time = 0; this.dt = 0;
     this.shakeAmt = 0;
     this.damageVignette = 0;
+    this.flashWhiteout = 0; // full-screen white flash from the operative boss's flashbang
     this.interiorT = 0;
     this.hpMult = 1; this.dmgMult = 1;
     this.player2 = null;
@@ -54,7 +55,10 @@ class Game {
 
   // mode: 'solo' (default) | 'host' | 'guest' — coop games always run 2 player slots
   // cheat: optional { wave, weapons } from the "M" cheat menu — solo only.
-  newGame(mode, gameMode, mapIndex, cheat) {
+  // extractPos: {x,y} for the extraction landing zone — the host rolls this and
+  // sends it to the guest (see main.js's 'start' handler) so both see the same
+  // spot; solo/host without one falls back to picking their own.
+  newGame(mode, gameMode, mapIndex, cheat, extractPos) {
     this.mode = mode || 'solo';
     this.gameMode = gameMode || 'standard';
     // Random map for wave 1 (host/solo pick; guests get the synced index) — every
@@ -73,6 +77,20 @@ class Game {
     this.trainingOpenLocal = false;
     this.inventoryOpenLocal = false;
     this.pauseOpenLocal = false;
+
+    // "Extraktion" mode: a goal zone somewhere out on the map. Locked until the
+    // squad clears the first wave, then channels open (all alive players must
+    // stand inside together in co-op) over extractChannelTime seconds to win.
+    if (this.gameMode === 'extraction') {
+      const pos = extractPos || this.world.randomSpawnPoint();
+      this.extractionPoint = new ExtractionPoint(pos.x, pos.y);
+      this.extractAvailableWave = 2;
+      this.extractChannelTime = 6;
+    } else {
+      this.extractionPoint = null;
+    }
+    this.extractProgress = 0;
+    this.nearExtraction = false;
     this._snapshotTimer = 0;
     this.interiorT = 0;
     const spawn = { x: this.world.w / 2, y: this.world.h / 2 - 180 };
@@ -86,6 +104,7 @@ class Game {
     this.coins = [];
     this.medkits = [];
     this.shields = [];
+    this.grenadePickups = [];
     this.lightningArcs = [];
     this.particles = new Particles();
     this.waves = new WaveManager(this);
@@ -107,7 +126,10 @@ class Game {
     // jump straight to a given wave (with its normal hp/dmg scaling applied).
     if (cheat && this.mode === 'solo') {
       if (cheat.weapons) for (const key of cheat.weapons) this.player.unlock(key);
-      this.waves.startWave(Math.max(1, cheat.wave || 1));
+      if (cheat.medkits !== undefined) this.player.medkitsCount = cheat.medkits;
+      if (cheat.shields !== undefined) this.player.shieldsCount = cheat.shields;
+      if (cheat.grenades !== undefined) this.player.grenadeCount = cheat.grenades;
+      this.waves.startWave(Math.max(1, cheat.wave || 1), cheat.forceBoss);
       return;
     }
     if (this.mode !== 'guest') this.waves.startWave(1);
@@ -130,6 +152,15 @@ class Game {
     // chance to drop a shield battery
     const shieldHurt = 1 - (killer.shieldHp || 0) / (killer.maxShieldHp || 100);
     if (Utils.chance(0.05 + shieldHurt * 0.11)) this.dropShield(e.x, e.y);
+    // chance to drop a grenade — flat rate, doesn't scale with a "need" like the
+    // other two since there's no natural low-resource pressure to key it off of.
+    // Tanks (the toughest "normal" enemies) always drop 2, as a reward that
+    // matches the effort of killing them.
+    if (e.type === 'tank' || e.type === 'rockettank') {
+      for (let i = 0; i < 2; i++) this.dropGrenadePickup(e.x, e.y);
+    } else if (Utils.chance(0.06)) {
+      this.dropGrenadePickup(e.x, e.y);
+    }
   }
 
   onBossKilled(b) {
@@ -141,9 +172,43 @@ class Game {
     this.particles.burst(b.x, b.y, '#ff3b52', 60, 340);
     this.particles.burst(b.x, b.y, '#ffcc33', 30, 260);
     this.dropCoins(b.x, b.y, b.coins, killer);
-    // bosses always drop medkits and shields
+    // bosses always drop medkits, shields, and a couple of grenades
     for (let i = 0; i < 2; i++) this.dropMedkit(b.x, b.y, 40);
     for (let i = 0; i < 2; i++) this.dropShield(b.x, b.y);
+    for (let i = 0; i < 2; i++) this.dropGrenadePickup(b.x, b.y);
+  }
+
+  // ----- extraction mode -----
+  updateExtraction(dt) {
+    if (!this.extractionPoint) return;
+    const ep = this.extractionPoint;
+    this.nearExtraction = Utils.dist(this.player.x, this.player.y, ep.x, ep.y) < ep.interactRange;
+
+    const ready = this.waves.wave >= this.extractAvailableWave;
+    const alive = this.players.filter((p) => p.hp > 0);
+    const allInRange = ready && alive.length > 0 &&
+      alive.every((p) => Utils.dist(p.x, p.y, ep.x, ep.y) < ep.interactRange);
+
+    if (allInRange) {
+      this.extractProgress = Math.min(this.extractChannelTime, this.extractProgress + dt);
+      if (this.extractProgress >= this.extractChannelTime) this.completeExtraction();
+    } else {
+      // decays rather than resetting outright — stepping out for a second to
+      // dodge a shot shouldn't undo the whole channel
+      this.extractProgress = Math.max(0, this.extractProgress - dt * 1.5);
+    }
+  }
+
+  completeExtraction() {
+    this.state = 'extracted';
+    this.ui.showHUD(false);
+    const mins = Math.floor(this.playTime / 60), secs = Math.floor(this.playTime % 60);
+    const p = this.localPlayer;
+    this.ui.showExtractSuccess({
+      wave: this.waves.wave, kills: p.kills, score: p.score,
+      coins: p.coins, time: mins + ':' + String(secs).padStart(2, '0'),
+    });
+    Menus.show('extract-menu');
   }
 
   dropCoins(x, y, range, killer) {
@@ -162,6 +227,10 @@ class Game {
 
   dropShield(x, y) {
     this.shields.push(new ShieldPickup(x + Utils.rand(-16, 16), y + Utils.rand(-16, 16)));
+  }
+
+  dropGrenadePickup(x, y) {
+    this.grenadePickups.push(new GrenadePickup(x + Utils.rand(-16, 16), y + Utils.rand(-16, 16)));
   }
   onPlayerDeath() {
     // co-op: only end the run once both players are down — a downed teammate
@@ -192,6 +261,7 @@ class Game {
     this.coins = [];
     this.medkits = [];
     this.shields = [];
+    this.grenadePickups = [];
     this.boss = null;
 
     // revive any downed squadmate now that the wave has been cleared without them
@@ -583,7 +653,8 @@ class Game {
         this.particles.update(dt);
         if (this.shakeAmt > 0) this.shakeAmt = Math.max(0, this.shakeAmt - dt * 40);
         if (this.damageVignette > 0) this.damageVignette = Math.max(0, this.damageVignette - dt * 2);
-        
+        if (this.flashWhiteout > 0) this.flashWhiteout = Math.max(0, this.flashWhiteout - dt);
+
         // Decay melee swings and scan timers locally
         if (this.player) {
           if (this.player.meleeSwing > 0) this.player.meleeSwing -= dt;
@@ -693,6 +764,8 @@ class Game {
       Input.pressed['f'] = false;
     }
 
+    this.updateExtraction(dt);
+
     this.world.update(dt);
     for (const p of this.players) if (p.hp > 0) p.update(dt, this);
     this.waves.update(dt);
@@ -709,6 +782,8 @@ class Game {
     this.medkits = this.medkits.filter((m) => !m.dead);
     for (const s of this.shields) s.update(dt, this);
     this.shields = this.shields.filter((s) => !s.dead);
+    for (const gp of this.grenadePickups) gp.update(dt, this);
+    this.grenadePickups = this.grenadePickups.filter((gp) => !gp.dead);
     this.enemies = this.enemies.filter((e) => !e.dead);
     if (this.lightningArcs) {
       for (const arc of this.lightningArcs) arc.life -= dt;
@@ -720,6 +795,7 @@ class Game {
 
     if (this.shakeAmt > 0) this.shakeAmt = Math.max(0, this.shakeAmt - dt * 40);
     if (this.damageVignette > 0) this.damageVignette = Math.max(0, this.damageVignette - dt * 2);
+    if (this.flashWhiteout > 0) this.flashWhiteout = Math.max(0, this.flashWhiteout - dt);
 
     // wave clear?
     if (this.waves.isCleared()) this.endWave();
@@ -753,6 +829,7 @@ class Game {
       gameMode: this.gameMode,
       wave: this.waves ? this.waves.wave : 1,
       enemiesLeft: this.waves ? this.waves.totalRemaining() : 0,
+      extractProgress: this.extractProgress || 0,
       layoutIndex: this.world ? this.world.layoutIndex : 0,
       shopUpgradeIds: this.shopUpgradeIds || [],
       cam: { x: this.cam.x, y: this.cam.y },
@@ -791,7 +868,9 @@ class Game {
       enemyProjectiles: this.enemyProjectiles.map((ep) => ({ x: r(ep.x), y: r(ep.y), vx: r(ep.vx), vy: r(ep.vy), radius: ep.radius, color: ep.color, isHoming: ep.isHoming })),
       coins: this.coins.map((c) => ({ x: r(c.x), y: r(c.y) })),
       medkits: this.medkits.map((m) => ({ x: r(m.x), y: r(m.y), life: m.life })),
+      grenadePickups: this.grenadePickups.map((gp) => ({ x: r(gp.x), y: r(gp.y), life: gp.life })),
       shakeAmt: this.shakeAmt,
+      flashWhiteout: this.flashWhiteout,
     };
   }
 
@@ -803,6 +882,10 @@ class Game {
     this.gameMode = s.gameMode || 'standard';
     if (this.waves) this.waves.wave = s.wave;
     this._enemiesLeft = s.enemiesLeft || 0;
+    this.extractProgress = s.extractProgress || 0;
+    if (this.extractionPoint) {
+      this.nearExtraction = Utils.dist(this.player2.x, this.player2.y, this.extractionPoint.x, this.extractionPoint.y) < this.extractionPoint.interactRange;
+    }
     if (s.layoutIndex !== undefined && this.world && this.world.layoutIndex !== s.layoutIndex) {
       this.world = new World(s.layoutIndex);
       this.workbench = new Workbench(this.world.workbenchPos.x, this.world.workbenchPos.y);
@@ -994,13 +1077,19 @@ class Game {
     this.enemyProjectiles = s.enemyProjectiles;
     this.coins = s.coins.map((d) => new Coin(d.x, d.y));
     this.medkits = s.medkits.map((d) => { const m = new Medkit(d.x, d.y); m.life = d.life; return m; });
+    this.grenadePickups = (s.grenadePickups || []).map((d) => { const gp = new GrenadePickup(d.x, d.y); gp.life = d.life; return gp; });
     this.shakeAmt = s.shakeAmt;
+    this.flashWhiteout = s.flashWhiteout || 0;
 
     // ----- menu / phase handling (guest) -----
     if (s.state === 'gameover') {
       this.ui.showHUD(false);
       this.ui.showGameOver({ wave: s.wave, kills: this.localPlayer.kills, score: this.localPlayer.score, coins: this.localPlayer.coins, time: '--:--' });
       Menus.show('gameover-menu');
+    } else if (s.state === 'extracted') {
+      this.ui.showHUD(false);
+      this.ui.showExtractSuccess({ wave: s.wave, kills: this.localPlayer.kills, score: this.localPlayer.score, coins: this.localPlayer.coins, time: '--:--' });
+      Menus.show('extract-menu');
     } else if (s.state === 'shop') {
       // enter my own intermission exactly once (when the wave first ends)
       if (prevSync !== 'shop') this.beginLocalIntermission();
@@ -1194,16 +1283,22 @@ class Game {
     if (this.workbench) this.workbench.draw(ctx, this.time, this.nearWorkbench);
     if (this.shopTable) this.shopTable.draw(ctx, this.time, this.nearShop);
     if (this.atm && (this.mode !== 'solo')) this.atm.draw(ctx, this.time, this.nearAtm);
+    if (this.extractionPoint) {
+      const ready = this.waves.wave >= this.extractAvailableWave;
+      const progress = this.extractChannelTime ? this.extractProgress / this.extractChannelTime : 0;
+      this.extractionPoint.draw(ctx, this.time, ready, progress, this.nearExtraction && progress > 0);
+    }
     if (this.trainingRange) this.trainingRange.draw(ctx, this.time, this.nearTrainingRange);
     for (const c of this.coins) c.draw(ctx, this.time);
     for (const m of this.medkits) m.draw(ctx, this.time);
     for (const s of this.shields) s.draw(ctx, this.time);
+    for (const gp of this.grenadePickups) gp.draw(ctx, this.time);
     for (const e of this.enemies) e.draw(ctx, this.time);
     if (this.boss && !this.boss.dead) this.boss.draw(ctx, this.time);
     for (const p of this.players) if (p.hp > 0) p.draw(ctx, this.time);
 
     // 2. Apply Flashlight Mask (overlay in screen coordinates)
-    if (this.gameMode === 'horror' || this.gameMode === 'standard') {
+    if (this.gameMode === 'horror' || this.gameMode === 'standard' || this.gameMode === 'extraction') {
       ctx.save();
       ctx.setTransform(this.zoom, 0, 0, this.zoom, 0, 0);
       this.drawFlashlightMask(ctx);
@@ -1315,6 +1410,12 @@ class Game {
       g.addColorStop(0, 'rgba(255,0,40,0)');
       g.addColorStop(1, 'rgba(255,0,40,' + (0.5 * this.damageVignette) + ')');
       ctx.fillStyle = g;
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    // flashbang whiteout (operative boss) — full-screen, decays from 1 to 0 over ~1s
+    if (this.flashWhiteout > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,' + this.flashWhiteout + ')';
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 

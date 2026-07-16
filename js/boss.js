@@ -1,5 +1,5 @@
 // ---------- boss.js : boss with phases & attacks ----------
-const BOSS_TYPES = ['tank', 'spider', 'artillery', 'swarm'];
+const BOSS_TYPES = ['tank', 'spider', 'artillery', 'swarm', 'operative'];
 
 class Boss {
   constructor(x, y, waveNum, forcedType) {
@@ -29,8 +29,22 @@ class Boss {
     // the whole second half of the fight.
     this.postPhase2SpawnTimer = 0;
     this.postPhase2SpawnsUsed = 0;
+    this.flashTimer = 0;
 
-    if (this.bossType === 'swarm') {
+    if (this.bossType === 'operative') {
+      // A human elite operator, not a vehicle/mech: low hp, very fast, never
+      // calls in reinforcements — the only "attack" that isn't a fair-damage SMG
+      // burst is a flashbang thrown on a slow, fixed cadence.
+      this.radius = 34;
+      this.maxHp = 900 + tier * 550;
+      this.dmg = 16 + tier * 3; // touch damage only, the SMG uses its own (lower) per-bullet damage
+      this.speed = 230; // fast even before phase2 — see the phase2 transition below
+      this.color = '#3a3d30';
+      this.name = 'ELITE-OPERATOR "GHOST"';
+      this.coins = [40, 80];
+      this.score = 900;
+      this.flashTimer = Utils.rand(14, 18); // first flashbang comes sooner than the steady-state 35s cadence
+    } else if (this.bossType === 'swarm') {
       this.radius = 50;
       this.maxHp = 1700 + tier * 1050;
       this.dmg = 18 + tier * 4;
@@ -93,10 +107,13 @@ class Boss {
     let bossSlow = 1;
     if (this.slowT > 0) { this.slowT -= dt; bossSlow = 0.55; }
 
-    // phase transition (damaged/furious state)
+    // phase transition (damaged/furious state) — the operative is already fast at
+    // full speed by design, so it skips the usual phase2 speed boost entirely
+    // (its rage state is just about being lower on health, not getting faster)
     if (!this.phase2 && this.hp < this.maxHp * 0.5) {
       this.phase2 = true;
-      this.speed *= this.bossType === 'artillery' ? 1.2 : 1.6;
+      if (this.bossType === 'artillery') this.speed *= 1.2;
+      else if (this.bossType !== 'operative') this.speed *= 1.6;
       game.shake(6);
       game.particles.burst(this.x, this.y, this.color, 40, 300);
       Audio2.bossSpawn();
@@ -105,8 +122,8 @@ class Boss {
     }
 
     // the (at most 2) emergency post-50%-hp reinforcement call-ins, independent of
-    // the normal attack rotation
-    if (this.phase2 && this.postPhase2SpawnsUsed < 2) {
+    // the normal attack rotation — the operative never spawns anything, ever
+    if (this.phase2 && this.postPhase2SpawnsUsed < 2 && this.bossType !== 'operative') {
       this.postPhase2SpawnTimer -= dt;
       if (this.postPhase2SpawnTimer <= 0) {
         this.spawnReinforcements(game, 2);
@@ -142,6 +159,11 @@ class Boss {
       if (dist < keepDist - 40) { mx = -Math.cos(ang); my = -Math.sin(ang); }
       else if (dist > keepDist + 40) { mx = Math.cos(ang); my = Math.sin(ang); }
       else { mx = -Math.sin(ang); my = Math.cos(ang); } // strafe
+    } else if (this.bossType === 'operative') {
+      // fast, erratic flanking instead of a straight beeline — hard to pin down
+      const strafeDir = Math.sin(game.time * 2.5 + this.spin) > 0 ? 1 : -1;
+      const flankAngle = ang + (Math.PI / 3.5) * strafeDir;
+      mx = Math.cos(flankAngle); my = Math.sin(flankAngle);
     } else {
       mx = Math.cos(ang); my = Math.sin(ang);
     }
@@ -171,12 +193,24 @@ class Boss {
       }
     }
 
-    // attack cycle
+    // operative: throws a flashbang on a slow, fixed ~35s cadence, independent of
+    // the SMG attack cycle — its only non-"fair-damage-bullet" trick
+    if (this.bossType === 'operative') {
+      this.flashTimer -= dt;
+      if (this.flashTimer <= 0) {
+        this.flashTimer = 35;
+        this.throwFlashbang(game, p);
+      }
+    }
+
+    // attack cycle — operative fires its SMG on a much shorter, single-attack
+    // cycle (it has nothing else to rotate through besides the flashbang, which
+    // runs on its own separate timer above)
     this.attackTimer -= dt;
     if (this.attackTimer <= 0) {
-      const cycleLen = this.bossType === 'spider' ? 3 : this.bossType === 'swarm' ? 3 : 4;
+      const cycleLen = this.bossType === 'spider' ? 3 : this.bossType === 'swarm' ? 3 : this.bossType === 'operative' ? 1 : 4;
       this.attackIndex = (this.attackIndex + 1) % cycleLen;
-      this.attackTimer = (2.4 * rate);
+      this.attackTimer = this.bossType === 'operative' ? (1.3 * rate) : (2.4 * rate);
       this.doAttack(this.attackIndex, game, ang);
     }
     if (this.hitFlash > 0) this.hitFlash -= dt;
@@ -189,6 +223,31 @@ class Boss {
     }
     Audio2.enemyDie();
     game.particles.burst(this.x, this.y, this.color, 14, 200);
+  }
+
+  doOperativeAttack(game, ang) {
+    // A fan of SMG rounds — many bullets, but each one is deliberately weak
+    // ("fair damage"): a boss spraying full-strength automatic fire would be
+    // brutally unfair, so per-bullet damage is a fraction of its base dmg stat.
+    const n = this.phase2 ? 7 : 5;
+    const perBulletDmg = this.dmg * 0.35;
+    for (let k = 0; k < n; k++) {
+      const a = ang + Utils.rand(-0.14, 0.14);
+      game.enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(a) * 560, vy: Math.sin(a) * 560,
+        radius: 5, dmg: perBulletDmg, color: '#ffe08a', dead: false, life: 1.6 });
+    }
+    Audio2.shoot('rifle');
+  }
+
+  throwFlashbang(game, p) {
+    const tx = p.x, ty = p.y;
+    game.particles.spawn(this.x, this.y, '#e8e8e8', { count: 6, minSpeed: 60, maxSpeed: 160, life: 0.3 });
+    Audio2.shoot('cannon');
+    setTimeout(() => {
+      game.particles.burst(tx, ty, '#ffffff', 30, 260);
+      game.flashWhiteout = 1; // full-screen 1s whiteout, see Game.render()
+      Audio2.explosion();
+    }, 700);
   }
 
   mortarStrike(game, p) {
@@ -205,6 +264,7 @@ class Boss {
     if (this.bossType === 'spider') { this.doSpiderAttack(i, game, ang); return; }
     if (this.bossType === 'artillery') { this.doArtilleryAttack(i, game, ang); return; }
     if (this.bossType === 'swarm') { this.doSwarmAttack(i, game, ang); return; }
+    if (this.bossType === 'operative') { this.doOperativeAttack(game, ang); return; }
     if (i === 0) {
       // radial artillery burst
       const n = this.phase2 ? 24 : 16;
@@ -371,6 +431,7 @@ class Boss {
     if (this.bossType === 'spider') { this.drawSpider(ctx, time, flash); ctx.restore(); return; }
     if (this.bossType === 'artillery') { this.drawArtillery(ctx, time, flash); ctx.restore(); return; }
     if (this.bossType === 'swarm') { this.drawSwarm(ctx, time, flash); ctx.restore(); return; }
+    if (this.bossType === 'operative') { this.drawOperative(ctx, time, flash); ctx.restore(); return; }
 
     // 1. Draw double tank tracks (huge, left and right)
     ctx.fillStyle = '#181818';
@@ -546,5 +607,42 @@ class Boss {
     const pulse = 0.5 + 0.5 * Math.sin(time * 12);
     ctx.fillStyle = `rgba(191, 239, 255, ${pulse})`;
     ctx.beginPath(); ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2); ctx.fill();
+  }
+
+  drawOperative(ctx, time, flash) {
+    const r = this.radius;
+    // shoulders/torso
+    ctx.fillStyle = flash ? '#ffffff' : '#2a2d22';
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.05, 0, r * 0.55, r * 0.85, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#14150e'; ctx.lineWidth = 2.5; ctx.stroke();
+
+    // chest rig
+    ctx.fillStyle = '#1c1d16';
+    ctx.fillRect(-r * 0.25, -r * 0.5, r * 0.5, r);
+
+    // helmet
+    ctx.fillStyle = flash ? '#ffffff' : this.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
+
+    // glowing red visor (boss "elite" tell)
+    const pulse = 0.6 + 0.4 * Math.sin(time * 8);
+    ctx.fillStyle = `rgba(255, 60, 60, ${pulse})`;
+    ctx.fillRect(r * 0.2, -r * 0.15, r * 0.22, r * 0.3);
+
+    // SMG
+    ctx.fillStyle = '#111';
+    ctx.fillRect(r * 0.25, r * 0.15, r * 1.1, r * 0.18);
+    ctx.fillRect(r * 0.4, r * 0.33, r * 0.14, r * 0.3); // mag
+
+    if (this.phase2) {
+      ctx.strokeStyle = `rgba(255, 59, 82, ${pulse})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, r * 1.15, 0, Math.PI * 2); ctx.stroke();
+    }
   }
 }

@@ -69,12 +69,26 @@ const WEAPON_DEFS = {
     speed: 780, pellets: 1, spread: 0.12, pierce: 0, radius: 3, color: '#c9ff8a',
     aoe: 0,
   },
+  // fills the price gap between the cheap sidearms (40/55) and the rifle (108) —
+  // a genuine mid-tier step up, not just a reskin of what's already there.
+  carbine: {
+    key: 'carbine', name: 'Vektor-Kompaktkarabiner', sound: 'rifle',
+    damage: 14, fireRate: 7, range: 560, mag: 20, reload: 1.2,
+    speed: 900, pellets: 1, spread: 0.05, pierce: 0, radius: 4, color: '#b8e6ff',
+    aoe: 0,
+  },
+  sawedoff: {
+    key: 'sawedoff', name: 'Sawed-Off Doppelflinte', sound: 'shotgun',
+    damage: 13, fireRate: 1.9, range: 260, mag: 2, reload: 1.3,
+    speed: 700, pellets: 6, spread: 0.4, pierce: 0, radius: 4, color: '#ff7a52',
+    aoe: 0,
+  },
 };
 // Number-key hotbar only covers keys 1-9, so the first 9 entries keep their existing
 // bindings unchanged (no muscle-memory regression); the 2 cheap sidearms are appended
 // at the end and reachable via mouse wheel cycling or the workbench, same as before
 // this list had exactly 9 entries fitting the keyboard 1-for-1.
-const WEAPON_ORDER = ['plasma', 'rifle', 'shotgun', 'sniper', 'cannon', 'smg', 'flamethrower', 'tesla', 'cryo', 'revolver', 'mac10'];
+const WEAPON_ORDER = ['plasma', 'rifle', 'shotgun', 'sniper', 'cannon', 'smg', 'flamethrower', 'tesla', 'cryo', 'revolver', 'mac10', 'carbine', 'sawedoff'];
 
 // Per-weapon workbench upgrades (bought individually per gun, separate from the
 // wave-end free upgrades which apply globally across all weapons).
@@ -95,4 +109,8 @@ const WEAPON_SHOP_ITEMS = [
   // long before rifle/shotgun money is realistic.
   { key: 'revolver', price: 40, icon: '🔫', desc: 'Günstiger Zweitschlag mit ordentlich Einzelschaden. Perfekt für den frühen Kampf.' },
   { key: 'mac10', price: 55, icon: '💨', desc: 'Billige Kompakt-MP mit hoher Feuerrate für die ersten Wellen.' },
+  // mid-tier upgrades — noticeably better than the two cheap sidearms, still
+  // affordable well before the rifle/shotgun price range.
+  { key: 'carbine', price: 75, icon: '🔫', desc: 'Präziser Kompaktkarabinier mit gutem Ausgleich aus Schaden, Reichweite und Feuerrate.' },
+  { key: 'sawedoff', price: 90, icon: '💥', desc: 'Doppelläufige Sawed-Off — verheerend auf kurze Distanz, aber nur 2 Schuss im Magazin.' },
 ];

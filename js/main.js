@@ -1,6 +1,6 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
-  overlays: ['main-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'upgrade-menu',
+  overlays: ['main-menu', 'play-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'extract-menu', 'upgrade-menu',
              'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu', 'cheat-menu', 'lexicon-menu', 'atm-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
@@ -12,6 +12,16 @@ window.addEventListener('DOMContentLoaded', () => {
   Input.init(canvas);
   const game = new Game(canvas);
   window.game = game;
+
+  // Set from the lexicon's "⚔️ Bekämpfen" button; consumed (and cleared) by
+  // 'cheat-start' — reuses the whole cheat-menu loadout picker instead of
+  // building a second, near-identical UI just for boss practice fights.
+  let pendingBossFight = null;
+  const BOSS_NAMES = {
+    tank: 'Superpanzer "LEVIATHAN"', spider: 'Arachno-Läufer "WIDOW"',
+    artillery: 'Haubitzen-Plattform "GOLIATH"', swarm: 'Befehlshaber "SCHWARM"',
+    operative: 'Elite-Operator "GHOST"',
+  };
 
   // ----- settings UI -----
   const s = Settings.data;
@@ -61,8 +71,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (Net.hostReady && Net.guestReady && Net.role === 'host') {
       const modeSelect = document.getElementById('coop-game-mode');
       const gameMode = modeSelect ? modeSelect.value : 'standard';
-      game.newGame('host', gameMode); // picks the random map layout
-      Net.sendStart(gameMode, game.world.layoutIndex); // tell the guest which one, so both see the same map
+      game.newGame('host', gameMode); // picks the random map layout (and extraction zone, if that mode)
+      const extractPos = game.extractionPoint ? { x: game.extractionPoint.x, y: game.extractionPoint.y } : null;
+      Net.sendStart(gameMode, game.world.layoutIndex, extractPos); // tell the guest which one, so both see the same map/zone
       Menus.hideAll();
     }
   }
@@ -90,7 +101,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   Net.on('start', (msg) => {
     if (Net.role === 'guest') {
-      game.newGame('guest', msg.gameMode, msg.mapIndex);
+      game.newGame('guest', msg.gameMode, msg.mapIndex, undefined, msg.extractPos);
       Menus.hideAll();
       Net.sendCharacter(Settings.data.character); // tell the host which skin to render for us
     }
@@ -119,6 +130,9 @@ window.addEventListener('DOMContentLoaded', () => {
     switch (action) {
       case 'start-standard': Net.reset(); game.newGame('solo', 'standard'); Menus.hideAll(); break;
       case 'start-horror': Net.reset(); game.newGame('solo', 'horror'); Menus.hideAll(); break;
+      case 'start-extraction': Net.reset(); game.newGame('solo', 'extraction'); Menus.hideAll(); break;
+      case 'play-menu': Menus.show('play-menu'); break;
+      case 'play-back': Menus.show('main-menu'); break;
       case 'settings': Menus.prev = getVisibleOverlay(); Menus.show('settings-menu'); break;
       case 'settings-back': Menus.show(Menus.prev || 'main-menu'); if (game.state === 'paused') {/* stay paused overlay */} break;
       case 'controls': Menus.prev = getVisibleOverlay(); Menus.show('controls-menu'); break;
@@ -163,17 +177,30 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'character-menu': Menus.show('character-menu'); renderCharacterMenu(); break;
       case 'character-back': Menus.show('main-menu'); break;
 
-      case 'cheat-back': Menus.show('main-menu'); break;
-      case 'cheat-wave-inc': {
-        const el = document.getElementById('cheat-wave');
-        el.value = Math.min(99, (parseInt(el.value, 10) || 1) + 1);
+      case 'cheat-back':
+        pendingBossFight = null;
+        Menus.show(Menus.prev || 'main-menu');
+        break;
+      case 'fight-boss': {
+        pendingBossFight = btn.dataset.boss;
+        Menus.prev = 'lexicon-menu';
+        document.getElementById('cheat-wave').value = 5;
+        const title = document.querySelector('#cheat-menu .panel-title');
+        const subtitle = document.querySelector('#cheat-menu .subtitle');
+        if (title) title.textContent = '⚔️ BOSS-PROBEKAMPF';
+        if (subtitle) subtitle.textContent = 'Lade dich aus, dann kämpfst du direkt gegen: ' + (BOSS_NAMES[pendingBossFight] || pendingBossFight);
+        Menus.show('cheat-menu');
+        renderCheatWeapons();
         break;
       }
-      case 'cheat-wave-dec': {
-        const el = document.getElementById('cheat-wave');
-        el.value = Math.max(1, (parseInt(el.value, 10) || 1) - 1);
-        break;
-      }
+      case 'cheat-wave-inc': cheatStep('cheat-wave', 1, 1, 99); break;
+      case 'cheat-wave-dec': cheatStep('cheat-wave', -1, 1, 99); break;
+      case 'cheat-medkit-inc': cheatStep('cheat-medkits', 1, 0, 99); break;
+      case 'cheat-medkit-dec': cheatStep('cheat-medkits', -1, 0, 99); break;
+      case 'cheat-shield-inc': cheatStep('cheat-shields', 1, 0, 99); break;
+      case 'cheat-shield-dec': cheatStep('cheat-shields', -1, 0, 99); break;
+      case 'cheat-grenade-inc': cheatStep('cheat-grenades', 1, 0, 99); break;
+      case 'cheat-grenade-dec': cheatStep('cheat-grenades', -1, 0, 99); break;
       case 'cheat-weapon-toggle':
         if (!btn.classList.contains('locked')) btn.classList.toggle('selected');
         break;
@@ -182,8 +209,13 @@ window.addEventListener('DOMContentLoaded', () => {
         const wave = Math.max(1, parseInt(waveInput.value, 10) || 1);
         const horror = document.getElementById('cheat-horror').checked;
         const weapons = Array.from(document.querySelectorAll('.cheat-weapon-card.selected')).map((el) => el.dataset.weapon);
+        const medkits = Math.max(0, parseInt(document.getElementById('cheat-medkits').value, 10) || 0);
+        const shields = Math.max(0, parseInt(document.getElementById('cheat-shields').value, 10) || 0);
+        const grenades = Math.max(0, parseInt(document.getElementById('cheat-grenades').value, 10) || 0);
+        const forceBoss = pendingBossFight;
+        pendingBossFight = null;
         Net.reset();
-        game.newGame('solo', horror ? 'horror' : 'standard', undefined, { wave, weapons });
+        game.newGame('solo', horror ? 'horror' : 'standard', undefined, { wave, weapons, medkits, shields, grenades, forceBoss });
         Menus.hideAll();
         break;
       }
@@ -249,6 +281,11 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function cheatStep(id, delta, min, max) {
+    const el = document.getElementById(id);
+    el.value = Utils.clamp((parseInt(el.value, 10) || 0) + delta, min, max);
+  }
+
   function renderCheatWeapons() {
     const container = document.getElementById('cheat-weapons');
     if (!container) return;
@@ -271,6 +308,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const tag = document.activeElement && document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (getVisibleOverlay() !== 'main-menu') return;
+    pendingBossFight = null;
+    Menus.prev = 'main-menu';
+    const title = document.querySelector('#cheat-menu .panel-title');
+    const subtitle = document.querySelector('#cheat-menu .subtitle');
+    if (title) title.textContent = '🐞 CHEAT-MODUS';
+    if (subtitle) subtitle.textContent = 'Startwelle & Startwaffen wählen (nur Solo).';
     Menus.show('cheat-menu');
     renderCheatWeapons();
   });

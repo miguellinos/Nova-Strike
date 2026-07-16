@@ -35,6 +35,9 @@ class UI {
       upgradeScore: document.getElementById('upgrade-score'),
       interactPrompt: document.getElementById('interact-prompt'),
       spectateBanner: document.getElementById('spectate-banner'),
+      extractBanner: document.getElementById('extract-banner'),
+      extractBannerText: document.getElementById('extract-banner-text'),
+      extractProgressBar: document.getElementById('extract-progress-bar'),
       workbenchCoins: document.getElementById('workbench-coins'),
       workbenchCards: document.getElementById('workbench-cards'),
     };
@@ -93,6 +96,25 @@ class UI {
 
     if (this.el.spectateBanner) {
       this.el.spectateBanner.classList.toggle('hidden', !(p.hp <= 0 && game.players.length > 1));
+    }
+
+    if (this.el.extractBanner && game.extractionPoint) {
+      const ready = game.waves.wave >= game.extractAvailableWave;
+      const show = game.state === 'playing' && p.hp > 0;
+      this.el.extractBanner.classList.toggle('hidden', !show);
+      if (show) {
+        if (!ready) {
+          this.el.extractBannerText.textContent = '🚁 Extraktion verfügbar ab Welle ' + game.extractAvailableWave;
+        } else if (!game.nearExtraction) {
+          this.el.extractBannerText.textContent = '🚁 Extraktionszone erreichen';
+        } else if (game.players.length > 1 && game.extractProgress < game.extractChannelTime) {
+          this.el.extractBannerText.textContent = '🚁 In der Zone bleiben — alle Spieler müssen dabei sein';
+        } else {
+          this.el.extractBannerText.textContent = '🚁 Extraktion läuft...';
+        }
+        const pct = game.extractChannelTime ? Utils.clamp((game.extractProgress / game.extractChannelTime) * 100, 0, 100) : 0;
+        this.el.extractProgressBar.style.width = pct + '%';
+      }
     }
 
     if (this.el.interactPrompt) {
@@ -483,6 +505,17 @@ class UI {
       '<div>Spielzeit: <b>' + stats.time + '</b></div>';
   }
 
+  showExtractSuccess(stats) {
+    const el = document.getElementById('extract-stats');
+    if (!el) return;
+    el.innerHTML =
+      '<div>Extrahiert in Welle: <b>' + stats.wave + '</b></div>' +
+      '<div>Besiegte Gegner: <b>' + stats.kills + '</b></div>' +
+      '<div>Punktestand: <b>' + stats.score + '</b></div>' +
+      '<div>Gesammelte Münzen: <b>' + stats.coins + '</b></div>' +
+      '<div>Spielzeit: <b>' + stats.time + '</b></div>';
+  }
+
   showLexiconTab(tabId, game) {
     if (!this.el.lexiconContent) {
       this.el.lexiconContent = document.getElementById('lexicon-menu').querySelector('.lexicon-content');
@@ -613,7 +646,8 @@ class UI {
         { type: 'tank', emoji: '👑', name: 'Superpanzer "LEVIATHAN"', hp: '1800+', speed: '60 px/s', dmg: '32', desc: 'Riesiger Kampfpanzer. Feuert explosive Dual-Kanonensalven und entfesselt Schockwellenringe.' },
         { type: 'spider', emoji: '🕷️', name: 'Arachno-Läufer "WIDOW"', hp: '1500+', speed: '140 px/s', dmg: '22', desc: 'Agiler mech-spinnenartiger Läufer. Prescht im Sprint vor und legt Netzbomben-Minen aus.' },
         { type: 'artillery', emoji: '🛡️', name: 'Haubitzen-Plattform "GOLIATH"', hp: '2800+', speed: '40 px/s', dmg: '30', desc: 'Schwere gepanzerte Belagerungsstation. Beschießt dich aus weiter Distanz und lädt Schilde auf.' },
-        { type: 'swarm', emoji: '⚡', name: 'Befehlshaber "SCHWARM"', hp: '1700+', speed: '110 px/s', dmg: '18', desc: 'Schwebendes kybernetisches Zentralbewusstsein. Teleportiert sich und spawnt Dronen-Schwärme.' }
+        { type: 'swarm', emoji: '⚡', name: 'Befehlshaber "SCHWARM"', hp: '1700+', speed: '110 px/s', dmg: '18', desc: 'Schwebendes kybernetisches Zentralbewusstsein. Teleportiert sich und spawnt Dronen-Schwärme.' },
+        { type: 'operative', emoji: '👤', name: 'Elite-Operator "GHOST"', hp: '900+', speed: '190 px/s', dmg: '16', desc: 'Menschlicher Elitesöldner mit SMG. Wenig HP, extrem schnell, spawnt niemals Verstärkung — wirft aber alle 35s eine Flashbang.' },
       ];
 
       for (const b of bossesList) {
@@ -632,6 +666,7 @@ class UI {
             <div class="lexicon-stat-item">⚔️ Schaden: <b>${b.dmg}</b></div>
             <div class="lexicon-stat-item">ℹ️ Typ: <b>Hauptboss</b></div>
           </div>
+          <button class="btn btn-primary" style="margin-top: 10px; padding: 8px;" data-action="fight-boss" data-boss="${b.type}">⚔️ Bekämpfen</button>
         `;
         grid.appendChild(card);
       }
@@ -972,6 +1007,45 @@ function getWeaponIconSvg(key) {
         <rect x="8.5" y="10" width="1.5" height="2.5" fill="#1b2022"/>
         <rect x="11" y="6.5" width="6" height="2.5" fill="#7593a1"/>
         <rect x="17" y="6" width="1" height="3.5" fill="#00e5ff"/>
+      </svg>`;
+
+    case 'revolver':
+      return `<svg width="36" height="36" viewBox="0 0 16 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="4" y="10" width="2" height="4" fill="#3a2a1a"/>
+        <rect x="3.5" y="13" width="3" height="1.5" fill="#2a1d10"/>
+        <circle cx="7" cy="8" r="2.4" fill="#555"/>
+        <circle cx="7" cy="8" r="2.4" fill="none" stroke="#222" stroke-width="0.5"/>
+        <rect x="5.5" y="6" width="2" height="1.5" fill="#333"/>
+        <rect x="9" y="7.2" width="6" height="1.6" fill="#444"/>
+        <rect x="14.5" y="7" width="1" height="2" fill="#222"/>
+      </svg>`;
+
+    case 'mac10':
+      return `<svg width="36" height="36" viewBox="0 0 16 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="1" y="6.5" width="2" height="1.5" fill="#222"/>
+        <rect x="3" y="6" width="7" height="3" fill="#333"/>
+        <rect x="10" y="6.5" width="4" height="1.5" fill="#111"/>
+        <rect x="4" y="9.5" width="1.5" height="2" fill="#111"/>
+        <rect x="6" y="9" width="1.8" height="5" fill="#1a1a1a"/>
+      </svg>`;
+
+    case 'carbine':
+      return `<svg width="48" height="36" viewBox="0 0 20 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="1" y="8" width="2" height="1.5" fill="#1c2126"/>
+        <rect x="2" y="6.5" width="7" height="3" fill="#354049"/>
+        <rect x="4" y="9.5" width="1.8" height="4" fill="#1c2126"/>
+        <rect x="5" y="5" width="3" height="1.5" fill="#20262b"/>
+        <rect x="9" y="6.8" width="9" height="1.8" fill="#404c56"/>
+        <rect x="17.5" y="6.5" width="1.5" height="2.4" fill="#222"/>
+      </svg>`;
+
+    case 'sawedoff':
+      return `<svg width="36" height="36" viewBox="0 0 16 16" style="image-rendering:pixelated; display:inline-block; vertical-align:middle;">
+        <rect x="2" y="8.5" width="4" height="3" fill="#5c3c24"/>
+        <rect x="6" y="6.5" width="8" height="1.8" fill="#333"/>
+        <rect x="6" y="8.5" width="8" height="1.8" fill="#2a2a2a"/>
+        <circle cx="14.3" cy="7.4" r="0.9" fill="#111"/>
+        <circle cx="14.3" cy="9.4" r="0.9" fill="#111"/>
       </svg>`;
 
     default:
