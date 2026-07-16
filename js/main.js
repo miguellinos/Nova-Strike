@@ -370,6 +370,21 @@ window.addEventListener('DOMContentLoaded', () => {
     game.ui.showLexiconTab(targetTab, game);
   });
 
+  // ----- UI sound feedback -----
+  // Delegated, so it also covers buttons/cards injected dynamically (shop,
+  // workbench, lexicon). Purely additive — never blocks or alters the click.
+  const uiRoot = document.getElementById('game-container');
+  if (uiRoot) {
+    const isUi = (el) => el && el.closest && el.closest('.btn, .inv-btn, .shop-card .buy, .lexicon-tab-btn, .cheat-step-btn, .cheat-weapon-card, .mc-slot');
+    uiRoot.addEventListener('click', (e) => { if (isUi(e.target)) Audio2.uiClick(); }, true);
+    let lastHover = null;
+    uiRoot.addEventListener('mouseover', (e) => {
+      const el = isUi(e.target);
+      if (el && el !== lastHover) { lastHover = el; Audio2.uiHover(); }
+      else if (!el) lastHover = null;
+    }, true);
+  }
+
   // ----- game loop -----
   let last = performance.now();
   function loop(now) {

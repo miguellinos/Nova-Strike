@@ -12,6 +12,7 @@ class Game {
     this.time = 0; this.dt = 0;
     this.shakeAmt = 0;
     this.damageVignette = 0;
+    this.bushVignette = 0; // fades in/out while the local player is hidden in a bush
     this.flashWhiteout = 0; // full-screen white flash from the operative boss's flashbang
     this.interiorT = 0;
     this.hpMult = 1; this.dmgMult = 1;
@@ -51,6 +52,32 @@ class Game {
       if (d < bestD) { bestD = d; best = p; }
     }
     return best;
+  }
+
+  // called when a player fires while hidden in a bush — nearby idle/searching
+  // enemies hear the shot and start hunting the muzzle position instead of
+  // spotting the shooter outright (see Enemy.update()'s 'searching' state).
+  reportGunshot(x, y) {
+    const hearRadius = 700;
+    for (const e of this.enemies) {
+      if (e.dead || e.state === 'alerted') continue;
+      if (Utils.dist(e.x, e.y, x, y) < hearRadius) {
+        e.state = 'searching';
+        e.searchTarget = { x, y };
+        e.searchTimer = 5;
+      }
+    }
+  }
+
+  // called when a hidden player's bushExposure maxes out from firing too much —
+  // your cover is fully blown: every enemy in earshot gets a real alert (full
+  // chase toward your actual position), not just a search toward the last shot.
+  blowBushCover(x, y) {
+    const hearRadius = 900;
+    for (const e of this.enemies) {
+      if (e.dead) continue;
+      if (Utils.dist(e.x, e.y, x, y) < hearRadius) e.alert(this);
+    }
   }
 
   // mode: 'solo' (default) | 'host' | 'guest' — coop games always run 2 player slots
@@ -106,6 +133,7 @@ class Game {
     this.shields = [];
     this.grenadePickups = [];
     this.lightningArcs = [];
+    this.floatText = [];   // rising combat text (damage numbers, crit callouts)
     this.particles = new Particles();
     this.waves = new WaveManager(this);
     this.playTime = 0;
@@ -136,6 +164,52 @@ class Game {
   }
 
   shake(a) { this.shakeAmt = Math.min(this.shakeAmt + a, 22); }
+
+  // Rising combat text — purely cosmetic. Capped so a chain-lightning / AOE frame
+  // can't spawn hundreds of labels at once.
+  spawnDamageText(x, y, amount, crit = false) {
+    if (this.floatText.length > 60) this.floatText.shift();
+    this.floatText.push({
+      x: x + Utils.rand(-6, 6), y: y - 8,
+      vx: Utils.rand(-16, 16), vy: crit ? -84 : -60,
+      life: crit ? 0.85 : 0.6, maxLife: crit ? 0.85 : 0.6,
+      text: String(Math.max(1, Math.round(amount))), crit,
+    });
+  }
+
+  updateFloatText(dt) {
+    for (let i = this.floatText.length - 1; i >= 0; i--) {
+      const f = this.floatText[i];
+      f.life -= dt;
+      if (f.life <= 0) { this.floatText.splice(i, 1); continue; }
+      f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 90 * dt; // gentle ease-up then settle
+    }
+  }
+
+  drawFloatText(ctx) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const f of this.floatText) {
+      const t = Utils.clamp(f.life / f.maxLife, 0, 1);
+      const pop = f.crit ? 1 + (1 - t) * 0.4 : 1;
+      const size = (f.crit ? 20 : 13) * pop;
+      ctx.globalAlpha = Math.min(1, t * 1.6);
+      ctx.font = `800 ${size}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.strokeText(f.text, f.x, f.y);
+      ctx.fillStyle = f.crit ? '#ffe14d' : '#ffffff';
+      ctx.fillText(f.text, f.x, f.y);
+      if (f.crit) {
+        ctx.globalAlpha = Math.min(1, t * 1.6) * 0.9;
+        ctx.font = `800 ${9 * pop}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillStyle = '#ffd24a';
+        ctx.fillText('KRITISCH', f.x, f.y - size * 0.85);
+      }
+    }
+    ctx.restore();
+  }
 
   // ----- events -----
   onEnemyKilled(e) {
@@ -217,7 +291,7 @@ class Game {
     // its own explosion) — bosses have no .mods, only players do.
     n = Math.round(n * (killer && killer.mods ? killer.mods.coinMult : 1));
     for (let i = 0; i < n; i++) {
-      this.coins.push(new Coin(x + Utils.rand(-20, 20), y + Utils.rand(-20, 20), 1));
+      this.coins.push(new Coin(x + Utils.rand(-20, 20), y + Utils.rand(-20, 20)));
     }
   }
 
@@ -296,7 +370,8 @@ class Game {
     }
     
     this.ui.showBanner('WELLE ERLEDIGT');
-    
+    Audio2.levelup();
+
     // Roll new upgrades for the Trainingsrange terminal pool
     this.shopUpgrades = rollShopUpgrades(this.gameMode);
     this.shopUpgradeIds = this.shopUpgrades.map((u) => u.id);
@@ -669,9 +744,12 @@ class Game {
 
         // Tick local particles, screen shakes, and damage vignettes at 60 FPS
         this.particles.update(dt);
+        this.updateFloatText(dt);
         if (this.shakeAmt > 0) this.shakeAmt = Math.max(0, this.shakeAmt - dt * 40);
         if (this.damageVignette > 0) this.damageVignette = Math.max(0, this.damageVignette - dt * 2);
         if (this.flashWhiteout > 0) this.flashWhiteout = Math.max(0, this.flashWhiteout - dt);
+        const bushTarget = (this.localPlayer && this.localPlayer.hiddenInBush) ? 1 : 0;
+        this.bushVignette += (bushTarget - this.bushVignette) * Math.min(1, dt * 6);
 
         // Decay melee swings and scan timers locally
         if (this.player) {
@@ -811,12 +889,15 @@ class Game {
       this.lightningArcs = this.lightningArcs.filter((a) => a.life > 0);
     }
     this.particles.update(dt);
+    this.updateFloatText(dt);
 
     this.updateCamera(dt);
 
     if (this.shakeAmt > 0) this.shakeAmt = Math.max(0, this.shakeAmt - dt * 40);
     if (this.damageVignette > 0) this.damageVignette = Math.max(0, this.damageVignette - dt * 2);
     if (this.flashWhiteout > 0) this.flashWhiteout = Math.max(0, this.flashWhiteout - dt);
+    const bushTarget = (this.localPlayer && this.localPlayer.hiddenInBush) ? 1 : 0;
+    this.bushVignette += (bushTarget - this.bushVignette) * Math.min(1, dt * 6);
 
     // wave clear?
     if (this.waves.isCleared()) this.endWave();
@@ -1166,7 +1247,22 @@ class Game {
     target.takeDamage(pr.damage, this);
     this.applyProjectileEffects(pr, target);
     pr.hitSet.add(target);
-    this.particles.spawn(pr.x, pr.y, pr.color, { count: 5, angle: pr.angle, spread: 1.2, minSpeed: 40, maxSpeed: 130, life: 0.2, size: 3 });
+
+    // Impact feedback — directional sparks + a puff tinted by the target, a small
+    // shockwave ring, and a rising damage number. Crits get a brighter, punchier
+    // treatment: white sparks, a bigger ring, a dedicated "ching" and a touch of
+    // extra shake so they read as clearly more satisfying than a normal hit.
+    const tint = target.color || pr.color;
+    if (pr.crit) {
+      this.particles.impact(pr.x, pr.y, pr.angle, tint, { spark: '#ffffff', ringColor: '#ffe14d', ringSize: 26, count: 9 });
+      this.particles.ring(pr.x, pr.y, '#ffffff', 14, 0.16);
+      Audio2.crit();
+      if (pr.owner && !pr.owner.isRemote) this.shake(2.4);
+    } else {
+      this.particles.impact(pr.x, pr.y, pr.angle, tint, { ringColor: pr.color });
+    }
+    this.spawnDamageText(pr.x, pr.y, pr.damage, pr.crit);
+
     if (pr.hitSet.size > pr.pierce) pr.dead = true;
   }
 
@@ -1417,6 +1513,7 @@ class Game {
     }
 
     this.particles.draw(ctx);
+    this.drawFloatText(ctx);
 
     ctx.restore();
 
@@ -1430,6 +1527,17 @@ class Game {
         this.canvas.width / 2, this.canvas.height / 2, this.canvas.height * 0.7);
       g.addColorStop(0, 'rgba(255,0,40,0)');
       g.addColorStop(1, 'rgba(255,0,40,' + (0.5 * this.damageVignette) + ')');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    // bush stealth: darkens the screen edges while hidden, so it's obvious at a
+    // glance you're in cover — fades in/out smoothly with bushVignette.
+    if (this.bushVignette > 0.01) {
+      const g = ctx.createRadialGradient(this.canvas.width / 2, this.canvas.height / 2, this.canvas.height * 0.25,
+        this.canvas.width / 2, this.canvas.height / 2, this.canvas.height * 0.75);
+      g.addColorStop(0, 'rgba(4,14,4,0)');
+      g.addColorStop(1, 'rgba(4,14,4,' + (0.55 * this.bushVignette) + ')');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }

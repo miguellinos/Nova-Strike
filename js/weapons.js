@@ -90,27 +90,37 @@ const WEAPON_DEFS = {
 // this list had exactly 9 entries fitting the keyboard 1-for-1.
 const WEAPON_ORDER = ['plasma', 'rifle', 'shotgun', 'sniper', 'cannon', 'smg', 'flamethrower', 'tesla', 'cryo', 'revolver', 'mac10', 'carbine', 'sawedoff'];
 
+// Muzzle-flash / recoil intensity per weapon, so each gun feels physically
+// distinct when fired (see Player.shoot()). 1 = baseline rifle-ish kick.
+const MUZZLE_PUNCH = {
+  plasma: 0.85, rifle: 1.0, smg: 0.7, mac10: 0.7, carbine: 0.95,
+  revolver: 1.15, shotgun: 1.5, sawedoff: 1.6, sniper: 1.7, cannon: 2.2,
+  flamethrower: 0.6, tesla: 0.9, cryo: 0.8,
+};
+
 // Per-weapon workbench upgrades (bought individually per gun, separate from the
 // wave-end free upgrades which apply globally across all weapons).
 const WEAPON_UPGRADE_MAX = 3;
-const WEAPON_UPGRADE_PRICES = [65, 130, 227]; // cost of level 1, 2, 3 (-19% total)
+// cost of level 1, 2, 3 — trimmed down and x10'd to match the new coin economy
+// (coins are worth 10 each, weapon purchase prices are x10'd too), same
+// affordability principle as WEAPON_SHOP_ITEMS above.
+const WEAPON_UPGRADE_PRICES = [450, 900, 1600];
 
 // Shop metadata (price/icon/description) for weapons purchasable at the workbench.
+// Ordered cheapest-first so the shop lists affordable early-game options up top.
+// Prices are x10 to match coins now being worth 10 each instead of 1 — same
+// relative affordability, just bigger numbers.
 const WEAPON_SHOP_ITEMS = [
-  { key: 'rifle', price: 108, icon: '🔫', desc: 'Mittelstrecken-Automatikgewehr.' },
-  { key: 'shotgun', price: 162, icon: '💥', desc: 'Verursacht massiven Nahbereichschaden.' },
-  { key: 'sniper', price: 225, icon: '🎯', desc: 'Hoher Einzelschaden, durchdringt Feinde.' },
-  { key: 'cannon', price: 360, icon: '🚀', desc: 'Verschießt explosive Raketen mit Flächenschaden.' },
-  { key: 'smg', price: 180, icon: '💨', desc: 'Extrem hohe Feuerrate, ideal gegen Schwärme.' },
-  { key: 'flamethrower', price: 288, icon: '🔥', desc: 'Kurze Reichweite, setzt Gegner in Brand (Schaden über Zeit).' },
-  { key: 'tesla', price: 324, icon: '⚡', desc: 'Blitze springen auf nahe Gegner über.' },
-  { key: 'cryo', price: 270, icon: '❄️', desc: 'Verlangsamt getroffene Gegner deutlich.' },
-  // cheap early-game options — affordable right after the first wave or two,
-  // long before rifle/shotgun money is realistic.
-  { key: 'revolver', price: 40, icon: '🔫', desc: 'Günstiger Zweitschlag mit ordentlich Einzelschaden. Perfekt für den frühen Kampf.' },
-  { key: 'mac10', price: 55, icon: '💨', desc: 'Billige Kompakt-MP mit hoher Feuerrate für die ersten Wellen.' },
-  // mid-tier upgrades — noticeably better than the two cheap sidearms, still
-  // affordable well before the rifle/shotgun price range.
-  { key: 'carbine', price: 75, icon: '🔫', desc: 'Präziser Kompaktkarabinier mit gutem Ausgleich aus Schaden, Reichweite und Feuerrate.' },
-  { key: 'sawedoff', price: 90, icon: '💥', desc: 'Doppelläufige Sawed-Off — verheerend auf kurze Distanz, aber nur 2 Schuss im Magazin.' },
+  { key: 'revolver', price: 300, icon: '🔫', desc: 'Günstiger Zweitschlag mit ordentlich Einzelschaden. Perfekt für den frühen Kampf.' },
+  { key: 'mac10', price: 450, icon: '💨', desc: 'Billige Kompakt-MP mit hoher Feuerrate für die ersten Wellen.' },
+  { key: 'carbine', price: 600, icon: '🔫', desc: 'Präziser Kompaktkarabinier mit gutem Ausgleich aus Schaden, Reichweite und Feuerrate.' },
+  { key: 'sawedoff', price: 700, icon: '💥', desc: 'Doppelläufige Sawed-Off — verheerend auf kurze Distanz, aber nur 2 Schuss im Magazin.' },
+  { key: 'rifle', price: 850, icon: '🔫', desc: 'Mittelstrecken-Automatikgewehr.' },
+  { key: 'smg', price: 1200, icon: '💨', desc: 'Extrem hohe Feuerrate, ideal gegen Schwärme.' },
+  { key: 'shotgun', price: 1350, icon: '💥', desc: 'Verursacht massiven Nahbereichschaden.' },
+  { key: 'sniper', price: 1600, icon: '🎯', desc: 'Hoher Einzelschaden, durchdringt Feinde.' },
+  { key: 'cryo', price: 1750, icon: '❄️', desc: 'Verlangsamt getroffene Gegner deutlich.' },
+  { key: 'flamethrower', price: 1900, icon: '🔥', desc: 'Kurze Reichweite, setzt Gegner in Brand (Schaden über Zeit).' },
+  { key: 'tesla', price: 2150, icon: '⚡', desc: 'Blitze springen auf nahe Gegner über.' },
+  { key: 'cannon', price: 2600, icon: '🚀', desc: 'Verschießt explosive Raketen mit Flächenschaden.' },
 ];

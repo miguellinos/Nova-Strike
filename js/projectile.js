@@ -90,27 +90,43 @@ class Projectile {
       
       ctx.restore();
     } else {
-      // Regular bullet tracer round (elongated capsule along its movement path).
-      // shadowBlur is a real-time blur pass and by far the most expensive canvas op
-      // in this file — only pay for it on crits (rare), never on regular fire.
+      // Regular bullet: a soft fading motion-trail behind a bright tracer with a
+      // white-hot core. shadowBlur is a real-time blur pass and by far the most
+      // expensive canvas op here — only pay for it on crits (rare), never on
+      // regular fire; the trail gives the streak weight without that cost.
       ctx.save();
-      if (this.crit) { ctx.shadowBlur = 16; ctx.shadowColor = this.color; }
-      ctx.strokeStyle = this.crit ? '#ffffff' : this.color;
-      ctx.lineWidth = this.radius * 1.5;
       ctx.lineCap = 'round';
 
-      // Draw a line from current position to a point back along velocity
+      // Faded trail through recorded positions (older = fainter & thinner).
+      if (this.trail.length > 1) {
+        for (let i = 1; i < this.trail.length; i++) {
+          const a = (i / this.trail.length);
+          ctx.globalAlpha = a * 0.5;
+          ctx.strokeStyle = this.color;
+          ctx.lineWidth = this.radius * 1.4 * a;
+          ctx.beginPath();
+          ctx.moveTo(this.trail[i - 1].x, this.trail[i - 1].y);
+          ctx.lineTo(this.trail[i].x, this.trail[i].y);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      if (this.crit) { ctx.shadowBlur = 16; ctx.shadowColor = this.color; }
       const len = 15;
       const speed = Math.hypot(this.vx, this.vy);
       const dx = speed > 0 ? (this.vx / speed) * len : 0;
       const dy = speed > 0 ? (this.vy / speed) * len : 0;
 
+      // Bright tracer head
+      ctx.strokeStyle = this.crit ? '#ffffff' : this.color;
+      ctx.lineWidth = this.radius * 1.6;
       ctx.beginPath();
       ctx.moveTo(this.x, this.y);
       ctx.lineTo(this.x - dx, this.y - dy);
       ctx.stroke();
 
-      // Draw inner white core for extra brightness/impact
+      // White-hot core
       if (this.crit) ctx.shadowBlur = 0;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = this.radius * 0.6;

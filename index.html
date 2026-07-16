@@ -104,12 +104,12 @@
     <div id="play-menu" class="overlay hidden">
       <div class="menu-panel">
         <h2 class="panel-title">MODUS WÄHLEN</h2>
-        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+        <div class="btn-stack">
           <button class="btn btn-primary" data-action="start-standard">Standard-Modus</button>
-          <button class="btn btn-primary" data-action="start-horror" style="background: linear-gradient(135deg, #441a1a, #260a0a); border-color: #ff3b52; color: #ffcccc;" title="Spiele im Dunkeln mit einer Taschenlampe">Horror-Modus 🔦</button>
-          <button class="btn btn-primary" data-action="start-extraction" style="background: linear-gradient(135deg, #0d2b1a, #0a1a12); border-color: var(--cyan); color: #cfffe0;" title="Überlebe, erreiche die Extraktionszone und entkomme">Extraktion 🚁</button>
+          <button class="btn btn--horror" data-action="start-horror" title="Spiele im Dunkeln mit einer Taschenlampe">Horror-Modus 🔦</button>
+          <button class="btn btn--extract" data-action="start-extraction" title="Überlebe, erreiche die Extraktionszone und entkomme">Extraktion 🚁</button>
         </div>
-        <button class="btn" style="margin-top: 8px;" data-action="play-back">Zurück</button>
+        <button class="btn" data-action="play-back">Zurück</button>
       </div>
     </div>
 
@@ -131,7 +131,7 @@
         </div>
         <div class="cheat-row">
           <span class="cheat-label">🗺️ Karte</span>
-          <select id="cheat-map" style="background: #0d130c; color: var(--cyan); border: 1px solid rgba(74,246,38,0.4); padding: 7px 10px; font-size: 14px; border-radius: 7px; cursor: pointer;">
+          <select id="cheat-map" class="field-select">
             <option value="-1">Zufällig</option>
           </select>
         </div>
@@ -208,16 +208,14 @@
             <span class="coop-ip-label">Mitspieler öffnet im selben WLAN:</span>
             <div id="coop-host-ips" class="coop-ip-list"></div>
           </div>
-          <div style="margin: 14px 0; text-align: center;">
-            <label style="color: #ffaa00; font-family: monospace; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              Spielmodus:
-              <select id="coop-game-mode" style="background: #111; color: #fff; border: 1px solid #ffaa00; padding: 6px 12px; font-family: monospace; font-size: 14px; border-radius: 4px; cursor: pointer;">
-                <option value="standard">Standard Modus</option>
-                <option value="horror">Horror Modus 🔦</option>
-                <option value="extraction">Extraktion 🚁</option>
-              </select>
-            </label>
-          </div>
+          <label class="select-row" style="justify-content: center; gap: var(--s-3);">
+            Spielmodus
+            <select id="coop-game-mode" class="field-select">
+              <option value="standard">Standard Modus</option>
+              <option value="horror">Horror Modus 🔦</option>
+              <option value="extraction">Extraktion 🚁</option>
+            </select>
+          </label>
           <div id="coop-host-guest-status" class="coop-status coop-status-waiting">Warte auf Mitspieler...</div>
         </div>
         <button class="btn btn-primary hidden" id="coop-host-ready-btn" data-action="coop-ready">Bereit</button>
@@ -361,16 +359,14 @@
       <div class="menu-panel">
         <h2 class="panel-title">🏧 GELD-TRANSFER</h2>
         <p class="subtitle">Überweise Münzen an deinen Mitspieler.</p>
-        <div style="font-size: 16px; margin-bottom: 15px; color: #a2bca0;">
-          Deine Münzen: 🪙 <b id="atm-my-coins">0</b>
-        </div>
-        
-        <div style="display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%;">
-          <input type="number" id="atm-amount" min="1" value="10" style="width: 150px; text-align: center; font-size: 20px; font-weight: 700; padding: 8px; background: #0f1a10; color: #ffbb00; border: 1px solid rgba(255, 187, 0, 0.4); border-radius: 8px;">
-          
-          <div style="display: flex; gap: 8px; width: 100%; margin-top: 5px;">
-            <button class="btn btn-primary" data-action="atm-send" style="margin: 0; flex: 1;">Senden 💸</button>
-            <button class="btn" data-action="atm-close" style="margin: 0; flex: 1;">Schließen</button>
+        <div class="shop-coins" style="margin-bottom: var(--s-4);">Deine Münzen: 🪙 <b id="atm-my-coins">0</b></div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--s-3); align-items: center; width: 100%;">
+          <input type="number" id="atm-amount" min="1" value="10" class="field-input field-input--amount">
+
+          <div class="btn-row" style="margin-top: var(--s-1);">
+            <button class="btn btn-primary" data-action="atm-send" style="flex: 1;">Senden 💸</button>
+            <button class="btn" data-action="atm-close" style="flex: 1;">Schließen</button>
           </div>
         </div>
       </div>

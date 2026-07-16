@@ -209,6 +209,16 @@ class World {
     return null;
   }
 
+  // stealth cover: true while (x,y) is inside a bush's leaf cluster.
+  isInBush(x, y) {
+    for (const d of this.decor) {
+      if (d.type !== 'bush') continue;
+      const hideR = d.r * 0.9;
+      if (Utils.dist(x, y, d.x, d.y) < hideR) return true;
+    }
+    return false;
+  }
+
   build() {
     const t = 40; // border thickness
     // outer walls (with doorway to the shop/workbench safe annex on the left from y: 200 to y: 800)
@@ -290,13 +300,25 @@ class World {
         type = Utils.pick(['bush', 'bush', 'barbwire', 'rubble', 'barrel', 'tires']);
       }
       
+      // ~30% of bushes are grown larger — bigger hiding footprint, and reads
+      // visually as denser cover instead of every bush being the same size.
+      const big = type === 'bush' && Utils.chance(0.3);
+      const r = type === 'bush' ? (big ? Utils.rand(34, 46) : Utils.rand(14, 24)) : Utils.rand(14, 24);
+
       this.decor.push({
         x: dx, y: dy,
-        r: Utils.rand(14, 24),
+        r,
         type,
         rot: Utils.rand(0, Math.PI * 2),
         color: type === 'barrel' ? Utils.pick(['#2b4a70', '#b54124', '#c98a28', '#38573c']) : null
       });
+
+      // barrels are solid — block movement and line of sight like any other
+      // obstacle instead of being walk-through decoration.
+      if (type === 'barrel') {
+        const half = r * 0.85;
+        this.rects.push({ x: dx - half, y: dy - half, w: half * 2, h: half * 2, kind: 'barrel' });
+      }
     }
 
     // blowing dust / sandstorm particles

@@ -81,6 +81,10 @@ class Enemy {
     this.wanderAngle = Utils.chance(0.5) ? Utils.rand(0, 6.28) : null;
     this.squadAlertCd = 0.5;
     this.squadAlertTimer = Utils.rand(0, 0.5);
+    // 'searching': hunting a gunshot heard from a hidden (bush) player — see
+    // Game.reportGunshot() and the bush vision gate below.
+    this.searchTarget = null;
+    this.searchTimer = 0;
 
     // status effects
     this.burnT = 0; this.burnDps = 0; this.burnBy = null;
@@ -109,12 +113,27 @@ class Enemy {
     const angleToP = Utils.angle(this.x, this.y, p.x, p.y);
     const distToP = Utils.dist(this.x, this.y, p.x, p.y);
 
-    // 1. Vision check
+    // 1. Vision check — a player standing in a bush can't be spotted this way,
+    // even in range with clear line of sight (see Player.hiddenInBush). They
+    // can still be given away by gunfire noise, handled by the 'searching' state.
     if (this.state === 'idle') {
-      if (distToP < this.visionRange && p.hp > 0) {
+      if (distToP < this.visionRange && p.hp > 0 && !p.hiddenInBush) {
         if (checkLineOfSight(this.x, this.y, p.x, p.y, game.world.rects)) {
           this.alert(game);
         }
+      }
+    }
+
+    // 1b. Searching — hunting the position of a gunshot heard while the player
+    // was hidden. Gives up after searchTimer runs out; escalates to a real
+    // alert if it gets an actual line of sight on the (now visible) player.
+    if (this.state === 'searching') {
+      this.searchTimer -= dt;
+      if (!p.hiddenInBush && distToP < this.visionRange && p.hp > 0 &&
+          checkLineOfSight(this.x, this.y, p.x, p.y, game.world.rects)) {
+        this.alert(game);
+      } else if (this.searchTimer <= 0 || Utils.dist(this.x, this.y, this.searchTarget.x, this.searchTarget.y) < 24) {
+        this.state = 'idle';
       }
     }
 
@@ -150,6 +169,13 @@ class Enemy {
       } else {
         mx = 0; my = 0; spd = 0;
       }
+    } else if (this.state === 'searching') {
+      // walk toward the last heard gunshot position, not the player's live
+      // position — they don't actually know where the player is right now.
+      const angleToSearch = Utils.angle(this.x, this.y, this.searchTarget.x, this.searchTarget.y);
+      mx = Math.cos(angleToSearch);
+      my = Math.sin(angleToSearch);
+      spd = this.speed * 0.85;
     } else {
       mx = Math.cos(angleToP);
       my = Math.sin(angleToP);
@@ -377,7 +403,7 @@ class Enemy {
 
     // steer around walls instead of getting stuck on them — skip while charging
     // (novabeast/tank barrel through cover on purpose) or standing still/idle-drifting
-    if (this.state === 'alerted' && this.charging <= 0 && spd > 0) {
+    if ((this.state === 'alerted' || this.state === 'searching') && this.charging <= 0 && spd > 0) {
       const look = this.radius + 34;
       const steered = steerAroundObstacles(this.x, this.y, mx, my, game.world.rects, look);
       mx = steered.x; my = steered.y;

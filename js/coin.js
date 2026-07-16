@@ -1,6 +1,6 @@
 // ---------- coin.js : collectible coins with magnet ----------
 class Coin {
-  constructor(x, y, value = 1) {
+  constructor(x, y, value = 10) {
     this.x = x; this.y = y; this.value = value;
     this.radius = 6;
     this.vx = Utils.rand(-60, 60); this.vy = Utils.rand(-60, 60);

@@ -14,6 +14,9 @@ class Player {
     this.walkPhase = 0;
     this.invuln = 0;         // i-frames (dash / after hit)
     this.hitFlash = 0;
+    this.hiddenInBush = false;
+    this.bushExposure = 0;   // builds up while firing from a bush; at 100 your cover is blown
+    this.coverBlownT = 0;    // temporarily can't re-hide after cover was blown
     this.charId = Settings.data.character; // selected skin (camo/visor colors)
 
     // Active Inventory & Shields
@@ -111,6 +114,7 @@ class Player {
     if (this.currentWeapon === key) return;
     this.currentWeapon = key;
     this.reloading = false; this.reloadTimer = 0; this.fireCooldown = 0;
+    if (!this.isRemote) Audio2.swap();
   }
   cycleWeapon(dir) {
     const owned = WEAPON_ORDER.filter((k) => this.weapons[k].unlocked);
@@ -160,6 +164,22 @@ class Player {
     const res = resolveCircleRects(this.x, this.y, this.radius, world.playerCollidableRects);
     this.x = Utils.clamp(res.x, -300 + this.radius, world.w - this.radius);
     this.y = Utils.clamp(res.y, this.radius, world.h - this.radius);
+
+    // stealth: standing inside a bush hides you from enemy vision checks (see
+    // enemies.js) until you fire a shot, which gives away your position as noise.
+    // coverBlownT briefly locks hiding out after bushExposure maxes out from
+    // firing too much — you're too obviously rustling around to stay hidden.
+    if (this.coverBlownT > 0) {
+      this.coverBlownT -= dt;
+      this.hiddenInBush = false;
+    } else {
+      this.hiddenInBush = world.isInBush(this.x, this.y);
+    }
+    if (this.hiddenInBush) {
+      if (this.bushExposure > 0) this.bushExposure = Math.max(0, this.bushExposure - dt * 12);
+    } else {
+      this.bushExposure = 0;
+    }
 
     if (len > 0) this.walkPhase += dt * 12; else this.walkPhase = 0;
     for (let i = this.dashTrail.length - 1; i >= 0; i--) {
@@ -325,10 +345,31 @@ class Player {
       const pierce = def.pierce + this.mods.pierce;
       game.projectiles.push(new Projectile(bx, by, ang, def, dmg, pierce, true, crit, this));
     }
-    // muzzle flash
-    game.particles.spawn(bx, by, def.color, { count: 5, angle: this.aimAngle, spread: 0.4, minSpeed: 60, maxSpeed: 160, life: 0.15, size: 3 });
-    game.shake(def.key === 'cannon' ? 8 : def.key === 'shotgun' ? 5 : 2);
+    // muzzle flash + recoil kick — scaled per weapon so a cannon feels heavy and
+    // an SMG feels light. `_muzzleScale` is per-weapon punch; only the local
+    // player's own screen shakes (a remote guest's fire mustn't shake your view).
+    const punch = MUZZLE_PUNCH[def.key] || 1;
+    game.particles.muzzle(bx, by, this.aimAngle, { scale: punch, color: def.color, flash: def.muzzle || '#fff3c4' });
+    if (!this.isRemote) game.shake((def.key === 'cannon' ? 7 : def.key === 'shotgun' || def.key === 'sawedoff' ? 4.5 : def.key === 'sniper' ? 4 : 1.6) * 0.9);
     if (this.weapons[this.currentWeapon].ammo <= 0) this.startReload();
+
+    // firing from inside a bush breaks the stealth silently — nearby enemies can't
+    // see you through the leaves, but they hear the shot and start searching the
+    // muzzle position; keep firing and they'll walk straight toward you.
+    if (this.hiddenInBush) {
+      game.reportGunshot(this.x, this.y);
+      // shoot too much and the leaves rustle too obviously to stay hidden —
+      // bushExposure builds per shot, and maxing it out fully blows your cover:
+      // every enemy in earshot gets a real alert (not just a search), and you
+      // can't re-hide in any bush for a few seconds.
+      this.bushExposure = Math.min(100, this.bushExposure + 26);
+      if (this.bushExposure >= 100) {
+        this.bushExposure = 0;
+        this.coverBlownT = 3.5;
+        this.hiddenInBush = false;
+        game.blowBushCover(this.x, this.y);
+      }
+    }
   }
 
   takeDamage(dmg, game) {
@@ -450,6 +491,20 @@ class Player {
       ctx.beginPath(); ctx.arc(t.x, t.y, this.radius * 0.85, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
+
+    // bush camouflage: soft green ground glow while hidden, so it's readable
+    // from a glance that enemies currently can't see you.
+    if (this.hiddenInBush) {
+      ctx.save();
+      ctx.globalAlpha = 0.35 + 0.1 * Math.sin(time * 3);
+      ctx.strokeStyle = '#3fbf5a';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius * 1.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // speed boost aura
     if (this.novaColaTimer > 0) {
@@ -627,6 +682,44 @@ class Player {
     ctx.stroke();
 
     ctx.restore();
+
+    // darken the whole silhouette while hidden in a bush — reads as "in
+    // cover" at a glance, on top of the dashed ground ring.
+    if (this.hiddenInBush) {
+      ctx.save();
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = '#0a160a';
+      ctx.beginPath();
+      ctx.arc(this.x, this.y + bob, this.radius * 1.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // exposure meter: fills up as you fire while hidden — empty/green means
+    // you're safely hidden, full/red means one more shot blows your cover.
+    if (this.hiddenInBush && this.bushExposure > 0) {
+      const bw = 34, bh = 5;
+      const bx2 = this.x - bw / 2, by2 = this.y - this.radius - 20;
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(bx2 - 1, by2 - 1, bw + 2, bh + 2);
+      const pct = this.bushExposure / 100;
+      const barColor = pct < 0.5 ? '#3fbf5a' : pct < 0.8 ? '#e8c23a' : '#ff3b3b';
+      ctx.fillStyle = barColor;
+      ctx.fillRect(bx2, by2, bw * pct, bh);
+      ctx.restore();
+    }
+
+    // "cover blown" callout — brief flashing warning right after firing too much
+    if (this.coverBlownT > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, this.coverBlownT) * (Math.floor(time * 10) % 2 === 0 ? 1 : 0.3);
+      ctx.fillStyle = '#ff3b3b';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('ENTDECKT!', this.x, this.y - this.radius - 26);
+      ctx.restore();
+    }
 
     // 5. Draw active energy shield bubble
     if (this.shieldHp > 0) {
