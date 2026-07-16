@@ -59,6 +59,7 @@ const Net = {
   },
 
   async joinGame(code, ip) {
+    if (!ip) throw new Error('missing-ip'); // guests must target the host's LAN IP explicitly — never silently fall back to our own machine
     this.role = 'guest';
     this.hostReady = false; this.guestReady = false; this.peerConnected = false;
     await this.connect(ip);

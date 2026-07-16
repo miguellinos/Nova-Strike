@@ -325,6 +325,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const ipValInput = document.getElementById('coop-ip-input');
         const ip = ipValInput ? ipValInput.value.trim() : '';
         if (code.length !== 4) { coop.joinStatus.textContent = 'Bitte 4-stelligen Code eingeben.'; break; }
+        if (!ip) { coop.joinStatus.textContent = 'Bitte die IP-Adresse des Gastgebers eingeben (nicht localhost).'; break; }
         coop.joinStatus.textContent = 'Verbinde...';
         Net.joinGame(code, ip).catch(() => { coop.joinStatus.textContent = 'Verbindung fehlgeschlagen. IP korrekt?'; });
         break;

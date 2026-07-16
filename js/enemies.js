@@ -33,9 +33,8 @@ function checkLineOfSight(x1, y1, x2, y2, rects) {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const distance = Math.hypot(dx, dy);
-  if (distance < 30) return true; // extremely close distance is always seen
   const stepSize = 25;
-  const numSteps = Math.ceil(distance / stepSize);
+  const numSteps = Math.max(2, Math.ceil(distance / stepSize)); // always sample at least the midpoint, even at short range
   for (let i = 1; i < numSteps; i++) {
     const t = i / numSteps;
     const px = x1 + dx * t;
