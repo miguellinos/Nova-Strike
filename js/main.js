@@ -274,11 +274,16 @@ window.addEventListener('DOMContentLoaded', () => {
       const selected = Settings.data.character === c.id;
       const card = document.createElement('div');
       card.className = 'shop-card' + (selected ? ' bought' : '');
+      const abilityHtml = c.ability
+        ? '<div class="weapon-stats"><span>' + c.ability.icon + ' <b>' + c.ability.name + '</b> (Taste C, ' + c.ability.cd + 's)</span></div>' +
+          '<div class="desc">' + c.ability.desc + '</div>'
+        : '';
       card.innerHTML =
         '<div class="icon">' + c.icon + '</div>' +
         '<div class="name">' + c.name + '</div>' +
         '<div style="width:36px;height:14px;border-radius:4px;margin:4px 0 8px;background:' + c.camo + ';border:1px solid ' + c.camoStroke + ';"></div>' +
         '<div class="desc">' + (c.perkDesc || '') + '</div>' +
+        abilityHtml +
         '<button class="buy" data-action="pick-character" data-char="' + c.id + '">' + (selected ? 'AUSGEWÄHLT' : 'AUSWÄHLEN') + '</button>';
       card.querySelector('.buy').disabled = selected;
       container.appendChild(card);
@@ -355,6 +360,10 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('inv-grenade').addEventListener('click', (e) => {
     Input.pressed['g'] = true;
+    e.stopPropagation();
+  });
+  document.getElementById('inv-ability').addEventListener('click', (e) => {
+    Input.pressed['c'] = true;
     e.stopPropagation();
   });
 

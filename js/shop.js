@@ -8,36 +8,11 @@ class ShopTable {
   }
 
   draw(ctx, time, near) {
-    const pulse = 0.7 + 0.3 * Math.sin(time * 3);
-    ctx.save();
-    ctx.translate(this.x, this.y);
-
-    // ground shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath();
-    ctx.ellipse(0, this.radius * 0.6, this.radius * 1.1, this.radius * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // shop counter (sleek tech terminal look)
-    ctx.fillStyle = '#1b1b22';
-    ctx.fillRect(-this.radius, -this.radius * 0.4, this.radius * 2, this.radius * 0.8);
-    ctx.strokeStyle = '#00ffcc';
-    ctx.lineWidth = near ? 3 : 2;
-    ctx.strokeRect(-this.radius, -this.radius * 0.4, this.radius * 2, this.radius * 0.8);
-
-    // glowing screen / hologram on top
-    ctx.shadowBlur = near ? 20 : 10;
-    ctx.shadowColor = '#00ffcc';
-    ctx.fillStyle = '#00ffcc';
-    ctx.globalAlpha = pulse;
-    ctx.font = 'bold 24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🛒', 0, -this.radius * 0.85);
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-
-    ctx.restore();
+    drawFieldKiosk(ctx, this.x, this.y, time, near, {
+      radius: this.radius, accent: '#00ffcc',
+      bodyTop: '#1f232b', bodyBottom: '#101318',
+      icon: '🛒', iconSize: 24, label: 'SHOP',
+    });
   }
 }
 
@@ -50,36 +25,11 @@ class TrainingRange {
   }
 
   draw(ctx, time, near) {
-    const pulse = 0.7 + 0.3 * Math.sin(time * 3);
-    ctx.save();
-    ctx.translate(this.x, this.y);
-
-    // ground shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath();
-    ctx.ellipse(0, this.radius * 0.6, this.radius * 1.1, this.radius * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // training terminal
-    ctx.fillStyle = '#112211';
-    ctx.fillRect(-this.radius, -this.radius * 0.4, this.radius * 2, this.radius * 0.8);
-    ctx.strokeStyle = '#4af626';
-    ctx.lineWidth = near ? 3 : 2;
-    ctx.strokeRect(-this.radius, -this.radius * 0.4, this.radius * 2, this.radius * 0.8);
-
-    // glowing emblem
-    ctx.shadowBlur = near ? 20 : 10;
-    ctx.shadowColor = '#4af626';
-    ctx.fillStyle = '#4af626';
-    ctx.globalAlpha = pulse;
-    ctx.font = 'bold 24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🏋️', 0, -this.radius * 0.85);
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-
-    ctx.restore();
+    drawFieldKiosk(ctx, this.x, this.y, time, near, {
+      radius: this.radius, accent: '#4af626',
+      bodyTop: '#1a2419', bodyBottom: '#0d130c',
+      icon: '🏋️', iconSize: 24, label: 'TRAINING',
+    });
   }
 }
 
@@ -153,35 +103,10 @@ class Atm {
   }
 
   draw(ctx, time, near) {
-    const pulse = 0.7 + 0.3 * Math.sin(time * 3);
-    ctx.save();
-    ctx.translate(this.x, this.y);
-
-    // ground shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath();
-    ctx.ellipse(0, this.radius * 0.6, this.radius * 1.1, this.radius * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // ATM cabinet
-    ctx.fillStyle = '#2a2d33';
-    ctx.fillRect(-this.radius, -this.radius * 0.4, this.radius * 2, this.radius * 0.8);
-    ctx.strokeStyle = '#ffcc00';
-    ctx.lineWidth = near ? 3 : 2;
-    ctx.strokeRect(-this.radius, -this.radius * 0.4, this.radius * 2, this.radius * 0.8);
-
-    // Glowing ATM icon
-    ctx.shadowBlur = near ? 20 : 10;
-    ctx.shadowColor = '#ffcc00';
-    ctx.fillStyle = '#ffcc00';
-    ctx.globalAlpha = pulse;
-    ctx.font = 'bold 20px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🏧', 0, -this.radius * 0.85);
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-
-    ctx.restore();
+    drawFieldKiosk(ctx, this.x, this.y, time, near, {
+      radius: this.radius, accent: '#ffcc00',
+      bodyTop: '#2c2f36', bodyBottom: '#16181c',
+      icon: '🏧', iconSize: 20, label: 'ATM',
+    });
   }
 }

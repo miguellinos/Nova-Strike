@@ -30,6 +30,11 @@ class UI {
       invMedkitCount: document.getElementById('inv-medkit-val'),
       invShieldCount: document.getElementById('inv-shield-val'),
       invGrenadeCount: document.getElementById('inv-grenade-val'),
+      abilityBtn: document.getElementById('inv-ability'),
+      abilityIcon: document.getElementById('ability-icon'),
+      abilityName: document.getElementById('ability-name'),
+      abilityCdWrap: document.getElementById('ability-cd-wrap'),
+      abilityCdVal: document.getElementById('ability-cd-val'),
       upgradeCards: document.getElementById('upgrade-cards'),
       upgradeWaitMsg: document.getElementById('upgrade-wait-msg'),
       upgradeScore: document.getElementById('upgrade-score'),
@@ -68,6 +73,22 @@ class UI {
     }
     if (this.el.invGrenadeCount) {
       this.el.invGrenadeCount.textContent = p.grenadeCount || 0;
+    }
+
+    // signature character ability (Taste C) — icon/name from the selected
+    // character, cooldown countdown ticks down live, ready state highlighted.
+    if (this.el.abilityBtn) {
+      const ch = getCharacter(p.charId);
+      const ab = ch.ability;
+      if (ab) {
+        this.el.abilityIcon.textContent = ab.icon;
+        this.el.abilityName.textContent = ab.name;
+        this.el.abilityBtn.title = ab.name + ' (Taste C) — ' + ab.desc;
+        const ready = p.abilityCd <= 0;
+        this.el.abilityBtn.classList.toggle('inv-btn--ready', ready);
+        this.el.abilityCdWrap.classList.toggle('hidden', ready);
+        if (!ready) this.el.abilityCdVal.textContent = Math.ceil(p.abilityCd);
+      }
     }
 
     this.el.coins.textContent = p.coins;
@@ -144,31 +165,64 @@ class UI {
     this.bannerTimer = 2.2;
   }
 
+  // Upgrades don't carry an explicit rarity/category, so both are derived here:
+  // rarity from price (pricier = rarer effect), category just groups the same
+  // handful of stat-lines the same way every time so the training range reads
+  // as organized instead of 3 random cards in a row.
+  static upgradeRarity(price) {
+    if (price <= 50) return 'common';
+    if (price <= 75) return 'uncommon';
+    if (price <= 110) return 'rare';
+    return 'epic';
+  }
+  static upgradeCategory(id) {
+    if (['damage', 'firerate', 'pierce', 'crit'].includes(id)) return '⚔️ Feuerkraft';
+    if (['hp', 'lifesteal', 'reload', 'mag'].includes(id)) return '🛡️ Überleben';
+    if (['move', 'dash'].includes(id)) return '💨 Mobilität';
+    return '🧭 Sonstiges';
+  }
+
   showUpgradeChoices(game) {
     this.el.upgradeCards.innerHTML = '';
     if (this.el.upgradeWaitMsg) this.el.upgradeWaitMsg.classList.add('hidden');
-    
+
     const me = game.localPlayer || game.player;
     if (this.el.upgradeScore) this.el.upgradeScore.textContent = me.score;
 
     const picks = game.shopUpgrades || [];
-    picks.forEach((up) => {
-      const cost = up.price * 10;
-      const card = document.createElement('div');
-      card.className = 'shop-card';
-      card.innerHTML =
-        '<div class="icon">' + up.icon + '</div>' +
-        '<div class="name">' + up.name + '</div>' +
-        '<div class="desc">' + up.desc + '</div>' +
-        '<button class="buy">🏆 ' + cost + '</button>';
-      const btn = card.querySelector('.buy');
-      btn.disabled = me.score < cost;
-      btn.addEventListener('click', () => { 
-        if (game.buyUpgradeAtTrainingRange(up, cost)) {
-          this.showUpgradeChoices(game); // refresh / reroll
-        }
+    if (!picks.length) {
+      this.el.upgradeCards.innerHTML =
+        '<div class="empty-state" style="grid-column: 1/-1;">' +
+        '<div class="empty-icon">🏋️</div>' +
+        '<div class="empty-title">Keine Verbesserungen verfügbar</div>' +
+        '<div class="empty-desc">Nächste Welle gibt es 3 neue Optionen zur Auswahl.</div>' +
+        '</div>';
+      return;
+    }
+
+    // group by category so related stats sit together, ordered by rarity
+    // within each group (best pick jumps out first)
+    const grouped = new Map();
+    for (const up of picks) {
+      const cat = UI.upgradeCategory(up.id);
+      if (!grouped.has(cat)) grouped.set(cat, []);
+      grouped.get(cat).push(up);
+    }
+
+    this._refreshOpenShop = () => this.showUpgradeChoices(game);
+    grouped.forEach((ups, cat) => {
+      if (grouped.size > 1) this.el.upgradeCards.appendChild(this.shopSectionLabel(cat));
+      ups.forEach((up) => {
+        const cost = up.price * 10;
+        this.el.upgradeCards.appendChild(this.makeShopCard({
+          icon: up.icon, name: up.name, desc: up.desc,
+          price: cost, priceLabel: cost,
+          rarity: UI.upgradeRarity(up.price),
+          disabled: me.score < cost,
+          buyLabel: '🏆 ' + cost,
+          onBuy: () => game.buyUpgradeAtTrainingRange(up, cost),
+        }));
       });
-      this.el.upgradeCards.appendChild(card);
     });
   }
 
@@ -180,8 +234,53 @@ class UI {
     if (closeBtn) closeBtn.classList.add('hidden');
   }
 
+  // Rarity is purely a visual read on price/impact — colored corner tag + glow
+  // border, no gameplay effect. Keeps every shop screen legible at a glance:
+  // "grey junk vs. gold showpiece" instead of a wall of identical grey cards.
+  static rarityTiers = {
+    common:    { label: 'STANDARD',  color: '#9aa79b' },
+    uncommon:  { label: 'VERBESSERT',color: '#4ade80' },
+    rare:      { label: 'SELTEN',    color: '#5bc8ff' },
+    epic:      { label: 'EPISCH',    color: '#b98cff' },
+    legendary: { label: 'LEGENDÄR',  color: '#f5c451' },
+  };
+
+  makeShopCard({ icon, name, desc, price, priceLabel, rarity, statsHtml, buyLabel, disabled, onBuy, iconIsHtml }) {
+    const tier = UI.rarityTiers[rarity] || UI.rarityTiers.common;
+    const card = document.createElement('div');
+    card.className = 'shop-card';
+    card.dataset.rarity = rarity || 'common';
+    card.innerHTML =
+      '<div class="rarity-tag" style="color:' + tier.color + ';border-color:' + tier.color + ';">' + tier.label + '</div>' +
+      '<div class="icon">' + icon + '</div>' +
+      '<div class="name">' + name + '</div>' +
+      '<div class="desc">' + desc + '</div>' +
+      (statsHtml || '') +
+      '<button class="buy">' + (buyLabel || ('🪙 ' + (priceLabel != null ? priceLabel : price))) + '</button>';
+    const btn = card.querySelector('.buy');
+    btn.disabled = !!disabled;
+    btn.addEventListener('click', () => {
+      if (!onBuy()) return;
+      // satisfying purchase feedback: pop + rarity-colored flash before the
+      // panel refreshes and the card either disappears or updates its price.
+      card.classList.add('bought');
+      card.style.setProperty('--rarity-flash', tier.color);
+      setTimeout(() => this._refreshOpenShop(), 220);
+    });
+    return card;
+  }
+
+  // section divider row inside a card grid — spans the full grid width
+  shopSectionLabel(text) {
+    const el = document.createElement('div');
+    el.className = 'shop-section-label';
+    el.textContent = text;
+    return el;
+  }
+
   showTacticalShop(game) {
     const me = game.localPlayer || game.player;
+    this._refreshOpenShop = () => this.showTacticalShop(game);
     this.el.shopCoins.textContent = me.coins;
     this.el.shopCards.innerHTML = '';
 
@@ -195,155 +294,184 @@ class UI {
     if (waitMsg) waitMsg.classList.add('hidden');
 
     // Waffen gibt es nur noch an der Werkbank (Taste F in der Nähe) — hier nur
-    // Verbrauchsgüter: Munition, Medkits, Schilde.
+    // Verbrauchsgüter, in Kategorien gruppiert: Heilung, Verteidigung, Taktik.
 
-    // 2. Ammo refill
-    const ammoPrice = 27;
-    const ammoCard = document.createElement('div');
-    ammoCard.className = 'shop-card';
-    ammoCard.innerHTML =
-      '<div class="icon">📦</div>' +
-      '<div class="name">Munitionskiste</div>' +
-      '<div class="desc">Füllt die Munition aller freigeschalteten Waffen auf.</div>' +
-      '<button class="buy">🪙 ' + ammoPrice + '</button>';
-    const ammoBtn = ammoCard.querySelector('.buy');
-    ammoBtn.disabled = me.coins < ammoPrice;
-    ammoBtn.addEventListener('click', () => {
-      if (game.purchase('ammo', null, ammoPrice)) this.showTacticalShop(game); // refresh
-    });
-    this.el.shopCards.appendChild(ammoCard);
-
-    // 3. Medkit purchase
-    const medkitPrice = 36;
-    const medkitCard = document.createElement('div');
-    medkitCard.className = 'shop-card';
-    medkitCard.innerHTML =
-      '<div class="icon">🎒</div>' +
-      '<div class="name">Tragbares Medkit</div>' +
-      '<div class="desc">Erwirb 1 tragbares Medkit. Heilung per Tastendruck Q.</div>' +
-      '<button class="buy">🪙 ' + medkitPrice + '</button>';
-    const medkitBtn = medkitCard.querySelector('.buy');
-    medkitBtn.disabled = me.coins < medkitPrice;
-    medkitBtn.addEventListener('click', () => {
-      if (game.purchase('medkit', null, medkitPrice)) this.showTacticalShop(game); // refresh
-    });
-    this.el.shopCards.appendChild(medkitCard);
-
-    // 4. Shield purchase
-    const shieldPrice = 45;
-    const shieldCard = document.createElement('div');
-    shieldCard.className = 'shop-card';
-    shieldCard.innerHTML =
-      '<div class="icon">🛡️</div>' +
-      '<div class="name">Schildzelle</div>' +
-      '<div class="desc">Erwirb 1 aktive Schildzelle. Aufladen per Tastendruck E.</div>' +
-      '<button class="buy">🪙 ' + shieldPrice + '</button>';
-    const shieldBtn = shieldCard.querySelector('.buy');
-    shieldBtn.disabled = me.coins < shieldPrice;
-    shieldBtn.addEventListener('click', () => {
-      if (game.purchase('shield', null, shieldPrice)) this.showTacticalShop(game); // refresh
-    });
-    this.el.shopCards.appendChild(shieldCard);
-
-    // 5. Brot (Bread) purchase
+    this.el.shopCards.appendChild(this.shopSectionLabel('❤️ Heilung'));
     const breadPrice = 9;
-    const breadCard = document.createElement('div');
-    breadCard.className = 'shop-card';
-    breadCard.innerHTML =
-      '<div class="icon">🍞</div>' +
-      '<div class="name">Frisches Brot</div>' +
-      '<div class="desc">Heilt dich sofort um 15 HP. Extrem billig!</div>' +
-      '<button class="buy">🪙 ' + breadPrice + '</button>';
-    const breadBtn = breadCard.querySelector('.buy');
-    breadBtn.disabled = me.coins < breadPrice || me.hp >= me.maxHp;
-    breadBtn.addEventListener('click', () => {
-      if (game.purchase('bread', null, breadPrice)) this.showTacticalShop(game); // refresh
-    });
-    this.el.shopCards.appendChild(breadCard);
+    this.el.shopCards.appendChild(this.makeShopCard({
+      icon: '🍞', name: 'Frisches Brot', desc: 'Heilt dich sofort um 15 HP. Extrem billig!',
+      price: breadPrice, rarity: 'common',
+      disabled: me.coins < breadPrice || me.hp >= me.maxHp,
+      onBuy: () => game.purchase('bread', null, breadPrice),
+    }));
+    const medkitPrice = 36;
+    this.el.shopCards.appendChild(this.makeShopCard({
+      icon: '🎒', name: 'Tragbares Medkit', desc: 'Erwirb 1 tragbares Medkit. Heilung per Tastendruck Q.',
+      price: medkitPrice, rarity: 'uncommon',
+      disabled: me.coins < medkitPrice,
+      onBuy: () => game.purchase('medkit', null, medkitPrice),
+    }));
 
-    // 6. Novacola purchase
+    this.el.shopCards.appendChild(this.shopSectionLabel('🛡️ Verteidigung & Tempo'));
+    const shieldPrice = 45;
+    this.el.shopCards.appendChild(this.makeShopCard({
+      icon: '🛡️', name: 'Schildzelle', desc: 'Erwirb 1 aktive Schildzelle. Aufladen per Tastendruck E.',
+      price: shieldPrice, rarity: 'rare',
+      disabled: me.coins < shieldPrice,
+      onBuy: () => game.purchase('shield', null, shieldPrice),
+    }));
     const novacolaPrice = 22;
-    const novacolaCard = document.createElement('div');
-    novacolaCard.className = 'shop-card';
-    novacolaCard.innerHTML =
-      '<div class="icon">🥤</div>' +
-      '<div class="name">Novacola</div>' +
-      '<div class="desc">Gibt dir einen heftigen Speedboost für 8 Sek.</div>' +
-      '<button class="buy">🪙 ' + novacolaPrice + '</button>';
-    const novacolaBtn = novacolaCard.querySelector('.buy');
-    novacolaBtn.disabled = me.coins < novacolaPrice;
-    novacolaBtn.addEventListener('click', () => {
-      if (game.purchase('novacola', null, novacolaPrice)) this.showTacticalShop(game); // refresh
-    });
-    this.el.shopCards.appendChild(novacolaCard);
+    this.el.shopCards.appendChild(this.makeShopCard({
+      icon: '🥤', name: 'Novacola', desc: 'Gibt dir einen heftigen Speedboost für 8 Sek.',
+      price: novacolaPrice, rarity: 'uncommon',
+      disabled: me.coins < novacolaPrice,
+      onBuy: () => game.purchase('novacola', null, novacolaPrice),
+    }));
+    const armorPrice = 60;
+    this.el.shopCards.appendChild(this.makeShopCard({
+      icon: '🦺', name: 'Rüstungsplatte', desc: 'Permanent +15 max. HP, sofort geheilt. Für diesen Run, mehrfach kaufbar.',
+      price: armorPrice, rarity: 'epic',
+      disabled: me.coins < armorPrice,
+      onBuy: () => game.purchase('armor', null, armorPrice),
+    }));
 
-    // 7. Handgranate purchase
+    this.el.shopCards.appendChild(this.shopSectionLabel('💥 Taktik'));
+    const ammoPrice = 27;
+    this.el.shopCards.appendChild(this.makeShopCard({
+      icon: '📦', name: 'Munitionskiste', desc: 'Füllt die Munition aller freigeschalteten Waffen auf.',
+      price: ammoPrice, rarity: 'common',
+      disabled: me.coins < ammoPrice,
+      onBuy: () => game.purchase('ammo', null, ammoPrice),
+    }));
     const grenadePrice = 40;
-    const grenadeCard = document.createElement('div');
-    grenadeCard.className = 'shop-card';
-    grenadeCard.innerHTML =
-      '<div class="icon">💣</div>' +
-      '<div class="name">Handgranate</div>' +
-      '<div class="desc">Wirf sie mit Taste G. Flächenschaden am Zielpunkt.</div>' +
-      '<button class="buy">🪙 ' + grenadePrice + '</button>';
-    const grenadeBtn = grenadeCard.querySelector('.buy');
-    grenadeBtn.disabled = me.coins < grenadePrice;
-    grenadeBtn.addEventListener('click', () => {
-      if (game.purchase('grenade', null, grenadePrice)) this.showTacticalShop(game); // refresh
-    });
-    this.el.shopCards.appendChild(grenadeCard);
+    this.el.shopCards.appendChild(this.makeShopCard({
+      icon: '💣', name: 'Handgranate', desc: 'Wirf sie mit Taste G. Flächenschaden am Zielpunkt.',
+      price: grenadePrice, rarity: 'rare',
+      disabled: me.coins < grenadePrice,
+      onBuy: () => game.purchase('grenade', null, grenadePrice),
+    }));
+    const smokePrice = 45;
+    this.el.shopCards.appendChild(this.makeShopCard({
+      icon: '💨', name: 'Rauchgranate', desc: 'Taste T: sofort unsichtbar für Gegner, 5s lang — überall, nicht nur im Busch.',
+      price: smokePrice, rarity: 'rare',
+      disabled: me.coins < smokePrice,
+      onBuy: () => game.purchase('smoke', null, smokePrice),
+    }));
+    const adrenalinePrice = 30;
+    this.el.shopCards.appendChild(this.makeShopCard({
+      icon: '💉', name: 'Adrenalinschuss', desc: 'Taste H: lädt deine aktuelle Waffe sofort komplett nach, ohne Wartezeit.',
+      price: adrenalinePrice, rarity: 'uncommon',
+      disabled: me.coins < adrenalinePrice,
+      onBuy: () => game.purchase('adrenaline', null, adrenalinePrice),
+    }));
+  }
+
+  // Weapon rarity reads off its position in the (already cheapest-first sorted)
+  // shop list — cheap sidearms are common, the cannon at the top of the price
+  // range is legendary. Purely cosmetic, same formula both here and in the
+  // lexicon so a weapon's color stays consistent everywhere it's shown.
+  static weaponRarity(index, total) {
+    const t = index / Math.max(1, total - 1);
+    if (t < 0.2) return 'common';
+    if (t < 0.45) return 'uncommon';
+    if (t < 0.7) return 'rare';
+    if (t < 0.92) return 'epic';
+    return 'legendary';
+  }
+
+  // Builds and appends one weapon-purchase card. Rarity is derived from the
+  // weapon's position in the full (unfiltered) price-sorted list, so it stays
+  // consistent no matter which category tab is currently selected.
+  appendWeaponCard(game, me, w) {
+    const owned = me.weapons[w.key] && me.weapons[w.key].unlocked;
+    const def = WEAPON_DEFS[w.key];
+    const rarity = UI.weaponRarity(WEAPON_SHOP_ITEMS.indexOf(w), WEAPON_SHOP_ITEMS.length);
+    const stats = getStatsAtLevel(def, 0);
+    const statsHtml = `
+      <div class="weapon-stats">
+        <span>💥 ${stats.damage}</span>
+        <span>⏱️ ${stats.fireRate}/s</span>
+        <span>🔄 ${stats.reload}s</span>
+        <span>🔋 ${stats.mag}</span>
+      </div>
+    `;
+    this.el.workbenchCards.appendChild(this.makeShopCard({
+      icon: getWeaponIconSvg(w.key), name: def.name, desc: w.desc,
+      price: w.price, rarity, statsHtml,
+      buyLabel: owned ? 'AUSGERÜSTET' : undefined,
+      disabled: owned || me.coins < w.price,
+      onBuy: () => game.buyWeaponAtWorkbench(w.key, w.price),
+    }));
   }
 
   // ----- workbench: buy new weapons + upgrade owned weapons (per player, "press E") -----
   showWorkbench(game) {
     const me = game.localPlayer || game.player;
+    this._refreshOpenShop = () => this.showWorkbench(game);
     if (this.el.workbenchCoins) this.el.workbenchCoins.textContent = me.coins;
     if (!this.el.workbenchCards) return;
     this.el.workbenchCards.innerHTML = '';
 
-    WEAPON_SHOP_ITEMS.forEach((w) => {
-      const owned = me.weapons[w.key] && me.weapons[w.key].unlocked;
-      const def = WEAPON_DEFS[w.key];
-      const card = document.createElement('div');
-      card.className = 'shop-card';
-      
-      const stats = getStatsAtLevel(def, 0);
-      const statsHtml = `
-        <div class="weapon-stats">
-          <span>💥 ${stats.damage}</span>
-          <span>⏱️ ${stats.fireRate}/s</span>
-          <span>🔄 ${stats.reload}s</span>
-          <span>🔋 ${stats.mag}</span>
-        </div>
-      `;
+    // category filter tabs — "Alle" plus one per weapon category actually
+    // present in the shop. Selection persists across refreshes (buying,
+    // upgrading) via this._workbenchFilter so the panel doesn't jump back to
+    // "Alle" after every purchase.
+    const tabsEl = document.getElementById('workbench-category-tabs');
+    if (tabsEl) {
+      const presentCats = [...new Set(WEAPON_SHOP_ITEMS.map((w) => w.category))];
+      if (this._workbenchFilter && this._workbenchFilter !== 'all' && !presentCats.includes(this._workbenchFilter)) {
+        this._workbenchFilter = 'all';
+      }
+      const filter = this._workbenchFilter || 'all';
+      tabsEl.innerHTML = '';
+      const makeTab = (id, label) => {
+        const btn = document.createElement('button');
+        btn.className = 'lexicon-tab-btn' + (filter === id ? ' active' : '');
+        btn.textContent = label;
+        btn.addEventListener('click', () => { this._workbenchFilter = id; this.showWorkbench(game); });
+        tabsEl.appendChild(btn);
+      };
+      makeTab('all', '🗂️ Alle');
+      for (const cat of presentCats) makeTab(cat, WEAPON_CATEGORIES[cat] || cat);
+    }
+    const filter = this._workbenchFilter || 'all';
 
-      card.innerHTML =
-        '<div class="icon">' + getWeaponIconSvg(w.key) + '</div>' +
-        '<div class="name">' + def.name + '</div>' +
-        '<div class="desc">' + w.desc + '</div>' +
-        statsHtml +
-        '<button class="buy">' + (owned ? 'AUSGERÜSTET' : '🪙 ' + w.price) + '</button>';
-      const btn = card.querySelector('.buy');
-      btn.disabled = owned || me.coins < w.price;
-      btn.addEventListener('click', () => {
-        if (game.buyWeaponAtWorkbench(w.key, w.price)) this.showWorkbench(game); // refresh
+    const weaponsInView = filter === 'all' ? WEAPON_SHOP_ITEMS : WEAPON_SHOP_ITEMS.filter((w) => w.category === filter);
+
+    if (weaponsInView.length === 0) {
+      this.el.workbenchCards.appendChild(this.shopSectionLabel('🔫 Waffen kaufen'));
+    } else if (filter === 'all') {
+      // grouped by category, in category-definition order, cheapest-first within
+      let lastCat = null;
+      weaponsInView.forEach((w) => {
+        if (w.category !== lastCat) {
+          lastCat = w.category;
+          this.el.workbenchCards.appendChild(this.shopSectionLabel(WEAPON_CATEGORIES[w.category] || w.category));
+        }
+        this.appendWeaponCard(game, me, w);
       });
-      this.el.workbenchCards.appendChild(card);
-    });
+    } else {
+      this.el.workbenchCards.appendChild(this.shopSectionLabel(WEAPON_CATEGORIES[filter] || filter));
+      weaponsInView.forEach((w) => this.appendWeaponCard(game, me, w));
+    }
 
-    // per-weapon upgrade cards — only for weapons the player already owns
-    WEAPON_ORDER.forEach((key) => {
-      if (!me.weapons[key] || !me.weapons[key].unlocked) return;
+    // per-weapon upgrade cards — only for weapons the player already owns,
+    // and only shown on the "Alle" tab (upgrades aren't filtered by category,
+    // they'd otherwise vanish while browsing a single weapon type)
+    if (filter !== 'all') return;
+    const owned = WEAPON_ORDER.filter((key) => me.weapons[key] && me.weapons[key].unlocked);
+    if (owned.length) this.el.workbenchCards.appendChild(this.shopSectionLabel('⚙️ Waffen-Upgrades'));
+    owned.forEach((key) => {
       const def = WEAPON_DEFS[key];
       const lvl = me.weaponLevels[key] || 0;
       const maxed = lvl >= WEAPON_UPGRADE_MAX;
       const price = WEAPON_UPGRADE_PRICES[lvl] || 0;
-      const card = document.createElement('div');
-      card.className = 'shop-card';
+      // upgrade tier itself doubles as its rarity — level 0→common climbing to
+      // level 2→rare, so a maxed-out weapon visibly reads as more valuable.
+      const rarity = ['common', 'uncommon', 'rare'][Math.min(lvl, 2)];
 
       const curr = getStatsAtLevel(def, lvl);
       const next = getStatsAtLevel(def, lvl + 1);
-      
       const statsHtml = maxed ? `
         <div class="weapon-stats">
           <span>💥 ${curr.damage}</span>
@@ -353,24 +481,19 @@ class UI {
         </div>
       ` : `
         <div class="weapon-stats">
-          <span>💥 ${curr.damage} ➜ <b style="color:#00ffcc;">${next.damage}</b></span>
-          <span>⏱️ ${curr.fireRate} ➜ <b style="color:#00ffcc;">${next.fireRate}</b></span>
-          <span>🔋 ${curr.mag} ➜ <b style="color:#00ffcc;">${next.mag}</b></span>
+          <span>💥 ${curr.damage} ➜ <b style="color:var(--accent-bright);">${next.damage}</b></span>
+          <span>⏱️ ${curr.fireRate} ➜ <b style="color:var(--accent-bright);">${next.fireRate}</b></span>
+          <span>🔋 ${curr.mag} ➜ <b style="color:var(--accent-bright);">${next.mag}</b></span>
         </div>
       `;
 
-      card.innerHTML =
-        '<div class="icon">' + getUpgradeIconSvg() + '</div>' +
-        '<div class="name">' + def.name + ' Upgrade</div>' +
-        '<div class="desc">Level ' + lvl + ' / ' + WEAPON_UPGRADE_MAX + '</div>' +
-        statsHtml +
-        '<button class="buy">' + (maxed ? 'MAX. LEVEL' : '🪙 ' + price) + '</button>';
-      const btn = card.querySelector('.buy');
-      btn.disabled = maxed || me.coins < price;
-      btn.addEventListener('click', () => {
-        if (game.upgradeWeaponAtWorkbench(key, price)) this.showWorkbench(game); // refresh
-      });
-      this.el.workbenchCards.appendChild(card);
+      this.el.workbenchCards.appendChild(this.makeShopCard({
+        icon: getUpgradeIconSvg(), name: def.name + ' Upgrade',
+        desc: 'Level ' + lvl + ' / ' + WEAPON_UPGRADE_MAX, rarity, statsHtml,
+        buyLabel: maxed ? 'MAX. LEVEL' : undefined,
+        price, disabled: maxed || me.coins < price,
+        onBuy: () => game.upgradeWeaponAtWorkbench(key, price),
+      }));
     });
   }
 
@@ -418,6 +541,8 @@ class UI {
         { id: 'medkit', name: 'Tragbares Medkit', icon: '🎒', count: me.medkitsCount || 0, desc: 'Heilt dich sofort um 40 HP.', canUse: me.hp < me.maxHp },
         { id: 'shield', name: 'Schildzelle', icon: '🛡️', count: me.shieldsCount || 0, desc: 'Lädt dein Schild um 50 Punkte auf.', canUse: me.shieldHp < me.maxShieldHp },
         { id: 'grenade', name: 'Handgranate', icon: '💣', count: me.grenadeCount || 0, desc: 'Wirf sie mit Taste G. Flächenschaden am Zielpunkt.', canUse: true },
+        { id: 'smoke', name: 'Rauchgranate', icon: '💨', count: me.smokeCount || 0, desc: 'Macht dich 5s unsichtbar für Gegner, egal wo du stehst (Taste T).', canUse: true },
+        { id: 'adrenaline', name: 'Adrenalinschuss', icon: '💉', count: me.adrenalineCount || 0, desc: 'Lädt deine Waffe sofort komplett nach (Taste H).', canUse: me.weapons[me.currentWeapon].ammo < me.magSize() },
       ];
 
       let itemsOwned = 0;

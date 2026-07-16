@@ -46,6 +46,10 @@
               id="inv-shield-val">0</b></button>
           <button class="inv-btn" id="inv-grenade" title="Granate werfen (Taste G)">💣 Granaten: <b
               id="inv-grenade-val">0</b></button>
+          <button class="inv-btn" id="inv-ability" title="Fähigkeit (Taste C)">
+            <span id="ability-icon">✨</span> <span id="ability-name">Fähigkeit</span>
+            <span id="ability-cd-wrap" class="hidden">(<b id="ability-cd-val">0</b>s)</span>
+          </button>
         </div>
       </div>
 
@@ -291,6 +295,9 @@
           <span class="key">Q</span><span>Medkit benutzen</span>
           <span class="key">E</span><span>Schild aufladen</span>
           <span class="key">G</span><span>Handgranate werfen</span>
+          <span class="key">T</span><span>Rauchgranate (unsichtbar für Gegner)</span>
+          <span class="key">H</span><span>Adrenalinschuss (Sofort-Nachladen)</span>
+          <span class="key">C</span><span>Charakter-Fähigkeit</span>
           <span class="key">F</span><span>Werkbank öffnen (wenn in der Nähe)</span>
           <span class="key">Escape</span><span>Pause</span>
         </div>
@@ -302,6 +309,7 @@
     <div id="upgrade-menu" class="overlay hidden">
       <div class="menu-panel wide">
         <h2 class="panel-title">🏋️ TRAININGSRANGE</h2>
+        <p class="subtitle">3 zufällige Verbesserungen pro Welle — investiere deine Punkte weise.</p>
         <div class="shop-coins">Deine Punkte: 🏆 <b id="upgrade-score">0</b></div>
         <div id="upgrade-cards" class="shop-cards-container"></div>
         <div id="upgrade-wait-msg" class="hidden">Warte auf Host...</div>
@@ -324,6 +332,7 @@
       <div class="menu-panel wide">
         <h2 class="panel-title">🔧 WERKBANK</h2>
         <div class="shop-coins">Deine Münzen: 🪙 <b id="workbench-coins">0</b></div>
+        <div id="workbench-category-tabs" class="lexicon-tabs" style="display: flex; gap: 6px; margin-bottom: var(--s-4); flex-wrap: wrap; justify-content: center;"></div>
         <div id="workbench-cards" class="shop-cards-container"></div>
         <button class="btn btn-primary" data-action="workbench-close">Schließen</button>
       </div>
@@ -438,6 +447,7 @@
   <script src="js/weapons.js"></script>
   <script src="js/projectile.js"></script>
   <script src="js/player.js"></script>
+  <script src="js/turret.js"></script>
   <script src="js/enemies.js"></script>
   <script src="js/boss.js"></script>
   <script src="js/coin.js"></script>
