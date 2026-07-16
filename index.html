@@ -113,12 +113,13 @@
       </div>
     </div>
 
-    <!-- Cheat mode: pick starting wave + starting weapons. Not linked from any menu —
-         only reachable by pressing M on the main menu (intentionally hidden/undiscoverable). -->
+    <!-- Dev mode: pick starting wave, map, and starting weapons. Not linked from any
+         menu — only reachable by pressing M on the main menu (intentionally
+         hidden/undiscoverable). -->
     <div id="cheat-menu" class="overlay hidden">
       <div class="menu-panel wide">
-        <h2 class="panel-title">🐞 CHEAT-MODUS</h2>
-        <p class="subtitle">Startwelle &amp; Startwaffen wählen (nur Solo).</p>
+        <h2 class="panel-title">🛠️ DEV-MODUS</h2>
+        <p class="subtitle">Startwelle, Karte &amp; Startwaffen wählen (nur Solo).</p>
 
         <div class="cheat-row">
           <span class="cheat-label">Startwelle</span>
@@ -127,6 +128,12 @@
             <input type="number" id="cheat-wave" min="1" max="99" value="1">
             <button type="button" class="cheat-step-btn" data-action="cheat-wave-inc">+</button>
           </div>
+        </div>
+        <div class="cheat-row">
+          <span class="cheat-label">🗺️ Karte</span>
+          <select id="cheat-map" style="background: #0d130c; color: var(--cyan); border: 1px solid rgba(74,246,38,0.4); padding: 7px 10px; font-size: 14px; border-radius: 7px; cursor: pointer;">
+            <option value="-1">Zufällig</option>
+          </select>
         </div>
         <label class="cheat-toggle-row">
           <input type="checkbox" id="cheat-horror">

@@ -190,6 +190,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (title) title.textContent = '⚔️ BOSS-PROBEKAMPF';
         if (subtitle) subtitle.textContent = 'Lade dich aus, dann kämpfst du direkt gegen: ' + (BOSS_NAMES[pendingBossFight] || pendingBossFight);
         Menus.show('cheat-menu');
+        renderCheatMaps();
         renderCheatWeapons();
         break;
       }
@@ -212,10 +213,13 @@ window.addEventListener('DOMContentLoaded', () => {
         const medkits = Math.max(0, parseInt(document.getElementById('cheat-medkits').value, 10) || 0);
         const shields = Math.max(0, parseInt(document.getElementById('cheat-shields').value, 10) || 0);
         const grenades = Math.max(0, parseInt(document.getElementById('cheat-grenades').value, 10) || 0);
+        const mapSelect = document.getElementById('cheat-map');
+        const mapChoice = mapSelect ? parseInt(mapSelect.value, 10) : -1;
+        const mapIndex = mapChoice >= 0 ? mapChoice : undefined; // undefined = World picks randomly, same as normal play
         const forceBoss = pendingBossFight;
         pendingBossFight = null;
         Net.reset();
-        game.newGame('solo', horror ? 'horror' : 'standard', undefined, { wave, weapons, medkits, shields, grenades, forceBoss });
+        game.newGame('solo', horror ? 'horror' : 'standard', mapIndex, { wave, weapons, medkits, shields, grenades, forceBoss });
         Menus.hideAll();
         break;
       }
@@ -302,6 +306,18 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function renderCheatMaps() {
+    const select = document.getElementById('cheat-map');
+    if (!select || select.dataset.populated) return; // MAP_LAYOUTS never changes at runtime — build the list once
+    select.dataset.populated = '1';
+    MAP_LAYOUTS.forEach((layout, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = layout.name;
+      select.appendChild(opt);
+    });
+  }
+
   // Cheat mode: press "M" while the main menu is open to pick a starting wave + weapons (solo only).
   window.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() !== 'm') return;
@@ -312,9 +328,10 @@ window.addEventListener('DOMContentLoaded', () => {
     Menus.prev = 'main-menu';
     const title = document.querySelector('#cheat-menu .panel-title');
     const subtitle = document.querySelector('#cheat-menu .subtitle');
-    if (title) title.textContent = '🐞 CHEAT-MODUS';
-    if (subtitle) subtitle.textContent = 'Startwelle & Startwaffen wählen (nur Solo).';
+    if (title) title.textContent = '🛠️ DEV-MODUS';
+    if (subtitle) subtitle.textContent = 'Startwelle, Karte & Startwaffen wählen (nur Solo).';
     Menus.show('cheat-menu');
+    renderCheatMaps();
     renderCheatWeapons();
   });
 

@@ -575,6 +575,24 @@ class Game {
     }
   }
 
+  // Escape used to go straight to pause() no matter what, even with a shop/
+  // workbench/training/atm overlay open. pause()/resume() only ever knew about
+  // pauseOpenLocal, so the OTHER overlay's *OpenLocal flag stayed stuck true
+  // after resuming (Menus.hideAll() only hid it visually) — that flag is exactly
+  // what player.js's menusOpen gate checks, so it silently and permanently
+  // blocked movement/shooting for the rest of the run. Escape now closes
+  // whichever overlay is actually open first, and only opens pause if none was.
+  closeAnyLocalOverlay() {
+    if (this.workbenchOpenLocal) { this.closeWorkbench(); return true; }
+    if (this.trainingOpenLocal) { this.closeTrainingRange(); return true; }
+    if (this.atmOpenLocal) { this.closeAtm(); return true; }
+    // solo's openTacticalShop() only sets this.state = 'shop' and never sets
+    // shopOpenLocal (that flag is only set on the co-op path) — check both.
+    if (this.shopOpenLocal || this.state === 'shop') { this.leaveShop(); return true; }
+    if (this.inventoryOpenLocal) { this.closeInventory(); return true; }
+    return false;
+  }
+
   pause() {
     if (this.mode === 'solo') {
       if (this.state !== 'playing') return;
@@ -694,7 +712,9 @@ class Game {
           Input.pressed['i'] = false;
         }
         if (Input.wasPressed('escape')) {
-          if (this.pauseOpenLocal) this.resume(); else this.pause();
+          if (this.closeAnyLocalOverlay()) { /* closed a menu, don't also touch pause */ }
+          else if (this.pauseOpenLocal) this.resume();
+          else this.pause();
           Input.pressed['escape'] = false;
         }
         if (this.shopOpenLocal || this.workbenchOpenLocal || this.inventoryOpenLocal || this.trainingOpenLocal || this.pauseOpenLocal || this.atmOpenLocal) {
@@ -725,25 +745,26 @@ class Game {
       Input.pressed['i'] = false;
     }
 
+    // Unified escape handling, run BEFORE the state!=='playing' gate below so it
+    // works no matter which local overlay (or state) put us there: close
+    // whichever shop/workbench/training/atm/inventory overlay is open first;
+    // only fall through to pause/resume if none was. Closing an overlay always
+    // restores this.state to 'playing' itself (see closeWorkbench() etc.), so
+    // no separate early-return is needed here anymore.
+    if (Input.wasPressed('escape')) {
+      if (this.closeAnyLocalOverlay()) { /* closed a menu — don't also touch pause */ }
+      else if (this.pauseOpenLocal) this.resume();
+      else if (this.state === 'paused') this.resume();
+      else if (this.state === 'playing') this.pause();
+      Input.pressed['escape'] = false;
+    }
+
     if (this.state !== 'playing') {
-      if (this.trainingOpenLocal && (Input.wasPressed('f') || Input.wasPressed('escape'))) {
-        this.closeTrainingRange();
-        Input.pressed['f'] = false;
-        Input.pressed['escape'] = false;
-      }
       // still keep the guest in sync while we're in the shop/upgrade/gameover screens,
       // otherwise they freeze on the last 'playing' snapshot forever.
       if (this.mode === 'host') this.sendSnapshotThrottled(dt);
       Input.clearFrame();
       return;
-    }
-    if (Input.wasPressed('escape')) {
-      if (this.pauseOpenLocal) this.resume();
-      else this.pause();
-      // solo pause freezes the sim (return early); co-op pause is a personal overlay
-      // that must NOT stop the host simulating for the partner, so fall through.
-      if (this.mode === 'solo') { Input.clearFrame(); return; }
-      Input.pressed['escape'] = false;
     }
 
     this.playTime += dt;
