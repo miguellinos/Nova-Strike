@@ -159,6 +159,9 @@ class World {
     // single frame inside Player.update() (60x/sec per player, so 120x/sec in co-op)
     // — rects are static after build(), filtering them repeatedly is pure waste.
     this.playerCollidableRects = this.rects.filter((r) => r.kind !== 'enemy-barrier');
+    // solid walls only (no crates/barriers) — used for line-of-sight checks like
+    // melee not reaching through a wall.
+    this.wallRects = this.rects.filter((r) => r.kind === 'wall' || r.kind === 'hangar-wall');
   }
 
   // pushes a hangar's perimeter walls (with a gate gap) + its interior partition

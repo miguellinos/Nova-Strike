@@ -318,6 +318,35 @@ html, body {
 }
 .panel-title.fail { color: var(--danger); }
 
+/* ----- Profile select (uses the premium menu design language) ----- */
+.profile-list {
+  display: flex; flex-direction: column; gap: var(--s-2);
+  margin-bottom: var(--s-4); max-height: 40vh; overflow-y: auto;
+}
+.profile-item { margin: 0; }
+.profile-empty {
+  color: var(--text-dim); font-size: var(--fs-sm); font-style: italic;
+  padding: var(--s-3) 0;
+}
+.profile-create-row {
+  display: flex; gap: var(--s-2); align-items: stretch; margin-bottom: var(--s-3);
+}
+.profile-create-row .btn { width: auto; margin: 0; white-space: nowrap; }
+.profile-name-input {
+  flex: 1; min-width: 0; padding: 13px var(--s-4);
+  font-family: inherit; font-size: var(--fs-md); color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm); outline: none;
+  transition: border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+.profile-name-input:focus { border-color: var(--border-accent); box-shadow: var(--ring); }
+.profile-name-input::placeholder { color: var(--text-faint); }
+.profile-error { color: var(--danger); font-size: var(--fs-sm); margin-top: var(--s-2); }
+.profile-badge {
+  color: var(--accent-bright); font-size: var(--fs-sm); font-weight: 700;
+  letter-spacing: 0.3px; margin-bottom: var(--s-4);
+}
+
 /* ============================== 6. BUTTONS ============================== */
 .btn {
   --btn-bg: var(--surface-2);

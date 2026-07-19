@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Server-side profile data (generated at runtime by server/db.js)
+server/profiles.json
+server/*.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
