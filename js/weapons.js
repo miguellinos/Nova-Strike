@@ -110,17 +110,29 @@ const WEAPON_UPGRADE_PRICES = [450, 900, 1600];
 // Ordered cheapest-first so the shop lists affordable early-game options up top.
 // Prices are x10 to match coins now being worth 10 each instead of 1 — same
 // relative affordability, just bigger numbers.
+// `category` groups weapons in the workbench UI (see ui.js showWorkbench) —
+// purely a display grouping, has no effect on stats/behavior.
+const WEAPON_CATEGORIES = {
+  sidearm: '🔫 Sekundärwaffen',
+  smg: '💨 Maschinenpistolen',
+  rifle: '🎯 Sturmgewehre',
+  shotgun: '💥 Schrotflinten',
+  sniper: '🎯 Scharfschützengewehre',
+  heavy: '🚀 Schwere Waffen',
+  elemental: '⚡ Elementarwaffen',
+};
+
 const WEAPON_SHOP_ITEMS = [
-  { key: 'revolver', price: 300, icon: '🔫', desc: 'Günstiger Zweitschlag mit ordentlich Einzelschaden. Perfekt für den frühen Kampf.' },
-  { key: 'mac10', price: 450, icon: '💨', desc: 'Billige Kompakt-MP mit hoher Feuerrate für die ersten Wellen.' },
-  { key: 'carbine', price: 600, icon: '🔫', desc: 'Präziser Kompaktkarabinier mit gutem Ausgleich aus Schaden, Reichweite und Feuerrate.' },
-  { key: 'sawedoff', price: 700, icon: '💥', desc: 'Doppelläufige Sawed-Off — verheerend auf kurze Distanz, aber nur 2 Schuss im Magazin.' },
-  { key: 'rifle', price: 850, icon: '🔫', desc: 'Mittelstrecken-Automatikgewehr.' },
-  { key: 'smg', price: 1200, icon: '💨', desc: 'Extrem hohe Feuerrate, ideal gegen Schwärme.' },
-  { key: 'shotgun', price: 1350, icon: '💥', desc: 'Verursacht massiven Nahbereichschaden.' },
-  { key: 'sniper', price: 1600, icon: '🎯', desc: 'Hoher Einzelschaden, durchdringt Feinde.' },
-  { key: 'cryo', price: 1750, icon: '❄️', desc: 'Verlangsamt getroffene Gegner deutlich.' },
-  { key: 'flamethrower', price: 1900, icon: '🔥', desc: 'Kurze Reichweite, setzt Gegner in Brand (Schaden über Zeit).' },
-  { key: 'tesla', price: 2150, icon: '⚡', desc: 'Blitze springen auf nahe Gegner über.' },
-  { key: 'cannon', price: 2600, icon: '🚀', desc: 'Verschießt explosive Raketen mit Flächenschaden.' },
+  { key: 'revolver', price: 300, icon: '🔫', category: 'sidearm', desc: 'Günstiger Zweitschlag mit ordentlich Einzelschaden. Perfekt für den frühen Kampf.' },
+  { key: 'mac10', price: 450, icon: '💨', category: 'smg', desc: 'Billige Kompakt-MP mit hoher Feuerrate für die ersten Wellen.' },
+  { key: 'carbine', price: 600, icon: '🔫', category: 'rifle', desc: 'Präziser Kompaktkarabinier mit gutem Ausgleich aus Schaden, Reichweite und Feuerrate.' },
+  { key: 'sawedoff', price: 700, icon: '💥', category: 'shotgun', desc: 'Doppelläufige Sawed-Off — verheerend auf kurze Distanz, aber nur 2 Schuss im Magazin.' },
+  { key: 'rifle', price: 850, icon: '🔫', category: 'rifle', desc: 'Mittelstrecken-Automatikgewehr.' },
+  { key: 'smg', price: 1200, icon: '💨', category: 'smg', desc: 'Extrem hohe Feuerrate, ideal gegen Schwärme.' },
+  { key: 'shotgun', price: 1350, icon: '💥', category: 'shotgun', desc: 'Verursacht massiven Nahbereichschaden.' },
+  { key: 'sniper', price: 1600, icon: '🎯', category: 'sniper', desc: 'Hoher Einzelschaden, durchdringt Feinde.' },
+  { key: 'cryo', price: 1750, icon: '❄️', category: 'elemental', desc: 'Verlangsamt getroffene Gegner deutlich.' },
+  { key: 'flamethrower', price: 1900, icon: '🔥', category: 'elemental', desc: 'Kurze Reichweite, setzt Gegner in Brand (Schaden über Zeit).' },
+  { key: 'tesla', price: 2150, icon: '⚡', category: 'elemental', desc: 'Blitze springen auf nahe Gegner über.' },
+  { key: 'cannon', price: 2600, icon: '🚀', category: 'heavy', desc: 'Verschießt explosive Raketen mit Flächenschaden.' },
 ];

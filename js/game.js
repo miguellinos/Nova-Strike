@@ -134,6 +134,7 @@ class Game {
     this.grenadePickups = [];
     this.lightningArcs = [];
     this.floatText = [];   // rising combat text (damage numbers, crit callouts)
+    this.turrets = [];     // deployed sentry turrets (Waldläufer ability)
     this.particles = new Particles();
     this.waves = new WaveManager(this);
     this.playTime = 0;
@@ -219,7 +220,10 @@ class Game {
     Audio2.enemyDie();
     this.particles.burst(e.x, e.y, e.color, 12, 200);
     this.dropCoins(e.x, e.y, e.def.coins, killer);
-    if (killer.mods && Utils.chance(killer.mods.lifesteal) && killer.heal) killer.heal(5);
+    // Blutrausch (Blutadler ability) temporarily triples lifesteal odds on top
+    // of the passive/upgrade value while active.
+    const lifestealChance = killer.mods ? killer.mods.lifesteal * (killer.rageT > 0 ? 3 : 1) : 0;
+    if (killer.mods && Utils.chance(lifestealChance) && killer.heal) killer.heal(5);
     // chance to drop a medkit — likelier when the killer is hurt
     const hurt = 1 - killer.hp / killer.maxHp;
     if (Utils.chance(0.05 + hurt * 0.11)) this.dropMedkit(e.x, e.y, 25);
@@ -431,6 +435,9 @@ class Game {
     else if (kind === 'bread') p.breadCount++;
     else if (kind === 'novacola') p.novacolaCount++;
     else if (kind === 'grenade') p.grenadeCount++;
+    else if (kind === 'smoke') p.smokeCount++;
+    else if (kind === 'adrenaline') p.adrenalineCount++;
+    else if (kind === 'armor') { p.maxHp += 15; p.heal(15); } // permanent, applies instantly like a mini upgrade
   }
 
   leaveShop() {
@@ -536,6 +543,8 @@ class Game {
     else if (kind === 'medkit') success = me.useMedkit(this);
     else if (kind === 'shield') success = me.useShield(this);
     else if (kind === 'grenade') success = me.throwGrenade(this);
+    else if (kind === 'smoke') success = me.useSmoke(this);
+    else if (kind === 'adrenaline') success = me.useAdrenaline(this);
 
     if (success) {
       if (this.mode === 'guest') {
@@ -630,6 +639,8 @@ class Game {
       else if (msg.kind === 'medkit') this.player2.useMedkit(this);
       else if (msg.kind === 'shield') this.player2.useShield(this);
       else if (msg.kind === 'grenade') this.player2.throwGrenade(this);
+      else if (msg.kind === 'smoke') this.player2.useSmoke(this);
+      else if (msg.kind === 'adrenaline') this.player2.useAdrenaline(this);
     }
   }
 
@@ -883,6 +894,8 @@ class Game {
     this.shields = this.shields.filter((s) => !s.dead);
     for (const gp of this.grenadePickups) gp.update(dt, this);
     this.grenadePickups = this.grenadePickups.filter((gp) => !gp.dead);
+    for (const t of this.turrets) t.update(dt, this);
+    this.turrets = this.turrets.filter((t) => !t.dead);
     this.enemies = this.enemies.filter((e) => !e.dead);
     if (this.lightningArcs) {
       for (const arc of this.lightningArcs) arc.life -= dt;
@@ -971,6 +984,7 @@ class Game {
       coins: this.coins.map((c) => ({ x: r(c.x), y: r(c.y) })),
       medkits: this.medkits.map((m) => ({ x: r(m.x), y: r(m.y), life: m.life })),
       grenadePickups: this.grenadePickups.map((gp) => ({ x: r(gp.x), y: r(gp.y), life: gp.life })),
+      turrets: this.turrets.map((t) => ({ x: r(t.x), y: r(t.y), angle: t.angle, life: t.life, maxLife: t.maxLife, deploySpin: t.deploySpin, range: t.range })),
       shakeAmt: this.shakeAmt,
       flashWhiteout: this.flashWhiteout,
     };
@@ -1180,6 +1194,9 @@ class Game {
     this.coins = s.coins.map((d) => new Coin(d.x, d.y));
     this.medkits = s.medkits.map((d) => { const m = new Medkit(d.x, d.y); m.life = d.life; return m; });
     this.grenadePickups = (s.grenadePickups || []).map((d) => { const gp = new GrenadePickup(d.x, d.y); gp.life = d.life; return gp; });
+    // guest never calls Turret.update() (see the guest early-return above), so
+    // these are draw-only shells hydrated straight from the host's snapshot.
+    this.turrets = (s.turrets || []).map((d) => Object.assign(Object.create(Turret.prototype), d, { dead: false }));
     this.shakeAmt = s.shakeAmt;
     this.flashWhiteout = s.flashWhiteout || 0;
 
@@ -1410,6 +1427,7 @@ class Game {
     for (const m of this.medkits) m.draw(ctx, this.time);
     for (const s of this.shields) s.draw(ctx, this.time);
     for (const gp of this.grenadePickups) gp.draw(ctx, this.time);
+    for (const t of this.turrets) t.draw(ctx, this.time);
     for (const e of this.enemies) e.draw(ctx, this.time);
     if (this.boss && !this.boss.dead) this.boss.draw(ctx, this.time);
     for (const p of this.players) if (p.hp > 0) p.draw(ctx, this.time);
@@ -1521,6 +1539,14 @@ class Game {
     // always know which way to go to regroup
     if (this.mode !== 'solo' && this.state === 'playing') this.drawTeammateIndicator(ctx);
 
+    // boss fight: arrow pointing at the boss whenever it's off-screen. Only the
+    // boss gets one (not every trash mob) — pointing at dozens of regular
+    // enemies at once would just be visual noise, the boss is the one encounter
+    // worth navigating back to.
+    if (this.boss && !this.boss.dead && this.state === 'playing') this.drawBossIndicator(ctx);
+
+    if (this.state === 'playing') this.drawMinimap(ctx);
+
     // damage vignette
     if (this.damageVignette > 0) {
       const g = ctx.createRadialGradient(this.canvas.width / 2, this.canvas.height / 2, this.canvas.height * 0.3,
@@ -1604,6 +1630,161 @@ class Game {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(Math.round(dist / 20) + 'm', lx, ly);
+    ctx.restore();
+  }
+
+  drawBossIndicator(ctx) {
+    const me = this.localPlayer;
+    const b = this.boss;
+    if (!me || !b) return;
+
+    const margin = 60;
+    const onScreen = b.x > this.cam.x + margin && b.x < this.cam.x + this.cam.w - margin &&
+      b.y > this.cam.y + margin && b.y < this.cam.y + this.cam.h - margin;
+    if (onScreen) return;
+
+    const dx = b.x - me.x, dy = b.y - me.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1) return;
+    const angle = Math.atan2(dy, dx);
+
+    const cx = this.canvas.width / 2, cy = this.canvas.height / 2;
+    const pad = 50;
+    const halfW = cx - pad, halfH = cy - pad;
+    const scale = Math.min(Math.abs(halfW / (dx || 0.0001)), Math.abs(halfH / (dy || 0.0001)));
+    const ex = cx + dx * scale, ey = cy + dy * scale;
+
+    // pulses so it reads as a threat marker, not just a neutral waypoint
+    const pulse = 0.75 + 0.25 * Math.sin(this.time * 6);
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.rotate(angle);
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#fb5a6f';
+    ctx.shadowBlur = 14; ctx.shadowColor = '#fb5a6f';
+    ctx.beginPath();
+    ctx.moveTo(18, 0);
+    ctx.lineTo(-10, -11);
+    ctx.lineTo(-3, 0);
+    ctx.lineTo(-10, 11);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(10,4,5,0.85)';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    const lx = ex - Math.cos(angle) * 26, ly = ey - Math.sin(angle) * 26;
+    ctx.fillStyle = '#ffd0d6';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(dist / 20) + 'm', lx, ly);
+    ctx.restore();
+  }
+
+  // Bottom-right radar: world outline, buildings, camera frustum, coins/items,
+  // enemies (dimmed dots), boss (pulsing red), extraction zone, and every
+  // player (green = you, cyan = teammate, grey = downed). Purely screen-space,
+  // drawn last so it always sits above the world/HUD.
+  drawMinimap(ctx) {
+    if (!this.world) return;
+    const size = 168, pad = 16;
+    const ox = this.canvas.width - size - pad, oy = this.canvas.height - size - pad;
+    const sx = size / this.world.w, sy = size / this.world.h;
+    const wx = (x) => ox + x * sx;
+    const wy = (y) => oy + y * sy;
+
+    ctx.save();
+    // frame + backdrop
+    ctx.fillStyle = 'rgba(8,12,9,0.72)';
+    ctx.strokeStyle = 'rgba(74,222,128,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(ox, oy, size, size, 10) : ctx.rect(ox, oy, size, size);
+    ctx.fill();
+    ctx.stroke();
+
+    // clip everything below to the panel so dots never spill over the frame
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(ox, oy, size, size, 10) : ctx.rect(ox, oy, size, size);
+    ctx.clip();
+
+    // buildings, as faint filled rects
+    if (this.world.hangars) {
+      ctx.fillStyle = 'rgba(120,140,120,0.22)';
+      for (const h of this.world.hangars) ctx.fillRect(wx(h.x), wy(h.y), h.w * sx, h.h * sy);
+    }
+
+    // extraction zone
+    if (this.extractionPoint) {
+      const ready = this.waves.wave >= this.extractAvailableWave;
+      ctx.strokeStyle = ready ? '#4af626' : 'rgba(74,246,38,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(wx(this.extractionPoint.x), wy(this.extractionPoint.y), 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // pickups: coins (tiny gold dots) and medkits/shields (small crosses) — kept
+    // subtle so they read as texture, not clutter
+    ctx.fillStyle = 'rgba(245,196,81,0.7)';
+    for (const c of this.coins) ctx.fillRect(wx(c.x) - 0.5, wy(c.y) - 0.5, 1.2, 1.2);
+
+    // enemies: dim red dots
+    ctx.fillStyle = 'rgba(251,90,111,0.65)';
+    for (const e of this.enemies) {
+      if (e.dead) continue;
+      ctx.beginPath();
+      ctx.arc(wx(e.x), wy(e.y), 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // boss: bigger, pulsing
+    if (this.boss && !this.boss.dead) {
+      const pulse = 3 + Math.sin(this.time * 6) * 1.2;
+      ctx.fillStyle = '#fb5a6f';
+      ctx.shadowBlur = 6; ctx.shadowColor = '#fb5a6f';
+      ctx.beginPath();
+      ctx.arc(wx(this.boss.x), wy(this.boss.y), pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // players
+    for (const p of this.players) {
+      const isMe = p === this.localPlayer;
+      ctx.fillStyle = p.hp <= 0 ? '#7d8c7e' : (isMe ? '#4af626' : '#4ad9ff');
+      ctx.beginPath();
+      ctx.arc(wx(p.x), wy(p.y), isMe ? 3.2 : 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      if (isMe) {
+        // small heading tick so you can tell which way you're facing
+        ctx.strokeStyle = '#4af626';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(wx(p.x), wy(p.y));
+        ctx.lineTo(wx(p.x) + Math.cos(p.aimAngle) * 6, wy(p.y) + Math.sin(p.aimAngle) * 6);
+        ctx.stroke();
+      }
+    }
+
+    // camera frustum outline
+    ctx.strokeStyle = 'rgba(233,241,234,0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(wx(this.cam.x), wy(this.cam.y), this.cam.w * sx, this.cam.h * sy);
+
+    ctx.restore();
+
+    // wave label under the panel, small and quiet
+    ctx.save();
+    ctx.fillStyle = 'rgba(233,241,234,0.55)';
+    ctx.font = '600 10px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('WELLE ' + (this.waves ? this.waves.wave : 1), ox + size, oy - 6);
     ctx.restore();
   }
 

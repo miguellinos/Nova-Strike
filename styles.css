@@ -526,29 +526,95 @@ select#cheat-map:focus-visible, select#coop-game-mode:focus-visible { box-shadow
 .shop-coins b { color: var(--amber); font-variant-numeric: tabular-nums; }
 
 #shop-cards, .shop-cards-container {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: var(--s-3);
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: var(--s-3);
   justify-content: center; margin-bottom: var(--s-5); max-height: 62vh; overflow-y: auto;
-  padding: var(--s-1); text-align: left;
+  padding: var(--s-2); text-align: left;
 }
 
+/* Full-width category divider between groups of cards ("❤️ Heilung", "🔫 Waffen kaufen", ...) */
+.shop-section-label {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: var(--s-3);
+  margin: var(--s-2) 0 -var(--s-1); padding-top: var(--s-2);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.shop-section-label::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border-strong), transparent);
+}
+.shop-section-label:first-child { margin-top: 0; padding-top: 0; }
+
 .shop-card {
+  --rarity: var(--border-strong);
+  --rarity-flash: var(--accent);
   position: relative; display: flex; flex-direction: column; align-items: center; text-align: center;
-  gap: var(--s-1); padding: var(--s-4) var(--s-3);
-  background: var(--surface-2); border: 1px solid var(--border);
+  gap: var(--s-1); padding: var(--s-5) var(--s-3) var(--s-4);
+  background:
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--rarity) 16%, transparent), transparent 65%),
+    var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--rarity) 45%, var(--border));
   border-radius: var(--r-md); overflow: hidden;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rarity) 10%, transparent);
   transition: transform var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
 }
+/* top edge accent bar in the rarity color — the fastest way to scan a whole
+   grid and know which cards matter */
+.shop-card::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--rarity); opacity: 0.85;
+}
+.shop-card[data-rarity="common"]    { --rarity: #9aa79b; }
+.shop-card[data-rarity="uncommon"]  { --rarity: #4ade80; }
+.shop-card[data-rarity="rare"]      { --rarity: #5bc8ff; }
+.shop-card[data-rarity="epic"]      { --rarity: #b98cff; }
+.shop-card[data-rarity="legendary"] { --rarity: #f5c451; }
+/* legendary items get a slow shimmering sheen so the best gear in the shop
+   visibly stands out even before you read the price */
+.shop-card[data-rarity="legendary"] {
+  background:
+    linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--rarity) 22%, transparent) 50%, transparent 70%),
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--rarity) 20%, transparent), transparent 65%),
+    var(--surface-2);
+  background-size: 220% 220%, 100% 100%, 100% 100%;
+  animation: legendarySheen 3.2s ease-in-out infinite;
+}
+@keyframes legendarySheen {
+  0%, 100% { background-position: 0% 0%, 0 0, 0 0; }
+  50% { background-position: 100% 100%, 0 0, 0 0; }
+}
+
 .shop-card::before {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
-  background: radial-gradient(120% 80% at 50% 0%, var(--accent-ghost), transparent 60%);
+  background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--rarity) 22%, transparent), transparent 60%);
   transition: opacity var(--dur-2) var(--ease);
 }
 .shop-card:hover {
-  transform: translateY(-3px); border-color: var(--border-accent);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px) scale(1.015);
+  border-color: color-mix(in srgb, var(--rarity) 70%, var(--border));
+  box-shadow: var(--shadow-lg), 0 0 22px color-mix(in srgb, var(--rarity) 24%, transparent);
 }
 .shop-card:hover::before { opacity: 1; }
-.shop-card .icon { font-size: 30px; line-height: 1; margin-bottom: var(--s-1); filter: drop-shadow(0 2px 8px rgba(0,0,0,0.45)); }
+
+/* small corner badge naming the rarity tier */
+.rarity-tag {
+  position: absolute; top: var(--s-2); right: var(--s-2);
+  font-size: 8px; font-weight: 800; letter-spacing: 0.8px;
+  padding: 2px 6px; border-radius: var(--r-full); border: 1px solid currentColor;
+  background: color-mix(in srgb, currentColor 14%, var(--surface-1));
+  line-height: 1.4;
+}
+
+.shop-card .icon {
+  position: relative; font-size: 30px; line-height: 1; margin-bottom: var(--s-1);
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.45));
+}
+/* soft glow disc behind the icon, tinted to the rarity color */
+.shop-card .icon::before {
+  content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 52px; height: 52px; border-radius: var(--r-full); z-index: -1;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rarity) 30%, transparent), transparent 70%);
+}
 .shop-card .icon svg { width: 46px; height: 46px; display: block; }
 .shop-card .name { font-weight: 700; font-size: var(--fs-sm); color: var(--text); line-height: 1.2; }
 .shop-card .desc { font-size: var(--fs-xs); color: var(--text-dim); min-height: 40px; line-height: 1.35; }
@@ -559,16 +625,18 @@ select#cheat-map:focus-visible, select#coop-game-mode:focus-visible { box-shadow
   color: var(--on-accent); cursor: pointer;
   transition: filter var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease);
 }
-.shop-card .buy:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 0 0 4px var(--accent-ghost); }
+.shop-card .buy:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 0 0 4px color-mix(in srgb, var(--rarity) 30%, transparent); }
 .shop-card .buy:active:not(:disabled) { transform: scale(0.97); }
 .shop-card .buy:disabled {
   opacity: 1; cursor: not-allowed;
   background: var(--surface-3); color: var(--text-faint); border-color: var(--border);
 }
-.shop-card.bought { animation: pop var(--dur-3) var(--ease); border-color: var(--accent); }
+/* purchase feedback: a quick rarity-colored flash + pop, satisfying without
+   being a full-screen distraction */
+.shop-card.bought { animation: pop var(--dur-3) var(--ease); border-color: var(--rarity-flash); }
 @keyframes pop {
   0% { transform: scale(1); }
-  45% { transform: scale(1.05); box-shadow: 0 0 0 6px var(--accent-ghost), var(--shadow-lg); }
+  40% { transform: scale(1.06); box-shadow: 0 0 0 8px color-mix(in srgb, var(--rarity-flash) 35%, transparent), var(--shadow-lg); }
   100% { transform: scale(1); }
 }
 
@@ -682,6 +750,10 @@ select#cheat-map:focus-visible, select#coop-game-mode:focus-visible { box-shadow
 .inv-btn:hover { background: var(--surface-3); border-color: var(--border-accent); transform: translateY(-1px); box-shadow: var(--shadow-md); }
 .inv-btn:active { transform: translateY(0) scale(0.98); }
 .inv-btn b { color: var(--accent-bright); font-variant-numeric: tabular-nums; }
+/* Signature ability button: glows when off cooldown so "press C now" reads at a glance. */
+.inv-btn--ready { border-color: var(--accent-line); box-shadow: var(--shadow-sm), 0 0 0 3px var(--accent-ghost); animation: abilityReady 1.6s ease-in-out infinite; }
+@keyframes abilityReady { 0%, 100% { box-shadow: var(--shadow-sm), 0 0 0 3px var(--accent-ghost); } 50% { box-shadow: var(--shadow-sm), 0 0 0 5px var(--accent-ghost); } }
+#ability-cd-wrap b { color: var(--text-dim); }
 
 /* Backpack panel — refined "field kit" look (kept diegetic, no longer raw grey) */
 .inventory-panel {

@@ -66,8 +66,16 @@ class Player {
     this.novaColaTimer = 0;
     this.breadCount = 0;
     this.novacolaCount = 0;
+    this.smokeCount = 0;
+    this.adrenalineCount = 0;
+    this.smokeT = 0; // active smoke bomb: forces hiddenInBush regardless of position
     this.scanTimer = 0;
     this.scanTarget = null;
+
+    // signature per-character active ability (Taste C) — see useAbility() and
+    // js/characters.js for the per-character id/cooldown/description.
+    this.abilityCd = 0;
+    this.rageT = 0; // Blutrausch buff timer (Blutadler)
   }
 
   // small, subtle per-character passive (see js/characters.js perkDesc for the
@@ -84,14 +92,18 @@ class Player {
   }
 
   // effective def for the equipped weapon, including per-weapon workbench upgrades
+  // and the temporary Blutrausch ability buff (rageT > 0).
   weaponDef() {
     const base = WEAPON_DEFS[this.currentWeapon];
     const lvl = (this.weaponLevels && this.weaponLevels[this.currentWeapon]) || 0;
-    if (lvl <= 0) return base;
+    const raging = this.rageT > 0;
+    if (lvl <= 0 && !raging) return base;
+    const rageDmg = raging ? 1.35 : 1;
+    const rageRate = raging ? 1.3 : 1;
     return {
       ...base,
-      damage: base.damage * (1 + lvl * 0.12),
-      fireRate: base.fireRate * (1 + lvl * 0.08),
+      damage: base.damage * (1 + lvl * 0.12) * rageDmg,
+      fireRate: base.fireRate * (1 + lvl * 0.08) * rageRate,
       mag: Math.round(base.mag * (1 + lvl * 0.2)),
     };
   }
@@ -179,7 +191,12 @@ class Player {
     // enemies.js) until you fire a shot, which gives away your position as noise.
     // coverBlownT briefly locks hiding out after bushExposure maxes out from
     // firing too much — you're too obviously rustling around to stay hidden.
-    if (this.coverBlownT > 0) {
+    if (this.smokeT > 0) {
+      // smoke bomb overrides everything — hidden anywhere, even mid-open-field,
+      // for its duration. See useSmoke().
+      this.smokeT -= dt;
+      this.hiddenInBush = true;
+    } else if (this.coverBlownT > 0) {
       this.coverBlownT -= dt;
       this.hiddenInBush = false;
     } else {
@@ -259,6 +276,8 @@ class Player {
     if (!menusOpen && this.input.wasPressed('q')) this.useMedkit(game);
     if (!menusOpen && this.input.wasPressed('e')) this.useShield(game);
     if (!menusOpen && this.input.wasPressed('g')) this.throwGrenade(game);
+    if (!menusOpen && this.input.wasPressed('t')) this.useSmoke(game);
+    if (!menusOpen && this.input.wasPressed('h')) this.useAdrenaline(game);
 
     // tactical scan V
     if (!menusOpen && this.input.wasPressed('v')) {
@@ -291,6 +310,99 @@ class Player {
       this.scanTimer -= dt;
       if (this.scanTimer <= 0) {
         this.scanTarget = null;
+      }
+    }
+
+    // signature ability (Taste C)
+    if (this.abilityCd > 0) this.abilityCd -= dt;
+    if (this.rageT > 0) this.rageT -= dt;
+    if (!menusOpen && this.input.wasPressed('c') && this.abilityCd <= 0) this.useAbility(game);
+  }
+
+  // Fires the character's signature active ability (see js/characters.js).
+  // Every branch reuses existing systems (applySlow/applyBurn, particles,
+  // Audio2, Projectile) instead of inventing parallel ones.
+  useAbility(game) {
+    const ch = getCharacter(this.charId);
+    const ab = ch.ability;
+    if (!ab) return;
+    this.abilityCd = ab.cd;
+
+    switch (ab.id) {
+      case 'turret': {
+        // Waldläufer: deploy a temporary auto-turret slightly ahead of the player.
+        const tx = this.x + Math.cos(this.aimAngle) * 40;
+        const ty = this.y + Math.sin(this.aimAngle) * 40;
+        game.turrets.push(new Turret(tx, ty, this, 12));
+        game.particles.ring(tx, ty, '#4af626', 30, 0.3);
+        Audio2.buy();
+        break;
+      }
+      case 'slowfield': {
+        // Wüstenfuchs: drastically slow every enemy in a wide radius for a few
+        // seconds — reuses the existing burn/slow status system enemies already
+        // carry (Enemy.applySlow), just applied to many at once.
+        const radius = 420;
+        let hit = 0;
+        for (const e of game.enemies) {
+          if (e.dead) continue;
+          if (Utils.dist(this.x, this.y, e.x, e.y) < radius) { e.applySlow(4); hit++; }
+        }
+        if (game.boss && !game.boss.dead && Utils.dist(this.x, this.y, game.boss.x, game.boss.y) < radius && game.boss.applySlow) {
+          game.boss.applySlow(4);
+        }
+        game.particles.ring(this.x, this.y, '#ffcc55', radius, 0.4);
+        game.particles.spawn(this.x, this.y, '#ffe680', { count: 18, minSpeed: 20, maxSpeed: 80, life: 0.5, size: 3, shape: 'glow' });
+        Audio2.dash();
+        break;
+      }
+      case 'frostnova': {
+        // Frostwolf: instant damage + slow burst around the player.
+        const radius = 240, dmg = 60 * this.mods.damage;
+        for (const e of game.enemies) {
+          if (e.dead) continue;
+          const d = Utils.dist(this.x, this.y, e.x, e.y);
+          if (d < radius) {
+            e.lastHitBy = this;
+            e.takeDamage(dmg * (1 - d / radius * 0.5), game);
+            e.applySlow(3);
+          }
+        }
+        if (game.boss && !game.boss.dead && Utils.dist(this.x, this.y, game.boss.x, game.boss.y) < radius) {
+          game.boss.lastHitBy = this;
+          game.boss.takeDamage(dmg * 0.6, game);
+          if (game.boss.applySlow) game.boss.applySlow(3);
+        }
+        game.particles.ring(this.x, this.y, '#4ad9ff', radius, 0.35);
+        game.particles.burst(this.x, this.y, '#bff3ff', 26, 220);
+        game.shake(3);
+        Audio2.explosion();
+        break;
+      }
+      case 'shieldburst': {
+        // Schattenläufer: instant shield refill + knockback pulse.
+        this.shieldHp = this.maxShieldHp;
+        const radius = 200;
+        for (const e of game.enemies) {
+          if (e.dead) continue;
+          const d = Utils.dist(this.x, this.y, e.x, e.y);
+          if (d < radius) {
+            const ang = Utils.angle(this.x, this.y, e.x, e.y);
+            e.x += Math.cos(ang) * 70; e.y += Math.sin(ang) * 70;
+          }
+        }
+        game.particles.ring(this.x, this.y, '#4ad9ff', radius, 0.3);
+        game.particles.spawn(this.x, this.y, '#4ad9ff', { count: 16, minSpeed: 80, maxSpeed: 220, life: 0.3, size: 3 });
+        Audio2.shield();
+        break;
+      }
+      case 'bloodrage': {
+        // Blutadler: temporary damage/fire-rate/lifesteal buff — checked in
+        // shoot()/weaponDef() while rageT > 0.
+        this.rageT = 6;
+        game.particles.spawn(this.x, this.y, '#ff3b52', { count: 14, minSpeed: 30, maxSpeed: 90, life: 0.4, size: 3, shape: 'glow' });
+        Audio2.hurt();
+        break;
       }
     }
   }
@@ -491,6 +603,37 @@ class Player {
       game.particles.spawn(tx, ty, '#ffaa00', { count: 8, minSpeed: 40, maxSpeed: 110, life: 0.35, size: 3 });
       game.explode(tx, ty, 90, dmg, owner);
     }, 550);
+    return true;
+  }
+
+  // Rauchgranate — instant self-smoke, taste T. Forces the same hiddenInBush
+  // state a real bush gives you (see the stealth block in update()), so it
+  // works anywhere: mid-open-field, right after getting spotted, whatever.
+  // Firing while smoked still makes noise exactly like firing from a bush.
+  useSmoke(game) {
+    if (this.smokeCount <= 0) return false;
+    this.smokeCount--;
+    this.smokeT = 5;
+    Audio2.dash();
+    game.particles.smoke(this.x, this.y, { count: 22, color: 'rgba(190,196,190,1)', size: 10, life: 1.1, maxSpeed: 40 });
+    game.particles.ring(this.x, this.y, '#9aa79b', 60, 0.4);
+    return true;
+  }
+
+  // Adrenalinschuss — instant full reload of the equipped weapon, no wait.
+  // Taste H. Deliberately narrow (just skips the reload, no stat buffs) so it
+  // doesn't compete with Blutrausch or Novacola.
+  useAdrenaline(game) {
+    if (this.adrenalineCount <= 0) return false;
+    const w = this.weapons[this.currentWeapon];
+    if (w.ammo >= this.magSize()) return false;
+    this.adrenalineCount--;
+    this.reloading = false;
+    this.reloadTimer = 0;
+    this.fireCooldown = 0;
+    w.ammo = this.magSize();
+    Audio2.reload();
+    game.particles.spawn(this.x, this.y, '#ff8a3b', { count: 10, minSpeed: 40, maxSpeed: 120, life: 0.35, size: 3, shape: 'glow' });
     return true;
   }
 
