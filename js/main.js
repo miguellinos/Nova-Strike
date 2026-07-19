@@ -191,7 +191,7 @@ window.addEventListener('DOMContentLoaded', () => {
   Net.on('character', (msg) => { if (game.mode === 'host' && game.player2) game.player2.charId = msg.charId; });
   Net.on('peer-left', () => {
     if (game.state === 'playing' || game.state === 'shop') {
-      alert('Verbindung zum Mitspieler verloren.');
+      game.ui.toast('Verbindung zum Mitspieler verloren.');
       game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu');
     }
   });
@@ -223,7 +223,7 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'lexicon-back':
         Menus.show(Menus.prev || 'main-menu');
         break;
-      case 'quit': Menus.show('main-menu'); alert('Danke fürs Spielen! Du kannst den Tab schließen.'); break;
+      case 'quit': Menus.show('main-menu'); game.ui.toast('Danke fürs Spielen! Du kannst den Tab schließen.'); break;
       case 'resume': game.resume(); break;
       case 'restart': Net.reset(); game.newGame('solo', game.gameMode); Menus.hideAll(); break;
       case 'menu': game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu'); break;

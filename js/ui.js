@@ -40,8 +40,22 @@ class UI {
       extractProgressBar: document.getElementById('extract-progress-bar'),
       workbenchCoins: document.getElementById('workbench-coins'),
       workbenchCards: document.getElementById('workbench-cards'),
+      toast: document.getElementById('toast'),
     };
     this.bannerTimer = 0;
+    this._toastTimer = null;
+  }
+
+  // Non-blocking replacement for alert(): a short message that fades away on
+  // its own. Driven by setTimeout (not the game loop) so it also works while a
+  // menu is open and the loop isn't updating the HUD.
+  toast(text, ms = 2600) {
+    const el = this.el.toast;
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove('hidden');
+    if (this._toastTimer) clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => { el.classList.add('hidden'); this._toastTimer = null; }, ms);
   }
 
   showHUD(v) { this.el.hud.classList.toggle('hidden', !v); }

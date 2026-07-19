@@ -10,8 +10,13 @@
 
 <body>
   <script>
+    // Log runtime errors to the console instead of firing a blocking alert()
+    // on every one. The game loop already survives per-frame errors
+    // (see main.js), so a modal dialog mid-action only made things worse.
+    // A lightweight on-screen toast is shown when the UI is ready.
     window.addEventListener('error', function(e) {
-      alert("FEHLER: " + e.message + "\nDatei: " + e.filename + "\nZeile: " + e.lineno);
+      console.error('Runtime-Fehler:', e.message, 'in', e.filename + ':' + e.lineno, e.error || '');
+      if (window.game && window.game.ui) window.game.ui.toast('⚠ Fehler: ' + e.message);
     });
   </script>
   <div id="game-container">

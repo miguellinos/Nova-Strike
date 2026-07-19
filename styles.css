@@ -645,6 +645,12 @@ select#cheat-map:focus-visible, select#coop-game-mode:focus-visible { box-shadow
 }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translateX(-50%); } }
 
+#toast {
+  top: 84px; padding: 12px 24px; max-width: 80vw; text-align: center;
+  font-size: var(--fs-md); font-weight: 700; color: var(--text);
+  border-color: var(--amber-line); z-index: 200; pointer-events: none;
+}
+
 #interact-prompt {
   bottom: 96px; padding: 11px 22px; font-size: var(--fs-md); color: var(--text);
   border-color: var(--amber-line);

@@ -3,6 +3,7 @@ node_modules/
 
 # Server-side profile data (generated at runtime by server/db.js)
 server/profiles.json
+# Server data (SQLite, from the profile feature)
 server/*.db
 
 # Logs
