@@ -1,9 +1,10 @@
-// ---------- server.js : static file server + WebSocket relay for one LAN co-op room ----------
+// ---------- server.js : static file server + JSON API + WebSocket relay for one LAN co-op room ----------
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { WebSocketServer, WebSocket } = require('ws');
+const db = require('./db');
 
 const ROOT = path.join(__dirname, '..');
 const PORT = process.env.PORT || 3000;
@@ -12,6 +13,60 @@ const MIME = {
   '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.json': 'application/json',
 };
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 1e6) req.destroy(new Error('body too large'));
+    });
+    req.on('end', () => resolve(body));
+    req.on('error', reject);
+  });
+}
+
+function sendJSON(res, status, obj) {
+  const data = JSON.stringify(obj);
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(data);
+}
+
+// Returns true if the request was a profile API call and has been fully handled.
+async function handleApi(req, res, reqPath) {
+  if (reqPath === '/api/profiles' && req.method === 'GET') {
+    sendJSON(res, 200, db.listProfiles());
+    return true;
+  }
+
+  if (reqPath === '/api/profiles' && req.method === 'POST') {
+    let body;
+    try { body = JSON.parse((await readBody(req)) || '{}'); } catch { body = {}; }
+    const name = String(body.name || '').trim().slice(0, 24);
+    if (!name) { sendJSON(res, 400, { error: 'name required' }); return true; }
+    sendJSON(res, 200, db.getOrCreateProfile(name));
+    return true;
+  }
+
+  const settingsMatch = reqPath.match(/^\/api\/profiles\/(\d+)\/settings$/);
+  if (settingsMatch && req.method === 'PUT') {
+    let body;
+    try { body = JSON.parse((await readBody(req)) || '{}'); } catch { body = {}; }
+    const updated = db.updateSettings(Number(settingsMatch[1]), body.settings || {});
+    if (updated) sendJSON(res, 200, updated);
+    else sendJSON(res, 404, { error: 'profile not found' });
+    return true;
+  }
+
+  const touchMatch = reqPath.match(/^\/api\/profiles\/(\d+)\/touch$/);
+  if (touchMatch && req.method === 'POST') {
+    db.touchProfile(Number(touchMatch[1]));
+    sendJSON(res, 200, { ok: true });
+    return true;
+  }
+
+  return false;
+}
 
 function localIPs() {
   const nets = os.networkInterfaces();
@@ -33,10 +88,20 @@ function makeRoomCode() {
 // single-room MVP state
 const room = { code: makeRoomCode(), host: null, guest: null };
 
-const server = http.createServer((req, res) => {
-  let reqPath = decodeURIComponent(req.url.split('?')[0]);
-  if (reqPath === '/') reqPath = '/index.html';
-  const filePath = path.join(ROOT, reqPath);
+const server = http.createServer(async (req, res) => {
+  const reqPath = decodeURIComponent(req.url.split('?')[0]);
+
+  if (reqPath.startsWith('/api/')) {
+    try {
+      const handled = await handleApi(req, res, reqPath);
+      if (!handled) sendJSON(res, 404, { error: 'not found' });
+    } catch (err) {
+      sendJSON(res, 500, { error: 'internal error' });
+    }
+    return;
+  }
+
+  const filePath = path.join(ROOT, reqPath === '/' ? '/index.html' : reqPath);
   if (!filePath.startsWith(ROOT)) { res.writeHead(403); res.end('Forbidden'); return; }
   fs.readFile(filePath, (err, data) => {
     if (err) { res.writeHead(404); res.end('Not found'); return; }

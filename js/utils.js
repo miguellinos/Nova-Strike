@@ -48,3 +48,30 @@ function pointInRects(x, y, rects, r = 0) {
   }
   return false;
 }
+
+// Liang-Barsky segment-vs-AABB clip test: does the line from (x1,y1) to (x2,y2)
+// pass through rc at all (partially or fully inside counts)?
+function segmentIntersectsRect(x1, y1, x2, y2, rc) {
+  let t0 = 0, t1 = 1;
+  const dx = x2 - x1, dy = y2 - y1;
+  const p = [-dx, dx, -dy, dy];
+  const q = [x1 - rc.x, rc.x + rc.w - x1, y1 - rc.y, rc.y + rc.h - y1];
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) {
+      if (q[i] < 0) return false; // parallel to this edge and outside it
+    } else {
+      const r = q[i] / p[i];
+      if (p[i] < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+      else { if (r < t0) return false; if (r < t1) t1 = r; }
+    }
+  }
+  return true;
+}
+
+// is a straight line from (x1,y1) to (x2,y2) blocked by any of the given rects?
+function segmentBlockedByRects(x1, y1, x2, y2, rects) {
+  for (const rc of rects) {
+    if (segmentIntersectsRect(x1, y1, x2, y2, rc)) return true;
+  }
+  return false;
+}

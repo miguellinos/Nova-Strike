@@ -1,6 +1,6 @@
 // ---------- main.js : bootstrap, menus, loop ----------
 const Menus = {
-  overlays: ['main-menu', 'play-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'extract-menu', 'upgrade-menu',
+  overlays: ['profile-menu', 'main-menu', 'play-menu', 'pause-menu', 'settings-menu', 'controls-menu', 'shop-menu', 'gameover-menu', 'extract-menu', 'upgrade-menu',
              'coop-menu', 'coop-host-menu', 'coop-join-menu', 'workbench-menu', 'inventory-menu', 'character-menu', 'cheat-menu', 'lexicon-menu', 'atm-menu'],
   prev: null,
   hideAll() { this.overlays.forEach((id) => document.getElementById(id).classList.add('hidden')); },
@@ -42,13 +42,89 @@ window.addEventListener('DOMContentLoaded', () => {
   const quality = document.getElementById('set-quality');
   quality.value = s.quality;
   quality.addEventListener('change', () => Settings.set('quality', quality.value));
-  const fs = document.getElementById('set-fullscreen');
-  fs.checked = s.fullscreen;
-  fs.addEventListener('change', () => {
-    Settings.set('fullscreen', fs.checked);
-    if (fs.checked && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
-    else if (!fs.checked && document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  const fsEl = document.getElementById('set-fullscreen');
+  fsEl.checked = s.fullscreen;
+  fsEl.addEventListener('change', () => {
+    Settings.set('fullscreen', fsEl.checked);
+    if (fsEl.checked && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    else if (!fsEl.checked && document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
   });
+
+  // Re-sync the settings widgets from Settings.data — used after a profile is
+  // selected, since a profile carries its own saved settings.
+  function refreshSettingsUI() {
+    for (const [id, key] of [['set-master', 'master'], ['set-music', 'music'], ['set-sfx', 'sfx']]) {
+      const el = document.getElementById(id);
+      el.value = s[key];
+      const valSpan = el.parentElement.querySelector('.slider-val');
+      if (valSpan) valSpan.textContent = s[key];
+    }
+    quality.value = s.quality;
+    fsEl.checked = s.fullscreen;
+    Audio2.applyVolumes();
+  }
+
+  // ----- profiles -----
+  const profileListEl = document.getElementById('profile-list');
+  const profileNameInput = document.getElementById('profile-name-input');
+  const profileError = document.getElementById('profile-error');
+  const mainMenuProfile = document.getElementById('main-menu-profile');
+  let cachedProfiles = [];
+
+  function showProfileError(msg) {
+    profileError.textContent = msg;
+    profileError.classList.remove('hidden');
+  }
+
+  function enterMainMenu() {
+    if (Profile.current) {
+      mainMenuProfile.textContent = 'Profil: ' + Profile.current.name;
+      refreshSettingsUI();
+    }
+    Menus.show('main-menu');
+  }
+
+  async function renderProfileList() {
+    profileError.classList.add('hidden');
+    profileListEl.innerHTML = '<p class="profile-empty">Lade Profile…</p>';
+    try {
+      cachedProfiles = await Profile.list();
+    } catch (e) {
+      // No server (e.g. file:// play) — offer offline play so the game is never blocked.
+      profileListEl.innerHTML = '<p class="profile-empty">Kein Server erreichbar — spiele ohne Profil.</p>';
+      return;
+    }
+    if (!cachedProfiles.length) {
+      profileListEl.innerHTML = '<p class="profile-empty">Noch keine Profile. Erstelle eins unten.</p>';
+      return;
+    }
+    profileListEl.innerHTML = cachedProfiles.map((p) =>
+      '<button class="btn profile-item" data-action="profile-select" data-id="' + p.id + '">' + escapeHtml(p.name) + '</button>'
+    ).join('');
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  async function createProfile() {
+    const name = profileNameInput.value.trim();
+    if (!name) { showProfileError('Bitte einen Namen eingeben.'); return; }
+    try {
+      const p = await Profile.getOrCreate(name);
+      Profile.select(p);
+      profileNameInput.value = '';
+      enterMainMenu();
+    } catch (e) {
+      showProfileError('Profil konnte nicht erstellt werden (kein Server?). Du kannst ohne Profil spielen.');
+    }
+  }
+
+  profileNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); createProfile(); }
+  });
+
+  renderProfileList();
 
   // ----- LAN co-op networking -----
   const coop = {
@@ -176,6 +252,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
       case 'character-menu': Menus.show('character-menu'); renderCharacterMenu(); break;
       case 'character-back': Menus.show('main-menu'); break;
+
+      case 'profile-select': {
+        const p = cachedProfiles.find((x) => String(x.id) === btn.dataset.id);
+        if (p) { Profile.select(p); enterMainMenu(); }
+        break;
+      }
+      case 'profile-create': createProfile(); break;
+      case 'profile-offline': Profile.playOffline(); enterMainMenu(); break;
+      case 'switch-profile': renderProfileList(); Menus.show('profile-menu'); break;
 
       case 'cheat-back':
         pendingBossFight = null;
