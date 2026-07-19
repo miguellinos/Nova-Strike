@@ -48,3 +48,4 @@ const Profile = {
     }).catch(() => {});
   },
 };
+window.Profile = Profile; // expose for settings.js's `if (window.Profile) ...` sync hook
