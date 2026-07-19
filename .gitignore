@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Server data (SQLite, from the profile feature)
+server/*.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
