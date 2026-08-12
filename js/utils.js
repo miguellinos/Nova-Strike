@@ -74,6 +74,8 @@ function segmentBlockedByRects(x1, y1, x2, y2, rects) {
     if (segmentIntersectsRect(x1, y1, x2, y2, rc)) return true;
   }
   return false;
+}
+
 // ---------- shared "field kiosk" chassis for interactable world props ----------
 // Shop counter, workbench, training terminal and ATM all used to be a flat
 // colored rectangle + a lone emoji — functional, but read as placeholder art.

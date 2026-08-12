@@ -311,14 +311,14 @@ class UI {
     // Verbrauchsgüter, in Kategorien gruppiert: Heilung, Verteidigung, Taktik.
 
     this.el.shopCards.appendChild(this.shopSectionLabel('❤️ Heilung'));
-    const breadPrice = 9;
+    const breadPrice = CONSUMABLE_PRICES.bread;
     this.el.shopCards.appendChild(this.makeShopCard({
       icon: '🍞', name: 'Frisches Brot', desc: 'Heilt dich sofort um 15 HP. Extrem billig!',
       price: breadPrice, rarity: 'common',
       disabled: me.coins < breadPrice || me.hp >= me.maxHp,
       onBuy: () => game.purchase('bread', null, breadPrice),
     }));
-    const medkitPrice = 36;
+    const medkitPrice = CONSUMABLE_PRICES.medkit;
     this.el.shopCards.appendChild(this.makeShopCard({
       icon: '🎒', name: 'Tragbares Medkit', desc: 'Erwirb 1 tragbares Medkit. Heilung per Tastendruck Q.',
       price: medkitPrice, rarity: 'uncommon',
@@ -327,21 +327,21 @@ class UI {
     }));
 
     this.el.shopCards.appendChild(this.shopSectionLabel('🛡️ Verteidigung & Tempo'));
-    const shieldPrice = 45;
+    const shieldPrice = CONSUMABLE_PRICES.shield;
     this.el.shopCards.appendChild(this.makeShopCard({
       icon: '🛡️', name: 'Schildzelle', desc: 'Erwirb 1 aktive Schildzelle. Aufladen per Tastendruck E.',
       price: shieldPrice, rarity: 'rare',
       disabled: me.coins < shieldPrice,
       onBuy: () => game.purchase('shield', null, shieldPrice),
     }));
-    const novacolaPrice = 22;
+    const novacolaPrice = CONSUMABLE_PRICES.novacola;
     this.el.shopCards.appendChild(this.makeShopCard({
       icon: '🥤', name: 'Novacola', desc: 'Gibt dir einen heftigen Speedboost für 8 Sek.',
       price: novacolaPrice, rarity: 'uncommon',
       disabled: me.coins < novacolaPrice,
       onBuy: () => game.purchase('novacola', null, novacolaPrice),
     }));
-    const armorPrice = 60;
+    const armorPrice = CONSUMABLE_PRICES.armor;
     this.el.shopCards.appendChild(this.makeShopCard({
       icon: '🦺', name: 'Rüstungsplatte', desc: 'Permanent +15 max. HP, sofort geheilt. Für diesen Run, mehrfach kaufbar.',
       price: armorPrice, rarity: 'epic',
@@ -350,28 +350,28 @@ class UI {
     }));
 
     this.el.shopCards.appendChild(this.shopSectionLabel('💥 Taktik'));
-    const ammoPrice = 27;
+    const ammoPrice = CONSUMABLE_PRICES.ammo;
     this.el.shopCards.appendChild(this.makeShopCard({
       icon: '📦', name: 'Munitionskiste', desc: 'Füllt die Munition aller freigeschalteten Waffen auf.',
       price: ammoPrice, rarity: 'common',
       disabled: me.coins < ammoPrice,
       onBuy: () => game.purchase('ammo', null, ammoPrice),
     }));
-    const grenadePrice = 40;
+    const grenadePrice = CONSUMABLE_PRICES.grenade;
     this.el.shopCards.appendChild(this.makeShopCard({
       icon: '💣', name: 'Handgranate', desc: 'Wirf sie mit Taste G. Flächenschaden am Zielpunkt.',
       price: grenadePrice, rarity: 'rare',
       disabled: me.coins < grenadePrice,
       onBuy: () => game.purchase('grenade', null, grenadePrice),
     }));
-    const smokePrice = 45;
+    const smokePrice = CONSUMABLE_PRICES.smoke;
     this.el.shopCards.appendChild(this.makeShopCard({
       icon: '💨', name: 'Rauchgranate', desc: 'Taste T: sofort unsichtbar für Gegner, 5s lang — überall, nicht nur im Busch.',
       price: smokePrice, rarity: 'rare',
       disabled: me.coins < smokePrice,
       onBuy: () => game.purchase('smoke', null, smokePrice),
     }));
-    const adrenalinePrice = 30;
+    const adrenalinePrice = CONSUMABLE_PRICES.adrenaline;
     this.el.shopCards.appendChild(this.makeShopCard({
       icon: '💉', name: 'Adrenalinschuss', desc: 'Taste H: lädt deine aktuelle Waffe sofort komplett nach, ohne Wartezeit.',
       price: adrenalinePrice, rarity: 'uncommon',

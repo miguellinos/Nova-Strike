@@ -243,11 +243,11 @@ class Boss {
     const tx = p.x, ty = p.y;
     game.particles.spawn(this.x, this.y, '#e8e8e8', { count: 6, minSpeed: 60, maxSpeed: 160, life: 0.3 });
     Audio2.shoot('cannon');
-    setTimeout(() => {
+    game.after(700, () => {
       game.particles.burst(tx, ty, '#ffffff', 30, 260);
       game.flashWhiteout = 1; // full-screen 1s whiteout, see Game.render()
       Audio2.explosion();
-    }, 700);
+    });
   }
 
   mortarStrike(game, p) {
@@ -256,7 +256,7 @@ class Boss {
       const tx = p.x + Utils.rand(-90, 90);
       const ty = p.y + Utils.rand(-90, 90);
       game.particles.spawn(tx, ty, '#ff5c33', { count: 3, minSpeed: 20, maxSpeed: 60, life: 0.8, size: 3 });
-      setTimeout(() => { if (!this.dead) game.explode(tx, ty, 70, this.dmg * 0.8, this); }, 750);
+      game.after(750, () => { if (!this.dead) game.explode(tx, ty, 70, this.dmg * 0.8, this); });
     }
   }
 
@@ -316,7 +316,7 @@ class Boss {
         const a = (k / n) * Math.PI * 2 + Utils.rand(-0.3, 0.3);
         const mx = this.x + Math.cos(a) * 90, my = this.y + Math.sin(a) * 90;
         game.particles.spawn(mx, my, '#b14dff', { count: 3, minSpeed: 20, maxSpeed: 50, life: 1.2, size: 3 });
-        setTimeout(() => { if (!this.dead) game.explode(mx, my, 55, this.dmg * 0.55, this); }, 900);
+        game.after(900, () => { if (!this.dead) game.explode(mx, my, 55, this.dmg * 0.55, this); });
       }
       Audio2.shoot('cannon');
     } else {
@@ -330,7 +330,7 @@ class Boss {
           const a = (k / n) * Math.PI * 2 + Utils.rand(-0.3, 0.3);
           const mx = this.x + Math.cos(a) * 90, my = this.y + Math.sin(a) * 90;
           game.particles.spawn(mx, my, '#b14dff', { count: 3, minSpeed: 20, maxSpeed: 50, life: 1.2, size: 3 });
-          setTimeout(() => { if (!this.dead) game.explode(mx, my, 55, this.dmg * 0.55, this); }, 900);
+          game.after(900, () => { if (!this.dead) game.explode(mx, my, 55, this.dmg * 0.55, this); });
         }
         Audio2.shoot('cannon');
       }

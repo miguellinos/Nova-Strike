@@ -32,6 +32,7 @@ const Profile = {
 
   select(profile) {
     this.current = profile;
+    Settings.reset(); // so a profile with no saved settings doesn't inherit the last one's
     Object.assign(Settings.data, profile.settings);
     Settings.save();
     fetch(`/api/profiles/${profile.id}/touch`, { method: 'POST' }).catch(() => {});

@@ -192,7 +192,7 @@ window.addEventListener('DOMContentLoaded', () => {
   Net.on('peer-left', () => {
     if (game.state === 'playing' || game.state === 'shop') {
       game.ui.toast('Verbindung zum Mitspieler verloren.');
-      game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu');
+      game.cancelDelayed(); game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu');
     }
   });
   Net.on('disconnected', () => { Net.peerConnected = false; });
@@ -223,10 +223,15 @@ window.addEventListener('DOMContentLoaded', () => {
       case 'lexicon-back':
         Menus.show(Menus.prev || 'main-menu');
         break;
-      case 'quit': Menus.show('main-menu'); game.ui.toast('Danke fürs Spielen! Du kannst den Tab schließen.'); break;
+      case 'quit':
+        // tear the run down like 'menu' does — otherwise the HUD stays drawn over
+        // the main menu and the abandoned run keeps ticking behind it
+        game.cancelDelayed(); game.state = 'menu'; game.ui.showHUD(false); Net.reset();
+        Menus.show('main-menu'); game.ui.toast('Danke fürs Spielen! Du kannst den Tab schließen.');
+        break;
       case 'resume': game.resume(); break;
       case 'restart': Net.reset(); game.newGame('solo', game.gameMode); Menus.hideAll(); break;
-      case 'menu': game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu'); break;
+      case 'menu': game.cancelDelayed(); game.state = 'menu'; game.ui.showHUD(false); Net.reset(); Menus.show('main-menu'); break;
       case 'shop-close': game.leaveShop(); break;
       case 'workbench-close': game.closeWorkbench(); break;
       case 'inventory-close': game.closeInventory(); break;

@@ -106,6 +106,21 @@ const WEAPON_UPGRADE_MAX = 3;
 // affordability principle as WEAPON_SHOP_ITEMS above.
 const WEAPON_UPGRADE_PRICES = [450, 900, 1600];
 
+// Consumable prices for the tactical shop. Kept here rather than inline in the
+// shop UI so the co-op host can price a guest's purchase itself instead of
+// trusting the price in the guest's packet.
+const CONSUMABLE_PRICES = {
+  bread: 9,
+  medkit: 36,
+  shield: 45,
+  novacola: 22,
+  armor: 60,
+  ammo: 27,
+  grenade: 40,
+  smoke: 45,
+  adrenaline: 30,
+};
+
 // Shop metadata (price/icon/description) for weapons purchasable at the workbench.
 // Ordered cheapest-first so the shop lists affordable early-game options up top.
 // Prices are x10 to match coins now being worth 10 each instead of 1 — same

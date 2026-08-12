@@ -17,8 +17,32 @@ class Game {
     this.interiorT = 0;
     this.hpMult = 1; this.dmgMult = 1;
     this.player2 = null;
+    this.runId = 0;      // bumped every newGame(); delayed callbacks are tagged with it
+    this._timers = new Set();
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  // Delayed gameplay effects (mortar shells, boss mines, the auto-next-wave timer)
+  // must not survive the run that scheduled them: a plain setTimeout would still
+  // fire after a restart or a quit to the menu, exploding on the *next* run's
+  // players or advancing its wave counter. Callbacks scheduled here are cancelled
+  // by cancelDelayed() and additionally tagged with the run they belong to, so one
+  // that already escaped the queue still becomes a no-op.
+  after(ms, fn) {
+    const runId = this.runId;
+    const id = setTimeout(() => {
+      this._timers.delete(id);
+      if (this.runId === runId) fn();
+    }, ms);
+    this._timers.add(id);
+    return id;
+  }
+
+  cancelDelayed() {
+    this.runId++;
+    for (const id of this._timers) clearTimeout(id);
+    this._timers.clear();
   }
 
   resize() {
@@ -86,6 +110,9 @@ class Game {
   // sends it to the guest (see main.js's 'start' handler) so both see the same
   // spot; solo/host without one falls back to picking their own.
   newGame(mode, gameMode, mapIndex, cheat, extractPos) {
+    // Drop anything still pending from the previous run before building the new
+    // one, so a leftover mortar shell or auto-next-wave timer can't fire into it.
+    this.cancelDelayed();
     this.mode = mode || 'solo';
     this.gameMode = gameMode || 'standard';
     // Random map for wave 1 (host/solo pick; guests get the synced index) — every
@@ -381,13 +408,13 @@ class Game {
     this.shopUpgradeIds = this.shopUpgrades.map((u) => u.id);
 
     // Briefly wait and start next wave automatically (after 4s)
-    setTimeout(() => {
+    this.after(4000, () => {
       if (this.state === 'playing' || this.state === 'upgrade' || this.state === 'shop') {
         this.state = 'playing';
         this.ui.showHUD(true);
         this.waves.startWave(this.waves.wave + 1);
       }
-    }, 4000);
+    });
   }
 
   // enter the per-client free-upgrade → shop flow (host and guest both call this)
@@ -424,6 +451,17 @@ class Game {
     if (this.mode === 'guest') Net.sendShopAction({ action: 'buy', kind, key, price });
     Audio2.buy();
     return true;
+  }
+
+  // Authoritative price for a shop item, or null if the kind/key isn't sellable.
+  // Used to charge a co-op guest the real price rather than the one it sent.
+  priceOf(kind, key) {
+    if (kind === 'weapon') {
+      const item = WEAPON_SHOP_ITEMS.find((w) => w.key === key);
+      return item ? item.price : null;
+    }
+    const price = CONSUMABLE_PRICES[kind];
+    return price === undefined ? null : price;
   }
 
   applyPurchase(p, kind, key) {
@@ -591,14 +629,20 @@ class Game {
   // host receives a guest workbench action and applies it to the guest's authoritative player
   onGuestWorkbenchAction(msg) {
     if (this.mode !== 'host' || !this.player2) return;
-    if (this.player2.coins < msg.price) return;
+    const p2 = this.player2;
     if (msg.action === 'buy-weapon') {
-      if (this.player2.weapons[msg.key] && this.player2.weapons[msg.key].unlocked) return;
-      this.player2.coins -= msg.price;
-      this.player2.unlock(msg.key);
+      if (p2.weapons[msg.key] && p2.weapons[msg.key].unlocked) return;
+      // priced here, not from msg.price — see priceOf()
+      const price = this.priceOf('weapon', msg.key);
+      if (price === null || p2.coins < price) return;
+      p2.coins -= price;
+      p2.unlock(msg.key);
     } else if (msg.action === 'upgrade-weapon') {
-      if (!this.player2.upgradeWeapon(msg.key)) return;
-      this.player2.coins -= msg.price;
+      const lvl = p2.weaponLevels[msg.key] || 0;
+      const price = WEAPON_UPGRADE_PRICES[lvl];
+      if (price === undefined || p2.coins < price) return;
+      if (!p2.upgradeWeapon(msg.key)) return;
+      p2.coins -= price;
     }
   }
 
@@ -623,14 +667,17 @@ class Game {
     if (this.mode !== 'host' || !this.player2) return;
     if (msg.action === 'upgrade') {
       const up = UPGRADES.find((u) => u.id === msg.id);
-      const cost = msg.cost || (up ? up.price * 10 : 0);
+      // price is derived here, never taken from the guest's packet — otherwise a
+      // crafted shop-action could buy upgrades for an arbitrary amount of score.
+      const cost = up ? up.price * 10 : Infinity;
       if (up && this.player2.score >= cost) {
         this.player2.score -= cost;
         up.apply(this.player2);
       }
     } else if (msg.action === 'buy') {
-      if (this.player2.coins >= msg.price) {
-        this.player2.coins -= msg.price;
+      const price = this.priceOf(msg.kind, msg.key);
+      if (price !== null && this.player2.coins >= price) {
+        this.player2.coins -= price;
         this.applyPurchase(this.player2, msg.kind, msg.key);
       }
     } else if (msg.action === 'use-item') {
@@ -2067,6 +2114,16 @@ class Game {
 
   sendCoinsFromAtm(amount) {
     const me = this.localPlayer;
+    if (!Number.isInteger(amount) || amount <= 0) {
+      this.ui.toast('Ungültiger Betrag!');
+      return;
+    }
+    // Without a teammate there is nobody to transfer to — the coins would simply
+    // be deducted and disappear.
+    if (this.mode === 'solo' || !this.player2) {
+      this.ui.toast('Kein Mitspieler zum Überweisen!');
+      return;
+    }
     if (me.coins < amount) {
       this.ui.toast("Nicht genügend Münzen!");
       return;
@@ -2095,6 +2152,8 @@ class Game {
   onGuestAtmAction(msg) {
     if (msg.action === 'send-coins') {
       const amount = msg.amount;
+      // a negative or fractional amount would let the guest drain the host instead
+      if (!Number.isInteger(amount) || amount <= 0) return;
       // Host receives coins from guest (player 2)
       if (this.player2 && this.player2.coins >= amount) {
         this.player2.coins -= amount;

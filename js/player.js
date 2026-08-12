@@ -599,10 +599,10 @@ class Player {
 
     const owner = this;
     const dmg = 55 * this.mods.damage;
-    setTimeout(() => {
+    game.after(550, () => {
       game.particles.spawn(tx, ty, '#ffaa00', { count: 8, minSpeed: 40, maxSpeed: 110, life: 0.35, size: 3 });
       game.explode(tx, ty, 90, dmg, owner);
-    }, 550);
+    });
     return true;
   }
 

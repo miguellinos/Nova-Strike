@@ -331,10 +331,10 @@ class Enemy {
           const flightTime = 850;
           game.particles.spawn(this.x, this.y, '#8a8a4a', { count: 5, angle: angleToP, spread: 0.3, minSpeed: 60, maxSpeed: 140, life: 0.2 });
           Audio2.shoot('cannon');
-          setTimeout(() => {
+          game.after(flightTime, () => {
             game.particles.spawn(tx, ty, '#ffaa00', { count: 6, minSpeed: 30, maxSpeed: 90, life: 0.3, size: 3 });
             game.explodeEnemyProj(tx, ty, this.def.blastRadius, this.dmg);
-          }, flightTime);
+          });
         }
       }
       else if (this.type === 'shieldtrooper') {
