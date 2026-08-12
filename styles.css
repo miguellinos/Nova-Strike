@@ -88,7 +88,8 @@
   --fs-xl:  20px;
   --fs-2xl: 26px;
   --fs-3xl: 34px;
-  --fs-hero:60px;
+  /* sized so the "NOVASTRIKE" wordmark still fits inside a 440px menu panel */
+  --fs-hero:50px;
 
   /* --- Spacing (8px grid, with 4px half-step) --- */
   --s-1: 4px;
@@ -114,6 +115,16 @@
   --shadow-lg: 0 14px 34px rgba(0,0,0,0.44), 0 4px 10px rgba(0,0,0,0.30);
   --shadow-xl: 0 28px 64px rgba(0,0,0,0.55), 0 10px 24px rgba(0,0,0,0.38);
   --ring: 0 0 0 3px rgba(74, 222, 128, 0.35);
+
+  /* --- On-canvas text ---
+     Some HUD text (wave label, ammo, weapon name, wave banner) sits directly on
+     the game canvas, which is always dark whatever the UI theme is. These tokens
+     are deliberately NOT overridden by the light theme below — using --text there
+     renders near-black on black and makes the HUD unreadable. */
+  --on-canvas:        #e9f2ec;
+  --on-canvas-dim:    rgba(233, 242, 236, 0.72);
+  --on-canvas-accent: #6ee7a0;
+  --on-canvas-shadow: 0 1px 4px rgba(0,0,0,0.9);
 
   /* --- Motion --- */
   --ease:        cubic-bezier(0.22, 1, 0.36, 1);
@@ -280,7 +291,7 @@ html, body {
   max-width: min(92vw, 440px);
   text-align: center;
   box-shadow: var(--shadow-xl);
-  max-height: 90vh; overflow-y: auto;
+  max-height: 90vh; overflow: hidden auto;
   animation: panelIn var(--dur-3) var(--ease);
 }
 /* subtle top highlight line — the “premium bezel” */
@@ -676,15 +687,15 @@ select#cheat-map:focus-visible, select#coop-game-mode:focus-visible { box-shadow
 #coins-chip b { color: var(--amber); }
 
 #hud-top-center { position: absolute; top: var(--s-4); left: 50%; transform: translateX(-50%); text-align: center; }
-#wave-label { font-size: var(--fs-2xl); font-weight: 800; letter-spacing: 2px; color: var(--text); text-shadow: 0 0 20px var(--accent-glow); }
-#enemies-left { color: var(--text-dim); font-size: var(--fs-sm); margin-top: 2px; }
+#wave-label { font-size: var(--fs-2xl); font-weight: 800; letter-spacing: 2px; color: var(--on-canvas); text-shadow: var(--on-canvas-shadow), 0 0 20px var(--accent-glow); }
+#enemies-left { color: var(--on-canvas-dim); font-size: var(--fs-sm); margin-top: 2px; text-shadow: var(--on-canvas-shadow); }
 
 #hud-top-right { position: absolute; top: var(--s-4); right: var(--s-4); text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-#weapon-name { color: var(--accent-bright); font-size: var(--fs-md); font-weight: 700; }
-#ammo-text { font-size: var(--fs-xl); font-weight: 800; font-variant-numeric: tabular-nums; }
+#weapon-name { color: var(--on-canvas-accent); font-size: var(--fs-md); font-weight: 700; text-shadow: var(--on-canvas-shadow); }
+#ammo-text { font-size: var(--fs-xl); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--on-canvas); text-shadow: var(--on-canvas-shadow); }
 .reload-wrap { width: 168px; height: 6px; }
 #reload-bar { width: 0%; background: var(--accent); }
-.dash-wrap { display: flex; align-items: center; gap: var(--s-2); justify-content: flex-end; margin-top: 2px; font-size: var(--fs-xs); color: var(--text-dim); letter-spacing: 1px; }
+.dash-wrap { display: flex; align-items: center; gap: var(--s-2); justify-content: flex-end; margin-top: 2px; font-size: var(--fs-xs); color: var(--on-canvas-dim); letter-spacing: 1px; text-shadow: var(--on-canvas-shadow); }
 .dash-bar-bg { width: 120px; height: 8px; }
 #dash-bar { width: 100%; background: linear-gradient(90deg, var(--accent), var(--violet)); }
 
@@ -696,8 +707,8 @@ select#cheat-map:focus-visible, select#coop-game-mode:focus-visible { box-shadow
 /* ======================= 12. BANNERS & PROMPTS ======================== */
 #wave-banner {
   position: absolute; top: 38%; left: 50%; transform: translate(-50%,-50%);
-  font-size: var(--fs-hero); font-weight: 800; letter-spacing: 2px; color: var(--text);
-  text-shadow: 0 0 40px var(--accent-glow); text-align: center;
+  font-size: var(--fs-hero); font-weight: 800; letter-spacing: 2px; color: var(--on-canvas);
+  text-shadow: var(--on-canvas-shadow), 0 0 40px var(--accent-glow); text-align: center;
   animation: bannerIn var(--dur-3) var(--ease);
 }
 @keyframes bannerIn {
