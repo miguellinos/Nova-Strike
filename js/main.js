@@ -168,6 +168,13 @@ window.addEventListener('DOMContentLoaded', () => {
     coop.joinReadyWrap.classList.remove('hidden');
   });
   Net.on('join-error', (msg) => {
+    // 'room-busy' is the one rejection aimed at a would-be host, so it belongs on
+    // the host screen — the join screen isn't even visible to them.
+    if (msg.reason === 'room-busy') {
+      coop.hostStatus.textContent = 'Auf diesem Server läuft schon eine Runde.';
+      coop.hostStatus.classList.remove('hidden');
+      return;
+    }
     coop.joinStatus.textContent = msg.reason === 'bad-code' ? 'Falscher Code.' : 'Kein Raum gefunden.';
   });
   Net.on('ready-changed', () => {

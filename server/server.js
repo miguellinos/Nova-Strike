@@ -129,8 +129,17 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
+    // `null`, numbers and arrays all parse fine — reading .type off them would
+    // throw inside this handler and take the whole server down with it.
+    if (typeof msg !== 'object' || msg === null || Array.isArray(msg)) return;
 
     if (msg.type === 'host') {
+      // one room per server: don't let a second client claim it and silently
+      // drop the pair that is already playing
+      if (room.host && room.host !== ws && room.host.readyState === WebSocket.OPEN) {
+        send(ws, { type: 'join-error', reason: 'room-busy' });
+        return;
+      }
       room.host = ws;
       room.guest = null;
       ws.role = 'host';
